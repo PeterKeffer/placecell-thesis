@@ -9,25 +9,30 @@ import yaml
 
 
 def register(app: typer.Typer) -> None:
-    from placecell_research.launch import cli
-
     @app.command("downstream-rollout")
     def downstream_rollout_command(
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
-        downstream_config = cli.load_downstream_run_config(
-            config, cli._normalize_overrides(override)
+        from placecell_research.config import (
+            load_downstream_run_config,
+            validate_downstream_run_config,
         )
-        cli.validate_downstream_run_config(downstream_config)
-        session = cli.initialize_downstream_session(
+        from placecell_research.downstream.rollout import run_downstream_rollout
+        from placecell_research.downstream.session import initialize_downstream_session
+
+        downstream_config = load_downstream_run_config(
+            config, override or []
+        )
+        validate_downstream_run_config(downstream_config)
+        session = initialize_downstream_session(
             config_path=config,
             config_name=downstream_config.name,
             tracking=downstream_config.tracking,
             stage_name="downstream_rollout",
-            overrides=cli._normalize_overrides(override),
+            overrides=override or [],
         )
-        summary = cli.run_downstream_rollout(
+        summary = run_downstream_rollout(
             repo_root=session.repo_root,
             config=downstream_config,
             output_dir=session.run_directory.results_dir / "downstream_rollout",
@@ -61,25 +66,33 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
-        downstream_config = cli.load_downstream_run_config(
-            config, cli._normalize_overrides(override)
+        from placecell_research.config import (
+            load_downstream_run_config,
+            validate_downstream_run_config,
         )
-        cli.validate_downstream_run_config(downstream_config)
-        session = cli.initialize_downstream_session(
+        from placecell_research.downstream.session import initialize_downstream_session
+        from placecell_research.downstream.train import train_downstream_agent
+        from placecell_research.tracking import managed_stage_run, stage_tags
+
+        downstream_config = load_downstream_run_config(
+            config, override or []
+        )
+        validate_downstream_run_config(downstream_config)
+        session = initialize_downstream_session(
             config_path=config,
             config_name=downstream_config.name,
             tracking=downstream_config.tracking,
             stage_name="downstream_train",
-            overrides=cli._normalize_overrides(override),
+            overrides=override or [],
         )
         output_dir = session.run_directory.results_dir / "downstream_train"
         try:
-            with cli.managed_stage_run(
+            with managed_stage_run(
                 config=downstream_config,
                 run_directory=session.run_directory,
                 stage_name="downstream_train",
                 run_name=f"{downstream_config.tracking.variant_name}__{session.run_directory.identity.run_id}",
-                tags=cli.stage_tags(
+                tags=stage_tags(
                     "downstream_train",
                     downstream_config.environment.env_id,
                     base_tags=downstream_config.tracking.tags,
@@ -98,7 +111,7 @@ def register(app: typer.Typer) -> None:
                 stage_run.define_metric(
                     "train_episode/*", step_metric="train_episode/completed_episodes"
                 )
-                result = cli.train_downstream_agent(
+                result = train_downstream_agent(
                     repo_root=session.repo_root,
                     config=downstream_config,
                     output_dir=output_dir,

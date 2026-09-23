@@ -11,8 +11,6 @@ REMOTE_OPTION_HELP = "Defaults come from the user file (pc doctor prints its pat
 
 
 def register(app: typer.Typer) -> None:
-    from placecell_research.launch import cli
-
     @app.command("submit")
     def submit_command(
         config: Path = typer.Option(..., "--config", "-c"),
@@ -46,10 +44,12 @@ def register(app: typer.Typer) -> None:
         ),
     ) -> None:
         """Write a hardened SLURM script for one command and submit it with sbatch."""
+        from placecell_research.launch.submit import submit_cli_entrypoint
+
         typer.echo(
-            cli.submit_cli_entrypoint(
+            submit_cli_entrypoint(
                 config,
-                cli._normalize_overrides(override),
+                override or [],
                 entrypoint=entrypoint,
                 force_recompute=force_recompute,
                 slurm_dependency=slurm_dependency,
@@ -101,11 +101,11 @@ def register(app: typer.Typer) -> None:
             remote_repo_root=remote_repo_root,
             remote_setup=remote_setup,
             remote_python=remote_python,
-            ssh_options=cli._normalize_overrides(ssh_option),
+            ssh_options=ssh_option or [],
         )
         result = run_remote_slurm_job(
             config,
-            cli._normalize_overrides(override),
+            override or [],
             settings,
             entrypoint=entrypoint,
             sync_repo=sync_repo,
@@ -155,7 +155,7 @@ def register(app: typer.Typer) -> None:
         settings = resolve_remote_settings(
             remote_host=remote_host,
             remote_repo_root=remote_repo_root,
-            ssh_options=cli._normalize_overrides(ssh_option),
+            ssh_options=ssh_option or [],
         )
         selected = job_id
         if selected is None:
@@ -193,13 +193,13 @@ def register(app: typer.Typer) -> None:
         settings = resolve_remote_settings(
             remote_host=remote_host,
             remote_repo_root=remote_repo_root,
-            ssh_options=cli._normalize_overrides(ssh_option),
+            ssh_options=ssh_option or [],
         )
         output = sync_repo_to_remote(
             local_repo_root=find_repo_root_from_path(Path.cwd()),
             settings=settings,
             delete=delete,
-            extra_excludes=cli._normalize_overrides(exclude),
+            extra_excludes=exclude or [],
             progress_callback=typer.echo,
         )
         if output:

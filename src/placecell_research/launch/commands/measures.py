@@ -8,8 +8,6 @@ import typer
 
 
 def register(app: typer.Typer) -> None:
-    from placecell_research.launch import cli
-
     @app.command("measures")
     def measures_command(
         config: Path = typer.Option(..., "--config", "-c"),
@@ -23,7 +21,7 @@ def register(app: typer.Typer) -> None:
         """Thesis measures of the model in reuse.place_model_artifact_id (id or tag:<name>)."""
         from placecell_research.measures.run import measure_model
 
-        path = measure_model(config, cli._normalize_overrides(override), include_inputs=inputs)
+        path = measure_model(config, override or [], include_inputs=inputs)
         typer.echo(str(path))
 
     @app.command("summarize")
