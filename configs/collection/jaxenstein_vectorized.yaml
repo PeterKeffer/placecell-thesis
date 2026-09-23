@@ -1,0 +1,13 @@
+episodes: 512
+episode_length: 512
+policy: ou_smoothed_random
+action_probabilities: {}
+save_rgb: true
+save_topdown: false
+spawn_regions: []
+vectorized: true
+num_parallel_envs: 512
+safety:
+  multiprocessing_start_method: spawn
+  num_workers: 1
+  isolate_cuda_miniworld: false

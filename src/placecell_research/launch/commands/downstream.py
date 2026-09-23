@@ -1,0 +1,154 @@
+"""Downstream RL commands for the pc CLI."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import typer
+import yaml
+
+
+def register(app: typer.Typer) -> None:
+    from placecell_research.launch import cli
+
+    @app.command("downstream-rollout")
+    def downstream_rollout_command(
+        config: Path = typer.Option(..., "--config", "-c"),
+        override: list[str] | None = typer.Option(None, "--override", "-o"),
+    ) -> None:
+        downstream_config = cli.load_downstream_run_config(
+            config, cli._normalize_overrides(override)
+        )
+        cli.validate_downstream_run_config(downstream_config)
+        session = cli.initialize_downstream_session(
+            config_path=config,
+            config_name=downstream_config.name,
+            tracking=downstream_config.tracking,
+            stage_name="downstream_rollout",
+            overrides=cli._normalize_overrides(override),
+        )
+        summary = cli.run_downstream_rollout(
+            repo_root=session.repo_root,
+            config=downstream_config,
+            output_dir=session.run_directory.results_dir / "downstream_rollout",
+        )
+        session.run_directory.update_run_manifest(
+            {
+                "status": "completed",
+                "summary": {
+                    "episodes": summary.episodes,
+                    "mean_return": summary.mean_return,
+                    "success_rate": summary.success_rate,
+                    "mean_steps": summary.mean_steps,
+                },
+            }
+        )
+        typer.echo(
+            yaml.safe_dump(
+                {
+                    "episodes": summary.episodes,
+                    "mean_return": summary.mean_return,
+                    "success_rate": summary.success_rate,
+                    "mean_steps": summary.mean_steps,
+                    "run_directory": str(session.run_directory.path),
+                },
+                sort_keys=False,
+            )
+        )
+
+    @app.command("downstream-train")
+    def downstream_train_command(
+        config: Path = typer.Option(..., "--config", "-c"),
+        override: list[str] | None = typer.Option(None, "--override", "-o"),
+    ) -> None:
+        downstream_config = cli.load_downstream_run_config(
+            config, cli._normalize_overrides(override)
+        )
+        cli.validate_downstream_run_config(downstream_config)
+        session = cli.initialize_downstream_session(
+            config_path=config,
+            config_name=downstream_config.name,
+            tracking=downstream_config.tracking,
+            stage_name="downstream_train",
+            overrides=cli._normalize_overrides(override),
+        )
+        output_dir = session.run_directory.results_dir / "downstream_train"
+        try:
+            with cli.managed_stage_run(
+                config=downstream_config,
+                run_directory=session.run_directory,
+                stage_name="downstream_train",
+                run_name=f"{downstream_config.tracking.variant_name}__{session.run_directory.identity.run_id}",
+                tags=cli.stage_tags(
+                    "downstream_train",
+                    downstream_config.environment.env_id,
+                    base_tags=downstream_config.tracking.tags,
+                    study_name=downstream_config.tracking.study_name,
+                    variant_name=downstream_config.tracking.variant_name,
+                    variant_slug=session.run_directory.identity.variant_slug,
+                    seed=downstream_config.seed,
+                ),
+            ) as stage_run:
+                stage_run.define_metric("trainer/step")
+                stage_run.define_metric("eval/*", step_metric="trainer/step")
+                stage_run.define_metric("eval_stochastic/*", step_metric="trainer/step")
+                stage_run.define_metric("eval_curriculum/*", step_metric="trainer/step")
+                stage_run.define_metric("curriculum/phase_index", step_metric="trainer/step")
+                stage_run.define_metric("train_episode/completed_episodes")
+                stage_run.define_metric(
+                    "train_episode/*", step_metric="train_episode/completed_episodes"
+                )
+                result = cli.train_downstream_agent(
+                    repo_root=session.repo_root,
+                    config=downstream_config,
+                    output_dir=output_dir,
+                    metric_logger=lambda payload, step: stage_run.log(payload, step=step),
+                )
+                manifest_summary = {
+                    "mean_return": result.final_metrics["mean_return"],
+                    "success_rate": result.final_metrics["success_rate"],
+                    "mean_time_to_goal": result.final_metrics["mean_time_to_goal"],
+                    "metrics_path": str(result.metrics_path),
+                }
+                session.run_directory.update_run_manifest(
+                    {
+                        "status": result.status,
+                        "summary": manifest_summary,
+                    }
+                )
+                stage_run.finalize(
+                    status=result.status,
+                    summary=manifest_summary,
+                    upload_files=[
+                        result.metrics_path,
+                        output_dir / "used_hyperparameters.yaml",
+                        *([] if result.final_model_path is None else [result.final_model_path]),
+                        *([] if result.best_model_path is None else [result.best_model_path]),
+                        *(
+                            []
+                            if result.interrupted_model_path is None
+                            else [result.interrupted_model_path]
+                        ),
+                    ],
+                )
+        except Exception as exc:
+            session.run_directory.update_run_manifest(
+                {
+                    "status": "failed",
+                    "summary": {"error": str(exc)},
+                }
+            )
+            raise
+        typer.echo(
+            yaml.safe_dump(
+                {
+                    "status": result.status,
+                    "mean_return": result.final_metrics["mean_return"],
+                    "success_rate": result.final_metrics["success_rate"],
+                    "mean_time_to_goal": result.final_metrics["mean_time_to_goal"],
+                    "metrics_path": str(result.metrics_path),
+                    "run_directory": str(session.run_directory.path),
+                },
+                sort_keys=False,
+            )
+        )

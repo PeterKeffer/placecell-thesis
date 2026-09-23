@@ -1,0 +1,6 @@
+kind: jaxenstein
+env_id: museum-gallery
+episode_length: 512
+env_kwargs:
+  terminate_on_goal: false
+randomize_agent_start: true

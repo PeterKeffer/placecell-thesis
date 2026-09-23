@@ -1,0 +1,54 @@
+defaults:
+  - jaxenstein_museum_place_offline
+
+name: smoke_jaxenstein
+
+policies:
+  artifact_reuse: force_recompute
+
+environment:
+  episode_length: 256
+
+collection:
+  episodes: 16
+  episode_length: 256
+  num_parallel_envs: 16
+
+splits:
+  train_fraction: 0.5
+  validation_fraction: 0.25
+  test_fraction: 0.25
+  constraints:
+    minimum_episodes_per_split: 1
+
+vision:
+  epochs: 1
+  batch_size: 16
+
+spatial_model:
+  encoder:
+    layer_sizes: [32]
+  predictor:
+    layer_sizes: [32]
+  training:
+    code_dim: 64
+    epochs: 1
+    batch_size: 2
+    num_workers: 0
+
+evaluation:
+  eval_every_n_epochs: 1
+  nonlinear_decode_enabled: false
+
+analysis:
+  decode_nonlinear_enabled: false
+  num_bins_x: 16
+  num_bins_y: 16
+  rate_map_panel_top_k: 8
+  rate_map_grid_top_k: 8
+
+tracking:
+  artifact_root: smoke/artifacts
+  run_root: smoke/runs
+  study_name: smoke
+  variant_name: smoke_jaxenstein

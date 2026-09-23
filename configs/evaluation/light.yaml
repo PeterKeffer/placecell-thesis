@@ -1,0 +1,27 @@
+online_decode_source: encoder.place_codes
+model_artifact_id: ""
+dataset_artifact_id: ""
+split_artifact_id: ""
+split_name: validation
+split_names: [train, validation, test]
+sources:
+  - encoder.place_codes
+batch_size: 32
+max_eval_episodes: 0
+device: auto
+decode_train_fraction: 0.8
+decode_ridge_alpha: 1.0e-3
+decode_include_shuffle: false
+nonlinear_decode_enabled: true
+nonlinear_decode_hidden_sizes: [128, 128]
+nonlinear_decode_max_epochs: 200
+nonlinear_decode_batch_size: 1024
+nonlinear_decode_max_train_samples: 65536
+nonlinear_decode_max_validation_samples: 16384
+nonlinear_decode_random_seed: 0
+compute_spatial_info: false
+spatial_info_top_k: 8
+compute_gridness: false
+gridness_threshold: 0.37
+history_ablation:
+  enabled: false

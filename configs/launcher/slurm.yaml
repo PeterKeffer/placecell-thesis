@@ -1,0 +1,15 @@
+type: slurm
+partition: gpu
+exclude_nodes: []
+gpus: 1
+gpu_type: null
+time_hours: 48
+memory_gb: 200
+cpus_per_task: 16
+env_setup: ""
+stream_logs: true
+threading_safety:
+  omp_num_threads: 1
+  mkl_num_threads: 1
+  openblas_num_threads: 1
+  torch_num_threads: 1

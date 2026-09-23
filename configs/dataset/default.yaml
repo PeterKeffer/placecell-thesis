@@ -1,0 +1,5 @@
+artifact_id: ""
+artifact_type: raw_dataset
+canonicality_policy: rgb_canonical
+keep_rgb: false
+keep_latent: true

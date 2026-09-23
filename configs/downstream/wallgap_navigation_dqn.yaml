@@ -1,0 +1,84 @@
+name: wallgap_navigation_dqn
+seed: 7
+
+environment:
+  kind: miniworld
+  env_id: MiniWorld-WallGapAsymLarge-v0
+  episode_length: 1024
+  env_kwargs:
+    spawn_regions: [all]
+    render_goal_object: false
+    reward_on_goal: true
+    terminate_on_goal: true
+  randomize_agent_start: true
+
+models:
+  place_model_artifact_id: ""
+  place_model_checkpoint: best_primary
+  vision_encoder_artifact_id: ""
+  place_representation_source: encoder.place_codes
+
+goal_task:
+  candidate_positions_xy:
+    - [0.0, 18.0]
+  schedule: fixed
+  change_interval_episodes: 1
+  initial_goal_index: 0
+  rbf_sigma: 1.5
+
+observation:
+  mode: feature_vector
+  feature_sources: [place_codes_l2, goal_xy_scaled, heading_sin_cos]
+  normalize_concatenated_features: false
+  include_current_position_xy: false
+
+training:
+  algorithm: dqn
+  total_timesteps: 400000
+  learning_rate: 0.0001
+  batch_size: 256
+  gamma: 0.997
+  max_grad_norm: 0.5
+  policy_hidden_sizes: [512, 512, 256]
+  cnn_features_dim: 0
+  n_envs: 6
+  device: cpu
+  buffer_size: 100000
+  learning_starts: 10000
+  train_freq: 4
+  train_freq_unit: step
+  gradient_steps: auto_default_utd
+  target_update_interval: 3000
+  exploration_fraction: 0.5
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.1
+  replay_buffer_type: nstep
+  n_step_returns: 3
+  log_interval: 20
+  stats_window_size: 100
+  progress_bar: false
+  checkpoint_freq: 1000000
+  eval_freq: 0
+  eval_episodes: 0
+  final_eval_episodes: 30
+  final_eval_stochastic: false
+
+preview:
+  enabled: false
+  every_n_episodes: 20
+  episodes_per_preview: 1
+  max_steps_per_episode: 1024
+  deterministic_policy: true
+  gif_frame_duration: 0.12
+  save_rgb_gif: false
+  save_ae_reconstruction_gif: false
+  save_trajectory_summary: false
+
+tracking:
+  use_wandb: false
+  wandb_mode: offline
+  run_root: runs
+  artifact_root: artifacts
+  study_name: downstream
+  variant_name: wallgap_navigation_dqn
+  tags: [downstream, dqn]

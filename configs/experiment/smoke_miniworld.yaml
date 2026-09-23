@@ -1,0 +1,216 @@
+defaults:
+  - {environment: miniworld_wallgap_asym_large}
+  - {collection: default}
+  - {dataset: default}
+  - {splits: episode_random}
+  - {vision: autoencoder_64}
+  - {spatial_model: lstm_gru_kwinners_submit_stream}
+  - {evaluation: light}
+  - {analysis: light}
+  - {tracking: local}
+  - {launcher: local}
+
+name: smoke_miniworld
+seed:
+  global_seed: 7
+  collection_seed: 7
+  split_seed: 7
+  training_seed: 7
+policies:
+  artifact_reuse: force_recompute
+  training_resume: fresh
+reuse:
+  vision_encoder_artifact_id: ""
+  place_model_artifact_id: ""
+collection:
+  episodes: 4
+  episode_length: 32
+dataset:
+  keep_rgb: true
+splits:
+  train_fraction: 0.5
+  validation_fraction: 0.25
+  test_fraction: 0.25
+  constraints:
+    minimum_episodes_per_split: 1
+spatial_model:
+  encoder:
+    layer_sizes: [32]
+  predictor:
+    layer_sizes: [32]
+  training:
+    code_dim: 64
+    epochs: 2
+    batch_size: 2
+    num_workers: 0
+tracking:
+  artifact_root: smoke/artifacts
+  run_root: smoke/runs
+  study_name: smoke
+  variant_name: smoke_miniworld
+vision:
+  epochs: 1
+  batch_size: 8
+evaluation:
+  split_name: validation
+  sources:
+    - encoder.place_codes
+    - predictor.place_codes
+    - encoder.hidden_state
+    - predictor.hidden_state
+analysis:
+  split_name: validation
+  num_bins_x: 32
+  num_bins_y: 32
+  reliability_threshold_fraction: 0.2
+  place_field_threshold_fraction: 0.2
+  rate_map_panel_top_k: 32
+  rate_map_panel_show_all_units: false
+  rate_map_grid_top_k: 32
+  rate_map_grid_show_all_units: false
+  rate_map_shared_color_scale: false
+  rate_map_colormap_mode: reds
+  example_episode_index: -1
+  example_episode_random_seed: null
+  example_episode_top_k: 0
+  umap_max_points: 2048
+  umap_n_neighbors: 20
+  umap_min_dist: 0.1
+  umap_metric: euclidean
+  umap_random_seed: 42
+  umap_pool_mode: spatial_bins
+  umap_pool_num_bins_x: 16
+  umap_pool_num_bins_y: 16
+  umap_pool_min_count: 2
+  umap_trustworthiness_neighbors: 10
+  max_cost_tier: standard
+  targets:
+    encoder_place_cells:
+      source: encoder.place_codes
+      enabled: true
+      modules:
+        - dataset_coverage
+        - rate_map_fields
+        - rate_map_reliability
+        - rate_map_bin_consistency
+        - rate_map_split_half
+        - rate_map_episode_correlation
+        - rate_map_coding_purity
+        - rate_map_panel
+        - rate_map_grid
+        - rate_map_extra_reliability_panels
+        - population_coverage
+        - field_stability_metrics
+        - field_stability_summary
+        - field_stability_trajectories
+        - spatial_info
+        - sparsity
+        - redundancy_metrics
+        - decode_xy
+        - topology_umap_steps
+        - topology_umap_pooled
+        - effective_dimensionality
+        - confounds
+        - place_field_detection
+        - place_field_overlay
+    predictor_place_cells:
+      source: predictor.place_codes
+      enabled: true
+      modules:
+        - rate_map_fields
+        - rate_map_reliability
+        - rate_map_bin_consistency
+        - rate_map_split_half
+        - rate_map_episode_correlation
+        - rate_map_coding_purity
+        - rate_map_panel
+        - rate_map_grid
+        - rate_map_extra_reliability_panels
+        - population_coverage
+        - field_stability_metrics
+        - field_stability_summary
+        - field_stability_trajectories
+        - spatial_info
+        - sparsity
+        - redundancy_metrics
+        - decode_xy
+        - topology_umap_steps
+        - topology_umap_pooled
+        - confounds
+        - place_field_detection
+    encoder_pre_sparsifier:
+      source: encoder.pre_sparsifier
+      enabled: true
+      modules:
+        - rate_map_fields
+        - rate_map_reliability
+        - rate_map_bin_consistency
+        - rate_map_split_half
+        - rate_map_episode_correlation
+        - rate_map_coding_purity
+        - rate_map_panel
+        - rate_map_grid
+        - gridness
+        - spatial_info
+        - directionality
+        - sparsity
+        - redundancy_metrics
+        - decode_xy
+        - confounds
+    encoder_hidden_state:
+      source: encoder.hidden_state
+      enabled: true
+      modules:
+        - rate_map_fields
+        - rate_map_reliability
+        - rate_map_bin_consistency
+        - rate_map_split_half
+        - rate_map_episode_correlation
+        - rate_map_coding_purity
+        - rate_map_panel
+        - rate_map_grid
+        - rate_map_extra_reliability_panels
+        - spatial_info
+        - sparsity
+        - redundancy_metrics
+        - decode_xy
+        - confounds
+    predictor_hidden_state:
+      source: predictor.hidden_state
+      enabled: true
+      modules:
+        - rate_map_fields
+        - rate_map_reliability
+        - rate_map_bin_consistency
+        - rate_map_split_half
+        - rate_map_episode_correlation
+        - rate_map_coding_purity
+        - rate_map_panel
+        - rate_map_grid
+        - rate_map_extra_reliability_panels
+        - spatial_info
+        - sparsity
+        - redundancy_metrics
+        - decode_xy
+        - confounds
+  comparative:
+    combined_example_episode:
+      module: combined_episode_dynamics
+      enabled: true
+      example_episode_index: -1
+      example_episode_random_seed: null
+      example_episode_top_k: 0
+      inputs:
+        - {label: encoder_place_cells, source: encoder.place_codes}
+        - {label: predictor_place_cells, source: predictor.place_codes}
+        - {label: encoder_hidden_state, source: encoder.hidden_state}
+        - {label: predictor_hidden_state, source: predictor.hidden_state}
+pipeline:
+  stages:
+    - collect_dataset
+    - create_split
+    - train_vision_encoder
+    - encode_dataset
+    - train_place_model
+    - evaluate_model
+    - analyze_model

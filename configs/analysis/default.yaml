@@ -1,0 +1,127 @@
+num_bins_x: 60
+num_bins_y: 60
+max_eval_episodes: 0
+smoothing_sigma: 0.3
+min_occupancy: 0.000001
+per_episode_num_bins_x: 20
+per_episode_num_bins_y: 20
+per_episode_smoothing_sigma: 1.5
+per_episode_min_occupancy: 0.000001
+per_episode_minimum_visited_fraction: 0.05
+per_episode_minimum_valid_steps: 200
+field_stability_top_k: 6
+reliability_threshold_fraction: 0.2
+reliability_threshold_quantile: 0.95
+reliability_use_absolute_activations: false
+place_field_threshold_fraction: 0.2
+place_metric_negative_tolerance: 1.0e-8
+place_metric_max_negative_bin_fraction: 0.01
+place_metric_max_negative_peak_fraction: 0.05
+per_bin_cv_min_episodes: 3
+bin_consistency_active_bin_peak_fraction: 0.05
+bin_consistency_active_episode_threshold_fraction: 0.5
+split_half_agreement_min_episodes_per_half: 2
+rate_map_panel_reliability_metric: quantile_thresholded_reliability
+rate_map_panel_emit_thresholded_reliability_figure: true
+rate_map_panel_emit_quantile_thresholded_reliability_figure: true
+rate_map_panel_top_k: 128
+rate_map_panel_show_all_units: false
+rate_map_grid_top_k: 128
+rate_map_grid_show_all_units: false
+rate_map_shared_color_scale: false
+rate_map_colormap_mode: reds
+rate_map_panel_metric_fill_sigma_bins: 1.0
+selectivity_position_centers_x: 8
+selectivity_position_centers_y: 8
+selectivity_position_rbf_width_scale: 1.25
+selectivity_heading_harmonics: 2
+selectivity_ridge_alpha: 0.01
+selectivity_train_fraction: 0.8
+selectivity_split_seed: 0
+selectivity_min_r2: 0.02
+selectivity_mixed_dominance: 0.6
+selectivity_max_samples: 150000
+selectivity_visual_pca_components: 64
+spatial_code_min_r2: 0.02
+spatial_code_sufficiency_threshold: 0.8
+cognitive_map_render_rdm: true
+decode_bias_min_samples_per_bin: 8
+decode_max_samples: 0
+decode_random_seed: 0
+decode_nonlinear_enabled: true
+decode_nonlinear_hidden_sizes: [128, 128]
+decode_nonlinear_max_epochs: 200
+decode_nonlinear_batch_size: 1024
+decode_nonlinear_max_train_samples: 65536
+decode_nonlinear_max_validation_samples: 16384
+decode_nonlinear_random_seed: 0
+redundancy_max_samples: 4096
+redundancy_random_seed: 0
+example_episode_index: -1
+example_episode_random_seed: null
+example_episode_top_k: 0
+place_field_overlay_active_threshold: 0.0
+place_field_overlay_blend_mode: max
+place_field_overlay_max_cells: 20
+place_field_overlay_max_frames: 240
+place_field_overlay_kwinners_k_fraction: null
+place_field_overlay_frame_duration: 0.5
+umap_max_points: 4096
+umap_n_neighbors: 25
+umap_min_dist: 0.1
+umap_metric: euclidean
+umap_random_seed: 42
+umap_pool_mode: spatial_bins
+umap_pool_num_bins_x: 20
+umap_pool_num_bins_y: 20
+umap_pool_min_count: 2
+umap_trustworthiness_neighbors: 15
+umap_transition_min_count: 2
+umap_transition_metric: correlation
+umap_transition_physical_match_caliper: 0.25
+manifold_max_points: 4096
+manifold_pool_num_bins_x: 20
+manifold_pool_num_bins_y: 20
+manifold_pool_min_count: 2
+manifold_metric: cosine
+manifold_trustworthiness_neighbors: 15
+manifold_random_seed: 42
+isomap_n_neighbors: 10
+neighborhood_preservation_neighbors: 15
+neighborhood_preservation_max_points: 4096
+neighborhood_preservation_pool_num_bins_x: 20
+neighborhood_preservation_pool_num_bins_y: 20
+neighborhood_preservation_pool_min_count: 2
+neighborhood_preservation_random_seed: 0
+transition_geometry_num_bins_x: 24
+transition_geometry_num_bins_y: 24
+transition_geometry_num_modes: 6
+transition_geometry_alignment_top_k: 16
+transition_geometry_include_self_transitions: false
+dataset_coverage_extra_splits: [train, validation, test]
+max_cost_tier: standard
+targets:
+  encoder_place_cells:
+    source: encoder.place_codes
+    enabled: true
+    modules: [dataset_coverage, rate_map_fields, rate_map_reliability, rate_map_bin_consistency, rate_map_split_half, rate_map_episode_correlation, rate_map_coding_purity, rate_map_panel, rate_map_grid, rate_map_extra_reliability_panels, population_coverage, field_stability_metrics, field_stability_summary, field_stability_trajectories, spatial_info, directionality, selectivity_partition, spatial_code_type, head_direction_tuning, sparsity, redundancy_metrics, decode_xy, topology_umap_steps, topology_umap_pooled, topology_mds_pooled, topology_isomap_pooled, neighborhood_preservation, effective_dimensionality, cognitive_map_geometry, transition_geometry_graph, transition_geometry_alignment, transition_geometry_panel, place_field_overlay, heading_rate_map_overlay, per_episode_rate_maps]
+  encoder_pre_sparsifier:
+    source: encoder.pre_sparsifier
+    enabled: true
+    modules: [rate_map_fields, rate_map_reliability, rate_map_bin_consistency, rate_map_split_half, rate_map_episode_correlation, rate_map_coding_purity, rate_map_panel, rate_map_grid, gridness, population_coverage, field_stability_metrics, field_stability_summary, field_stability_trajectories, spatial_info, directionality, selectivity_partition, spatial_code_type, head_direction_tuning, sparsity, redundancy_metrics, decode_xy, neighborhood_preservation]
+  predictor_place_cells:
+    source: predictor.place_codes
+    enabled: true
+    modules: [place_field_overlay, per_episode_rate_maps]
+comparative:
+  combined_example_episode:
+    module: combined_episode_dynamics
+    enabled: true
+    example_episode_index: -1
+    example_episode_random_seed: null
+    example_episode_top_k: 0
+    inputs:
+      - {label: encoder_place_cells, source: encoder.place_codes}
+      - {label: predictor_place_cells, source: predictor.place_codes}
+      - {label: encoder_hidden_state, source: encoder.hidden_state}
+      - {label: predictor_hidden_state, source: predictor.hidden_state}

@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "placecell-research"
+version = "0.1.0"
+description = "Place-cell-like codes from self-supervised prediction in simulated navigation"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Peter Keffer"}]
+dependencies = [
+  "einops>=0.7",
+  "gymnasium",
+  "imageio>=2.27",
+  "matplotlib>=3.8,<3.10",
+  "miniworld",
+  "numcodecs>=0.12.0",
+  "numpy>=1.26,<2",
+  "pydantic>=2,<3",
+  "pyyaml",
+  "rich>=13",
+  "scikit-learn>=1.3,<1.7",
+  "scipy>=1.11,<1.16",
+  "torch",
+  "typer>=0.12",
+  "umap-learn",
+  "zarr>=2.16,<3",
+]
+
+[project.optional-dependencies]
+rl = ["stable-baselines3>=2.3.2"]
+jax = [
+  "jax>=0.6.2",
+  "jaxenstein @ git+https://github.com/taodav/jaxenstein.git@6da5ee8370113be2db597be3ff5bc5ea1c99454c",
+]
+wandb = ["wandb"]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+pc = "placecell_research.launch.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/placecell_research/launch/commands/*.py" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["artifacts", "runs", "smoke"]
