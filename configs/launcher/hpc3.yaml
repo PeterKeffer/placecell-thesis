@@ -1,0 +1,49 @@
+type: slurm
+partition: klab-gpu
+account: ""
+qos: ""
+constraint: ""
+exclude_nodes:
+  - klab-7
+gpus: 1
+gpu_type: H100.80gb
+mig_gpu_types:
+  - H100.10gb
+time_hours: 48
+memory_gb: 200
+cpus_per_task: 16
+env_setup: ""
+site_env_script: site/hpc3.sh
+exports: {}
+stream_logs: true
+threading_safety:
+  omp_num_threads: 1
+  mkl_num_threads: 1
+  openblas_num_threads: 1
+  torch_num_threads: 1
+max_concurrent_gpu_jobs: 2
+max_concurrent_cpu_jobs: 7
+job_resources:
+  representations:
+    cpus_per_task: 4
+    memory_gb: 64
+    time_hours: 4
+  measures:
+    partition: klab-cpu
+    exclude_nodes: []
+    gpus: 0
+    cpus_per_task: 8
+    memory_gb: 64
+    time_hours: 24
+    omp_num_threads: 4
+  navigation:
+    cpus_per_task: 8
+    memory_gb: 32
+    time_hours: 24
+  summary:
+    partition: klab-cpu
+    exclude_nodes: []
+    gpus: 0
+    cpus_per_task: 2
+    memory_gb: 8
+    time_hours: 2

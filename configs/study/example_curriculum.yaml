@@ -1,0 +1,42 @@
+name: example_curriculum
+curriculum:
+  name: example_curriculum
+  base_experiment: smoke_jaxenstein
+  sources:
+    random_start:
+      environment:
+        env_kwargs:
+          uniform_spawn: false
+    uniform_spawn:
+      environment:
+        env_kwargs:
+          uniform_spawn: true
+  vision_encoder:
+    train_on:
+      - dataset: random_start
+      - dataset: uniform_spawn
+  encoding:
+    encode_each:
+      - source: random_start
+        alias: encoded_random_start
+      - source: uniform_spawn
+        alias: encoded_uniform_spawn
+  phases:
+    - name: random_start
+      dataset: encoded_random_start
+      epochs: 1
+      resume_policy: fresh
+    - name: uniform_spawn
+      dataset: encoded_uniform_spawn
+      epochs: 1
+      resume_from: previous
+      resume_policy: weights_only
+      analyze_after:
+        datasets: [encoded_random_start, encoded_uniform_spawn]
+        modules: [decode_xy]
+tracking:
+  use_wandb: false
+  run_root: smoke/runs
+  artifact_root: smoke/artifacts
+  study_name: example_curriculum
+  variant_name: curriculum

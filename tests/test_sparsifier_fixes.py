@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from placecell_research.config.schema import SpatialModelConfig
+from placecell_research.config.schema import SpatialModelConfig, TemporalFamilyConfig
 from placecell_research.spatial_model.builder import ModelBuildContext, build_place_model
 from placecell_research.spatial_model.components.sparsifiers import (
     GroupedKWinnersSparsifier,
@@ -171,6 +171,20 @@ def _predictor_diagnostic_config() -> SpatialModelConfig:
 
 def test_fused_predictor_publishes_its_sparsifier_diagnostics() -> None:
     model = build_place_model(_predictor_diagnostic_config(), _context())
+    model.train()
+    bundle = model.forward_sequence(_batch())
+    assert "kwinners.balance_bias_mean_abs" in bundle.modules["predictor"].auxiliary
+
+
+def test_stepwise_predictor_publishes_its_sparsifier_diagnostics() -> None:
+    config = _predictor_diagnostic_config()
+    config.predictor = TemporalFamilyConfig(
+        family="clockwork",
+        layer_sizes=[CODE_DIM],
+        clockwork_periods=[1, 2],
+    )
+    config.inputs.predictor_input_mode = "encoder"
+    model = build_place_model(config, _context())
     model.train()
     bundle = model.forward_sequence(_batch())
     assert "kwinners.balance_bias_mean_abs" in bundle.modules["predictor"].auxiliary

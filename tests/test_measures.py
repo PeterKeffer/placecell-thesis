@@ -118,6 +118,24 @@ def test_traversal_measures_score_a_unit_that_fires_on_every_pass():
     assert summary["traversal_response_median"] == 1.0
 
 
+def test_traversal_shift_null_is_identical_in_chunks():
+    position, heading = random_walk(6, 200)
+    codes = place_codes(position)
+    valid = np.ones(codes.shape[:2], dtype=bool)
+    valid[2, 150:] = False
+    unchunked = traversal_measures(
+        codes, position, heading, valid, env_id="", shifts=11, shift_chunk_size=11
+    )
+    assert np.isfinite(unchunked["null_mean"]).any()
+    for chunk_size in (1, 4):
+        chunked = traversal_measures(
+            codes, position, heading, valid, env_id="", shifts=11, shift_chunk_size=chunk_size
+        )
+        assert chunked.keys() == unchunked.keys()
+        for key, value in unchunked.items():
+            np.testing.assert_array_equal(chunked[key], value)
+
+
 def test_summarize_reports_mean_and_sample_sd(tmp_path):
     paths = []
     for seed, value in ((42, 1.0), (1, 3.0)):

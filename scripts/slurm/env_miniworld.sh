@@ -23,13 +23,26 @@ if [[ "${PLACECELL_REQUESTED_GPUS:-0}" -gt 0 ]]; then
   EGL_LINK_DIR="${PLACECELL_TMP_ROOT}/egl_link"
   mkdir -p "${EGL_LINK_DIR}"
   ln -sf "${PLACECELL_EGL_LIBRARY}" "${EGL_LINK_DIR}/libEGL.so"
-  export LD_LIBRARY_PATH="${EGL_LINK_DIR}:$(dirname "${PLACECELL_EGL_LIBRARY}")${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+  _placecell_library_path="${EGL_LINK_DIR}:$(dirname "${PLACECELL_EGL_LIBRARY}")"
+  if [[ -n "${PLACECELL_EXTRA_LIBRARY_PATH:-}" ]]; then
+    _placecell_library_path="${_placecell_library_path}:${PLACECELL_EXTRA_LIBRARY_PATH}"
+  fi
+  export LD_LIBRARY_PATH="${_placecell_library_path}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 else
   if [[ -z "${PLACECELL_MESA_PREFIX:-}" || ! -d "${PLACECELL_MESA_PREFIX}/lib/dri" ]]; then
     echo "[placecell_research] ERROR: a CPU MiniWorld job needs software Mesa; set PLACECELL_MESA_PREFIX" >&2
     exit 1
   fi
-  export __EGL_VENDOR_LIBRARY_FILENAMES="${PLACECELL_MESA_PREFIX}/share/glvnd/egl_vendor.d/50_mesa.json"
+  PLACECELL_MESA_VENDOR_FILE="${PLACECELL_MESA_PREFIX}/share/glvnd/egl_vendor.d/50_mesa.json"
+  if [[ ! -f "${PLACECELL_MESA_VENDOR_FILE}" ]]; then
+    echo "[placecell_research] ERROR: software Mesa EGL vendor file missing: ${PLACECELL_MESA_VENDOR_FILE}" >&2
+    exit 1
+  fi
+  if [[ ! -w /dev/shm ]]; then
+    echo "[placecell_research] ERROR: /dev/shm is not writable for XDG_RUNTIME_DIR" >&2
+    exit 1
+  fi
+  export __EGL_VENDOR_LIBRARY_FILENAMES="${PLACECELL_MESA_VENDOR_FILE}"
   export LIBGL_DRIVERS_PATH="${PLACECELL_MESA_PREFIX}/lib/dri"
   export LD_LIBRARY_PATH="${PLACECELL_MESA_PREFIX}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
   export LP_NUM_THREADS=1
@@ -39,8 +52,20 @@ else
   chmod 700 "${XDG_RUNTIME_DIR}"
 fi
 
-python -c "import miniworld" || {
-  echo "[placecell_research] ERROR: miniworld is not importable in this environment" >&2
-  exit 1
-}
+python - <<'PY'
+import importlib.util
+from pathlib import Path
+
+spec = importlib.util.find_spec("miniworld")
+if spec is None:
+    raise SystemExit("[placecell_research] ERROR: MiniWorld is not installed in this environment")
+package_paths = list(spec.submodule_search_locations or [])
+package_path = Path(package_paths[0]) if package_paths else Path(spec.origin).parent
+textures = package_path / "textures"
+brick_textures = list(textures.glob("brick_wall*")) if textures.exists() else []
+if not brick_textures:
+    raise SystemExit(f"[placecell_research] ERROR: MiniWorld textures missing: {textures}")
+print(f"[placecell_research] MiniWorld textures OK: {textures} ({len(brick_textures)} brick_wall*)")
+PY
 echo "[placecell_research] MiniWorld environment ready (PYOPENGL_PLATFORM=${PYOPENGL_PLATFORM})"
+echo "[placecell_research] LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"

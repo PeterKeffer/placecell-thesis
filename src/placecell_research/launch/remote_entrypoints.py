@@ -10,9 +10,13 @@ from typing import Any
 from placecell_research.config import (
     load_downstream_run_config,
     load_experiment_config,
+    load_study_config,
     validate_downstream_run_config,
     validate_experiment_config,
+    validate_study_config,
 )
+
+from .user_settings import user_launcher_overrides
 
 ConfigLoader = Callable[[Path, list[str]], Any]
 ConfigValidator = Callable[[Any], list[str]]
@@ -40,12 +44,14 @@ def default_remote_launcher_overrides(overrides: list[str]) -> list[str]:
 
 
 def default_launcher_overrides(overrides: list[str], launcher_profile: str) -> list[str]:
-    if any(
-        override.startswith("launcher=") or override.startswith("launcher.type=")
-        for override in overrides
+    """Profile first, then the user's launcher values, then the explicit overrides."""
+    profile_selection = [override for override in overrides if override.startswith("launcher=")]
+    remaining = [override for override in overrides if not override.startswith("launcher=")]
+    if not profile_selection and not any(
+        override.startswith("launcher.type=") for override in overrides
     ):
-        return list(overrides)
-    return [f"launcher={launcher_profile}", *overrides]
+        profile_selection = [f"launcher={launcher_profile}"]
+    return [*profile_selection, *user_launcher_overrides(), *remaining]
 
 
 def _identity_overrides(overrides: list[str]) -> list[str]:
@@ -55,6 +61,12 @@ def _identity_overrides(overrides: list[str]) -> list[str]:
 def _load_validated_experiment_config(config_path: Path, overrides: list[str]) -> Any:
     config = load_experiment_config(config_path, overrides)
     validate_experiment_config(config)
+    return config
+
+
+def _load_validated_study_config(config_path: Path, overrides: list[str]) -> Any:
+    config = load_study_config(config_path, overrides)
+    validate_study_config(config)
     return config
 
 
@@ -116,6 +128,18 @@ REMOTE_CLI_ENTRYPOINTS: dict[str, RemoteCliEntrypoint] = {
         validate_config=validate_experiment_config,
         normalize_remote_overrides=default_remote_launcher_overrides,
     ),
+    "sweep": RemoteCliEntrypoint(
+        cli_command="sweep",
+        load_config=_load_validated_study_config,
+        validate_config=validate_study_config,
+        normalize_remote_overrides=default_remote_launcher_overrides,
+    ),
+    "curriculum": RemoteCliEntrypoint(
+        cli_command="curriculum",
+        load_config=_load_validated_study_config,
+        validate_config=validate_study_config,
+        normalize_remote_overrides=default_remote_launcher_overrides,
+    ),
     "downstream-rollout": RemoteCliEntrypoint(
         cli_command="downstream-rollout",
         load_config=_load_validated_downstream_run_config,
@@ -135,6 +159,8 @@ def _infer_remote_cli_entrypoint(config_path: Path) -> str:
     normalized_parts = {part.lower() for part in config_path.parts}
     if "downstream" in normalized_parts:
         return "downstream-train"
+    if "study" in normalized_parts:
+        return "sweep"
     return "pipeline"
 
 

@@ -34,7 +34,8 @@ def register(app: typer.Typer) -> None:
         dataset: str | None = typer.Option(
             None,
             "--dataset",
-            help="Use this dataset artifact for downstream stages. Tags are accepted as tag:...",
+            help="Use this dataset artifact for downstream stages (tag:... or auto for the "
+            "finished data chain that matches this config).",
         ),
         dataset_type: str | None = typer.Option(
             None,
@@ -175,7 +176,8 @@ def register(app: typer.Typer) -> None:
         dataset: str | None = typer.Option(
             None,
             "--dataset",
-            help="Use this dataset artifact for place-model training. Tags are accepted as tag:...",
+            help="Use this dataset artifact for place-model training (tag:... or auto for the "
+            "finished data chain that matches this config).",
         ),
         dataset_type: str | None = typer.Option(
             None,

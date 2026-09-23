@@ -28,19 +28,36 @@ def register(app: typer.Typer) -> None:
 
     @app.command("summarize")
     def summarize_command(
-        tables: list[Path] = typer.Argument(..., help="CSV files written by pc measures."),
+        tables: list[Path] = typer.Argument(
+            ..., help="CSV files written by pc measures, or a folder of them."
+        ),
         output: Path = typer.Option(..., "--output", help="CSV of mean and SD per condition."),
     ) -> None:
         """Mean and sample SD of every measure over the runs of each condition."""
         from placecell_research.measures.table import summarize, write_rows
 
-        rows = summarize([path for path in tables if not path.name.endswith("_units.csv")])
+        files = [
+            file
+            for path in tables
+            for file in (sorted(path.glob("*.csv")) if path.is_dir() else [path])
+        ]
+        rows = summarize(
+            [
+                path
+                for path in files
+                if not path.name.endswith("_units.csv") and path.resolve() != output.resolve()
+            ]
+        )
         write_rows(output, rows)
         typer.echo(f"{len(rows)} conditions -> {output}")
 
     @app.command("navigation-measures")
     def navigation_measures_command(
-        runs: list[Path] = typer.Argument(..., help="Run directories of pc downstream-train."),
+        runs: list[Path] = typer.Argument(
+            ...,
+            help="Run directories of pc downstream-train, or a folder of runs (then the newest "
+            "finished run of each config and seed).",
+        ),
         output: Path = typer.Option(..., "--output", help="CSV with one row per policy."),
         epsilon: float = typer.Option(
             0.0,
@@ -49,9 +66,9 @@ def register(app: typer.Typer) -> None:
         ),
     ) -> None:
         """Success, looping failures and learning speed of trained navigation policies."""
-        from placecell_research.measures.navigation import navigation_rows
+        from placecell_research.measures.navigation import expand_navigation_runs, navigation_rows
         from placecell_research.measures.table import write_rows
 
-        rows = navigation_rows(runs, epsilon=epsilon)
+        rows = navigation_rows(expand_navigation_runs(runs), epsilon=epsilon)
         write_rows(output, rows)
         typer.echo(f"{len(rows)} policies -> {output}")

@@ -11,6 +11,7 @@ __all__ = [
     "encode_dataset",
     "evaluate_model",
     "pipeline",
+    "run_study",
     "train_place_model",
     "train_vision_encoder",
 ]

@@ -272,6 +272,24 @@ def _inject_automatic_reuse_overrides(
         _append_handoff_override(active_overrides, "vision.artifact_id", vision.artifact_id)
 
 
+def find_reusable_data_overrides(config_path: Path, overrides: list[str]) -> list[str]:
+    """Dataset, split and vision overrides of the finished data chain matching this config."""
+    config_path = config_path.resolve()
+    probe_overrides = [*overrides, "policies.artifact_reuse=reuse_if_config_match"]
+    config = load_experiment_config(config_path, probe_overrides)
+    registry = ArtifactRegistry(find_repo_root(config_path) / config.tracking.artifact_root)
+    resolved = list(probe_overrides)
+    _inject_automatic_reuse_overrides(
+        config_path=config_path, active_overrides=resolved, registry=registry
+    )
+    found = resolved[len(probe_overrides) :]
+    if not any(override.startswith("dataset.artifact_id=") for override in found):
+        raise ValueError(
+            f"No finished dataset matches {config_path.name}; run its data stages first."
+        )
+    return found
+
+
 def _resolve_pinned_dataset_artifact_type(
     *,
     config_path: Path,

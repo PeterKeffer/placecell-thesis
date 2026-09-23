@@ -8,24 +8,38 @@ from tempfile import TemporaryDirectory
 from time import perf_counter
 from typing import Any
 
+from .band_score import BandScoreModule
 from .base import AnalysisInput, AnalysisResult
+from .border_score import BorderScoreModule
+from .code_timescale import CodeTimescaleModule
 from .cognitive_map_geometry import CognitiveMapGeometryModule
 from .combined_episode_dynamics import CombinedEpisodeDynamicsModule
+from .conformal_isometry import ConformalIsometryModule
 from .confounds import ConfoundsModule
 from .dataset_coverage import DatasetCoverageModule
+from .decode_convergence import DecodeConvergenceModule
+from .decode_extrapolation import DecodeExtrapolationModule
+from .decode_region import DecodeRegionModule
+from .decode_structural_room import DecodeStructuralRoomModule
 from .decode_xy import DecodeXYModule
 from .directionality import DirectionalityModule
 from .effective_dimensionality import EffectiveDimensionalityModule
+from .eigenmode_morphology import EigenmodeMorphologyModule
 from .episode_dynamics import EpisodeDynamicsModule
+from .excess_stability import ExcessStabilityModule
 from .field_stability import (
     FieldStabilityMetricsModule,
     FieldStabilitySummaryModule,
     FieldStabilityTrajectoriesModule,
 )
+from .fourier_ring import FourierRingModule
 from .gridness import GridnessModule
 from .head_direction_tuning import HeadDirectionTuningModule
 from .heading_rate_map_overlay import HeadingRateMapOverlayModule
+from .landmark_visibility_error import LandmarkVisibilityErrorModule
+from .manifold_topology import ManifoldTopologyModule
 from .neighborhood_preservation import NeighborhoodPreservationModule
+from .per_episode_gridness import PerEpisodeGridnessModule
 from .per_episode_rate_maps import PerEpisodeRateMapsModule
 from .place_field_detection import PlaceFieldDetectionModule
 from .place_field_overlay import PlaceFieldOverlayModule
@@ -44,9 +58,14 @@ from .rate_maps import (
 )
 from .reanchoring_gridness import ReanchoringGridnessModule
 from .redundancy_metrics import RedundancyMetricsModule
+from .remapping import RemappingComparisonModule
+from .representation_drift import RepresentationDriftModule
 from .selectivity import SelectivityPartitionModule, SpatialCodeTypeModule
 from .sparsity_metrics import SparsityModule
+from .spatial_code_dynamics import SpatialCodeDynamicsModule
 from .spatial_info import SpatialInfoModule
+from .sr_oracle import SuccessorOracleComparisonModule
+from .successor_return import SuccessorReturnComparisonModule
 from .timing import log_timing, log_timing_line, with_deferred_module_timing_logs
 from .topology_umap import (
     TopologyIsomapPooledModule,
@@ -59,6 +78,8 @@ from .transition_geometry import (
     TransitionGeometryGraphModule,
     TransitionGeometryPanelModule,
 )
+from .uncertainty_signature import UncertaintySignatureModule
+from .vector_cell_score import BoundaryVectorScoreModule, ObjectVectorScoreModule
 from .within_heading_reliability import WithinHeadingReliabilityModule
 
 ANALYSIS_MODULES = {
@@ -79,16 +100,25 @@ ANALYSIS_MODULES = {
     "field_stability_trajectories": FieldStabilityTrajectoriesModule,
     "redundancy_metrics": RedundancyMetricsModule,
     "spatial_info": SpatialInfoModule,
+    "spatial_code_dynamics": SpatialCodeDynamicsModule,
     "directionality": DirectionalityModule,
     "selectivity_partition": SelectivityPartitionModule,
     "spatial_code_type": SpatialCodeTypeModule,
     "head_direction_tuning": HeadDirectionTuningModule,
     "heading_rate_map_overlay": HeadingRateMapOverlayModule,
     "gridness": GridnessModule,
+    "per_episode_gridness": PerEpisodeGridnessModule,
     "per_episode_rate_maps": PerEpisodeRateMapsModule,
     "reanchoring_gridness": ReanchoringGridnessModule,
     "sparsity": SparsityModule,
+    "code_timescale": CodeTimescaleModule,
+    "excess_stability": ExcessStabilityModule,
     "decode_xy": DecodeXYModule,
+    "decode_convergence": DecodeConvergenceModule,
+    "uncertainty_signature": UncertaintySignatureModule,
+    "landmark_visibility_error": LandmarkVisibilityErrorModule,
+    "decode_region": DecodeRegionModule,
+    "decode_structural_room": DecodeStructuralRoomModule,
     "probing": ProbingModule,
     "topology_umap_steps": TopologyUMAPStepsModule,
     "topology_umap_pooled": TopologyUMAPPooledModule,
@@ -98,16 +128,29 @@ ANALYSIS_MODULES = {
     "transition_geometry_graph": TransitionGeometryGraphModule,
     "transition_geometry_alignment": TransitionGeometryAlignmentModule,
     "transition_geometry_panel": TransitionGeometryPanelModule,
+    "eigenmode_morphology": EigenmodeMorphologyModule,
     "cognitive_map_geometry": CognitiveMapGeometryModule,
     "confounds": ConfoundsModule,
     "place_field_detection": PlaceFieldDetectionModule,
     "episode_dynamics": EpisodeDynamicsModule,
     "place_field_overlay": PlaceFieldOverlayModule,
+    "band_score": BandScoreModule,
+    "border_score": BorderScoreModule,
+    "boundary_vector_score": BoundaryVectorScoreModule,
+    "object_vector_score": ObjectVectorScoreModule,
     "effective_dimensionality": EffectiveDimensionalityModule,
+    "conformal_isometry": ConformalIsometryModule,
+    "decode_extrapolation": DecodeExtrapolationModule,
+    "manifold_topology": ManifoldTopologyModule,
+    "fourier_ring": FourierRingModule,
 }
 
 COMPARATIVE_MODULES = {
+    "remapping_comparison": RemappingComparisonModule,
+    "representation_drift": RepresentationDriftModule,
     "combined_episode_dynamics": CombinedEpisodeDynamicsModule,
+    "sr_oracle": SuccessorOracleComparisonModule,
+    "successor_return": SuccessorReturnComparisonModule,
 }
 
 _COST_ORDER = {"light": 0, "standard": 1, "heavy": 2}
@@ -115,6 +158,7 @@ _MODULE_TIMING_METADATA_KEYS = (
     "rate_map_timing_seconds",
     "decode_timing_seconds",
     "field_stability_timing_seconds",
+    "per_episode_gridness_timing_seconds",
     "redundancy_timing_seconds",
     "topology_umap_timing_seconds",
     "topology_manifold_timing_seconds",

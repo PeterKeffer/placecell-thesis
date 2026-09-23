@@ -32,7 +32,9 @@ from .components.sparsifiers import (
 )
 from .components.teacher import EncoderStack, PostHeadRMSNorm, TeacherStudentController
 from .components.temporal.capabilities import temporal_backend_capabilities
+from .components.temporal.clockwork import ClockworkTemporal
 from .components.temporal.mlp import MLPTemporal
+from .components.temporal.mtrnn import MTRNNTemporal
 from .components.temporal.recurrent import (
     GRUSequenceTemporal,
     LSTMSequenceTemporal,
@@ -74,6 +76,27 @@ BackboneBuilder = Callable[[TemporalFamilyConfig, int], nn.Module]
 TemporalBuilder = Callable[[TemporalFamilyConfig, int], nn.Module]
 SparsifierBuilder = Callable[[object, int, int], nn.Module]
 ModelArchitectureBuilder = Callable[[SpatialModelConfig, ModelBuildContext], nn.Module]
+
+
+def _validate_grouped_single_layer(
+    layer_sizes: list[int],
+    group_count: int,
+    family: str,
+    component_name: str,
+) -> None:
+    """Single-layer + width-divisibility guard for the grouped multi-timescale cores."""
+    if len(layer_sizes) != 1:
+        raise ValueError(
+            f"spatial_model.{component_name}.layer_sizes must be single-layer "
+            f"when family='{family}'; "
+            f"got {layer_sizes}."
+        )
+    hidden_size = int(layer_sizes[-1])
+    if group_count > 0 and hidden_size % group_count != 0:
+        raise ValueError(
+            f"spatial_model.{component_name}.layer_sizes width {hidden_size} must be divisible "
+            f"by the {family} group count {group_count}."
+        )
 
 
 def validate_component_compatibility(
@@ -162,6 +185,34 @@ def validate_component_compatibility(
     if config.inverse_dynamics.enabled and build_context.kinematics_dim <= 0:
         raise ValueError(
             "spatial_model.inverse_dynamics.enabled requires dataset kinematics_dim > 0."
+        )
+    if config.encoder.family == "clockwork":
+        _validate_grouped_single_layer(
+            config.encoder.layer_sizes,
+            len(config.encoder.clockwork_periods),
+            "clockwork",
+            "encoder",
+        )
+    if config.encoder.family == "mtrnn":
+        _validate_grouped_single_layer(
+            config.encoder.layer_sizes,
+            len(config.encoder.mtrnn_time_constants),
+            "mtrnn",
+            "encoder",
+        )
+    if config.predictor.family == "clockwork":
+        _validate_grouped_single_layer(
+            config.predictor.layer_sizes,
+            len(config.predictor.clockwork_periods),
+            "clockwork",
+            "predictor",
+        )
+    if config.predictor.family == "mtrnn":
+        _validate_grouped_single_layer(
+            config.predictor.layer_sizes,
+            len(config.predictor.mtrnn_time_constants),
+            "mtrnn",
+            "predictor",
         )
     predictor_capabilities = temporal_backend_capabilities(
         config.predictor.family, config.predictor.fla_variant
@@ -339,6 +390,18 @@ RECURRENT_TEMPORAL_BUILDERS: dict[str, TemporalBuilder] = {
         adaptive_state_gate_initial_open_probability=(
             config.adaptive_state_gate_initial_open_probability
         ),
+    ),
+    "clockwork": lambda config, input_dim: ClockworkTemporal(
+        input_dim,
+        config.layer_sizes,
+        dropout=config.dropout,
+        clock_periods=config.clockwork_periods,
+    ),
+    "mtrnn": lambda config, input_dim: MTRNNTemporal(
+        input_dim,
+        config.layer_sizes,
+        dropout=config.dropout,
+        time_constants=config.mtrnn_time_constants,
     ),
 }
 

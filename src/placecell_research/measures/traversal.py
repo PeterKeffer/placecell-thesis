@@ -17,6 +17,7 @@ PEAK_QUANTILE = 0.995
 MIN_TRAVERSALS = 5
 SECTORS = 8
 SEED = 0
+SHIFT_CHUNK = 32
 
 
 def episode_spans(episode_ids: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -57,6 +58,36 @@ def hits_per_traversal(active: np.ndarray, start_indices: np.ndarray) -> np.ndar
     return np.logical_or.reduceat(active, start_indices)
 
 
+def shifted_hit_rates(
+    field_masks: np.ndarray,
+    strong_all: np.ndarray,
+    spatial_bins: np.ndarray,
+    segment_start: np.ndarray,
+    units: list[int],
+    starts: np.ndarray,
+    lengths: np.ndarray,
+    shifts: int,
+    chunk_size: int,
+) -> np.ndarray:
+    """Hit rate of every unit under each circular shift, drawing chunk_size shifts at a time."""
+    rng = np.random.default_rng(SEED)
+    rates = np.full((field_masks.shape[0], shifts), np.nan, dtype=np.float32)
+    for chunk_start in range(0, shifts, chunk_size):
+        chunk = [
+            shifted_index(starts, lengths, rng)
+            for _ in range(min(chunk_size, shifts - chunk_start))
+        ]
+        for unit in units:
+            in_field = field_masks[unit][spatial_bins]
+            start_indices, _ = traversal_table(in_field, segment_start)
+            strong = strong_all[:, unit]
+            for offset, index in enumerate(chunk):
+                rates[unit, chunk_start + offset] = hits_per_traversal(
+                    in_field & strong[index], start_indices
+                ).mean()
+    return rates
+
+
 def traversal_measures(
     codes: np.ndarray,
     position_xy: np.ndarray,
@@ -65,6 +96,7 @@ def traversal_measures(
     *,
     env_id: str,
     shifts: int,
+    shift_chunk_size: int = SHIFT_CHUNK,
 ) -> dict[str, np.ndarray]:
     """Per-unit traversal response, core response, heading sectors and shift null."""
     num_units = codes.shape[-1]
@@ -116,8 +148,7 @@ def traversal_measures(
     )
     strong_all = (flat >= (HIT_THRESHOLD * peaks)[None, :]) & (flat > 0)
     starts, lengths = episode_spans(episode_ids)
-    rng = np.random.default_rng(SEED)
-    shift_indices = [shifted_index(starts, lengths, rng) for _ in range(shifts)]
+    scored_units: list[int] = []
 
     sector_width = 2.0 * np.pi / SECTORS
     out = {
@@ -172,12 +203,22 @@ def traversal_measures(
             best = int(np.argmax(rates))
             out["preferred_sector"][unit] = best
             out["directional_heldout"][unit] = held_out_hits[best] / held_out_total[best]
-        if shifts > 0:
-            null_rates = np.empty(shifts, dtype=np.float32)
-            for k, index in enumerate(shift_indices):
-                null_rates[k] = hits_per_traversal(in_field & strong[index], start_indices).mean()
-            out["null_mean"][unit] = null_rates.mean()
-            out["null_p"][unit] = (1 + int((null_rates >= out["hit_strong"][unit]).sum())) / (
+        scored_units.append(unit)
+    if shifts > 0:
+        null_rates = shifted_hit_rates(
+            field_masks,
+            strong_all,
+            spatial_bins,
+            segment_start,
+            scored_units,
+            starts,
+            lengths,
+            shifts,
+            max(1, int(shift_chunk_size)),
+        )
+        for unit in scored_units:
+            out["null_mean"][unit] = null_rates[unit].mean()
+            out["null_p"][unit] = (1 + int((null_rates[unit] >= out["hit_strong"][unit]).sum())) / (
                 1 + shifts
             )
     preferred = out["preferred_sector"]

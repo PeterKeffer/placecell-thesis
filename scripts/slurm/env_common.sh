@@ -1,10 +1,21 @@
 set -euo pipefail
 
+if [[ -n "${PLACECELL_TMP_ROOT:-}" ]]; then
+  return 0
+fi
+
 _placecell_pick_tmp_root() {
   local candidate="${SLURM_TMPDIR:-}"
   if [[ -n "${candidate}" && -w "${candidate}" ]]; then
-    echo "${candidate}"
-    return
+    local avail_kb
+    local avail_inodes
+    avail_kb="$(df -Pk "${candidate}" 2>/dev/null | awk 'NR==2 {print $4}')"
+    avail_inodes="$(df -Pi "${candidate}" 2>/dev/null | awk 'NR==2 {print $4}')"
+    if [[ -n "${avail_kb}" && -n "${avail_inodes}" && "${avail_kb}" -ge 1048576 && "${avail_inodes}" -ge 1024 ]]; then
+      echo "${candidate}"
+      return
+    fi
+    echo "[placecell_research] SLURM_TMPDIR=${candidate} is too full (free_kb=${avail_kb:-unknown}, free_inodes=${avail_inodes:-unknown}); using runs/tmp" >&2
   fi
   echo "${PWD}/runs/tmp"
 }
@@ -23,6 +34,7 @@ done
 if [[ -n "${PLACECELL_TMP_LINK}" ]]; then
   export TMPDIR="${PLACECELL_TMP_LINK}"
 else
+  echo "[placecell_research] WARNING: no writable short dir for the AF_UNIX link; using ${PLACECELL_TMP_ROOT}" >&2
   export TMPDIR="${PLACECELL_TMP_ROOT}"
 fi
 export TMP="${TMPDIR}"
@@ -50,8 +62,7 @@ export MPLCONFIGDIR="${PLACECELL_TMP_ROOT}/matplotlib"
 mkdir -p "${WANDB_CACHE_DIR}" "${WANDB_DATA_DIR}" "${XDG_CACHE_HOME}" "${MPLCONFIGDIR}"
 
 echo "[placecell_research] host: $(hostname)"
-echo "[placecell_research] python: $(command -v python)"
-echo "[placecell_research] TMPDIR=${TMPDIR}"
+echo "[placecell_research] TMPDIR=${TMPDIR} (-> $(readlink -f "${TMPDIR}" 2>/dev/null || echo "${TMPDIR}"))"
 if command -v nvidia-smi >/dev/null 2>&1; then
   timeout 10s nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null \
     || echo "[placecell_research] nvidia-smi failed or timed out"

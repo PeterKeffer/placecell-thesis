@@ -201,6 +201,18 @@ def _append_force_recompute_override(overrides: list[str], force_recompute: bool
     return [*overrides, "policies.artifact_reuse=force_recompute"]
 
 
+def _resolve_auto_dataset(
+    config_path: Path, overrides: list[str], dataset: str | None, split: str | None
+) -> tuple[list[str], str | None, str | None]:
+    """`--dataset auto`: pin the finished data chain that matches this config."""
+    if str(dataset or "").strip() != "auto":
+        return overrides, dataset, split
+    from placecell_research.stages.pipeline import find_reusable_data_overrides
+
+    found = find_reusable_data_overrides(config_path, overrides)
+    return [*overrides, *found], None, None if split in (None, "auto") else split
+
+
 def _append_pipeline_cli_overrides(
     config_path: Path,
     overrides: list[str],
@@ -214,6 +226,9 @@ def _append_pipeline_cli_overrides(
     force_recompute: bool,
 ) -> list[str]:
     resolved_overrides = _append_force_recompute_override(list(overrides), force_recompute)
+    resolved_overrides, dataset, split = _resolve_auto_dataset(
+        config_path, resolved_overrides, dataset, split
+    )
     dataset_reference, resolved_dataset_type = _resolve_cli_dataset_reference(
         config_path,
         resolved_overrides,
@@ -285,6 +300,9 @@ def _append_train_place_cli_overrides(
     force_recompute: bool,
 ) -> list[str]:
     resolved_overrides = _append_force_recompute_override(list(overrides), force_recompute)
+    resolved_overrides, dataset, split = _resolve_auto_dataset(
+        config_path, resolved_overrides, dataset, split
+    )
     dataset_reference, resolved_dataset_type = _resolve_cli_dataset_reference(
         config_path,
         resolved_overrides,
@@ -320,12 +338,23 @@ def _echo_stage_result(result: dict[str, object] | None) -> None:
 
 def _register_command_groups() -> None:
     """Attach every command group onto the root app at import time."""
-    from placecell_research.launch.commands import downstream, measures, pipeline, remote
+    from placecell_research.launch.commands import (
+        doctor,
+        downstream,
+        measures,
+        pipeline,
+        remote,
+        reproduce,
+        study,
+    )
 
     pipeline.register(app)
     downstream.register(app)
     measures.register(app)
     remote.register(app)
+    study.register(app)
+    reproduce.register(app)
+    doctor.register(app)
 
 
 _register_command_groups()

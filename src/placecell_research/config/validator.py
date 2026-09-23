@@ -29,7 +29,7 @@ from .downstream_feature_sources import (
 )
 from .downstream_schema import DownstreamRunConfig
 from .reuse import summarize_reuse
-from .schema import ExperimentConfig, SpatialModelConfig
+from .schema import ExperimentConfig, SpatialModelConfig, StudyConfig
 
 HARD_K_SPARSIFIER_TYPES = frozenset({"kwinners", "grouped_kwinners", "lateral_inhibition"})
 
@@ -1527,6 +1527,56 @@ def _validate_downstream_curriculum(config: DownstreamRunConfig) -> list[str]:
                 "and encode those runtime goals on demand instead of using the cached candidate "
                 "goal codebook."
             )
+    return warnings
+
+
+def validate_study_config(config: StudyConfig) -> list[str]:
+    """Raise on invalid study config."""
+    config = _revalidate_config(config)
+    warnings: list[str] = []
+    if config.sweep is None and config.curriculum is None:
+        raise ValueError("Study config must define either `sweep` or `curriculum`.")
+    if config.sweep and config.curriculum:
+        raise ValueError("Study config may define only one of `sweep` or `curriculum`.")
+    if config.sweep and config.sweep.method == "paired":
+        parameter_lengths = {
+            key: len(values)
+            for key, values in config.sweep.parameters.items()
+            if isinstance(values, list)
+        }
+        non_list_parameters = sorted(
+            key for key, values in config.sweep.parameters.items() if not isinstance(values, list)
+        )
+        if non_list_parameters:
+            raise ValueError(
+                "Paired sweep parameters must all be lists; got scalar values for "
+                f"{non_list_parameters}."
+            )
+        if not parameter_lengths:
+            raise ValueError("Paired sweeps must define at least one parameter list.")
+        if len(set(parameter_lengths.values())) != 1:
+            raise ValueError(
+                f"Paired sweep parameter lists must have equal lengths; got {parameter_lengths}."
+            )
+        if next(iter(parameter_lengths.values())) == 0:
+            raise ValueError("Paired sweep parameter lists must not be empty.")
+    if config.curriculum:
+        unsupported_encoding_keys = sorted(set(config.curriculum.encoding) - {"encode_each"})
+        if unsupported_encoding_keys:
+            raise ValueError(
+                f"Curriculum encoding supports only `encode_each`; got {unsupported_encoding_keys}."
+            )
+        for source_name, source in config.curriculum.sources.items():
+            if not source.raw_dataset and not source.environment and not source.collection:
+                raise ValueError(
+                    f"Curriculum source '{source_name}' must set raw_dataset or provide "
+                    "environment/collection overrides for collection."
+                )
+        for phase in config.curriculum.phases:
+            if phase.resume_from and phase.resume_policy == "fresh":
+                warnings.append(
+                    f"Curriculum phase '{phase.name}' sets resume_from but resume_policy=fresh."
+                )
     return warnings
 
 

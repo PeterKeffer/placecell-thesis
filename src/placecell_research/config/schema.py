@@ -62,20 +62,71 @@ class PipelineConfig:
     stop_after_stage: str | None = None
 
 
+REPRODUCTION_JOB_KINDS = ("data", "train", "representations", "measures", "navigation", "summary")
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class JobResourcesConfig:
+    """Launcher values that one kind of reproduction job overrides."""
+
+    partition: str | None = None
+    exclude_nodes: list[str] | None = None
+    gpus: int | None = Field(default=None, ge=0)
+    gpu_type: str | None = None
+    cpus_per_task: int | None = Field(default=None, ge=1)
+    memory_gb: int | None = Field(default=None, ge=1)
+    time_hours: int | None = Field(default=None, ge=1)
+    omp_num_threads: int | None = Field(default=None, ge=1)
+
+
 @dataclass(config=PYDANTIC_CONFIG)
 class LauncherConfig:
     type: Literal["local", "slurm"] = "local"
     partition: str = "gpu"
+    account: str = ""
+    qos: str = ""
+    constraint: str = ""
     exclude_nodes: list[str] = field(default_factory=list)
     gpus: int = Field(default=1, ge=0)
     gpu_type: str | None = None
+    mig_gpu_types: list[str] = field(default_factory=list)
     time_hours: int = Field(default=48, ge=1)
     memory_gb: int = Field(default=32, ge=1)
     cpus_per_task: int = Field(default=4, ge=1)
     env_setup: str = ""
+    site_env_script: str = ""
+    exports: dict[str, str] = field(default_factory=dict)
     stream_logs: bool = True
     threading_safety: ThreadingSafetyConfig = field(default_factory=ThreadingSafetyConfig)
     analysis_workers: int = Field(default=0, ge=0)
+    max_concurrent_gpu_jobs: int = Field(default=2, ge=1)
+    max_concurrent_cpu_jobs: int = Field(default=8, ge=1)
+    job_resources: dict[str, JobResourcesConfig] = field(default_factory=dict)
+
+    @field_validator("partition", "account", "qos", "constraint", "env_setup", mode="before")
+    @classmethod
+    def coerce_scheduler_text(cls, value: Any) -> Any:
+        return str(value) if isinstance(value, int | float) else value
+
+    @field_validator("exports", mode="before")
+    @classmethod
+    def coerce_export_values(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {str(key): str(item) for key, item in value.items()}
+        return value
+
+    @field_validator("job_resources")
+    @classmethod
+    def validate_job_resource_kinds(
+        cls, value: dict[str, JobResourcesConfig]
+    ) -> dict[str, JobResourcesConfig]:
+        unknown = sorted(set(value) - set(REPRODUCTION_JOB_KINDS))
+        if unknown:
+            raise ValueError(
+                f"Unknown launcher.job_resources kinds {unknown}; "
+                f"expected any of {list(REPRODUCTION_JOB_KINDS)}."
+            )
+        return value
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -477,6 +528,8 @@ class TemporalFamilyConfig:
         "lstm",
         "lstm_softplus",
         "lstm_relu",
+        "clockwork",
+        "mtrnn",
     ] = "gru"
     layer_sizes: list[int] = field(default_factory=lambda: [256])
     stability_timescale: float = Field(default=1.0, gt=0.0)
@@ -2894,6 +2947,64 @@ class ExperimentConfig:
     policies: PolicyConfig = field(default_factory=PolicyConfig)
     launcher: LauncherConfig = field(default_factory=LauncherConfig)
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
+
+    def to_dict(self) -> dict[str, Any]:
+        return _dump_config(self)
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class SweepConfig:
+    method: Literal["grid", "paired"] = "grid"
+    base_experiment: str = ""
+    parameters: dict[str, Any] = field(default_factory=dict)
+    seeds: list[int] = field(default_factory=lambda: [0])
+    objective_metric: str = "validation.xy_decode_rmse"
+    direction: Literal["minimize", "maximize"] = "minimize"
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class CurriculumAnalyzeAfter:
+    datasets: list[str] = field(default_factory=list)
+    modules: list[str] = field(default_factory=list)
+    comparative_modules: list[str] = field(default_factory=list)
+    checkpoints: list[str] | str | None = None
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class CurriculumPhaseConfig:
+    name: str = ""
+    dataset: str = ""
+    epochs: int = Field(default=32, ge=1)
+    resume_from: str | None = None
+    resume_policy: Literal["fresh", "weights_only", "weights_and_optimizer"] = "weights_only"
+    analyze_after: CurriculumAnalyzeAfter = field(default_factory=CurriculumAnalyzeAfter)
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class CurriculumSourceConfig:
+    raw_dataset: str = ""
+    environment: dict[str, Any] = field(default_factory=dict)
+    collection: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class CurriculumConfig:
+    name: str = "curriculum"
+    base_experiment: str = ""
+    sources: dict[str, CurriculumSourceConfig] = field(default_factory=dict)
+    vision_encoder: dict[str, Any] = field(default_factory=dict)
+    encoding: dict[str, Any] = field(default_factory=dict)
+    phases: list[CurriculumPhaseConfig] = field(default_factory=list)
+    final_analysis: CurriculumAnalyzeAfter = field(default_factory=CurriculumAnalyzeAfter)
+
+
+@dataclass(config=PYDANTIC_CONFIG)
+class StudyConfig:
+    name: str = "study"
+    sweep: SweepConfig | None = None
+    curriculum: CurriculumConfig | None = None
+    tracking: TrackingConfig = field(default_factory=TrackingConfig)
+    launcher: LauncherConfig = field(default_factory=LauncherConfig)
 
     def to_dict(self) -> dict[str, Any]:
         return _dump_config(self)

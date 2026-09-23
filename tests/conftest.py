@@ -43,3 +43,27 @@ def _restore_thread_limit_environment():
             os.environ.pop(name, None)
         else:
             os.environ[name] = value
+
+
+USER_SETTING_ENV_VARS = (
+    "PLACECELL_SLURM_ACCOUNT",
+    "PLACECELL_SLURM_QOS",
+    "PLACECELL_SLURM_PARTITION",
+    "PLACECELL_ENV_SETUP",
+    "PLACECELL_MESA_PREFIX",
+    "PLACECELL_EGL_LIBRARY",
+    "PLACECELL_REMOTE_HOST",
+    "PLACECELL_REMOTE_REPO_ROOT",
+    "PLACECELL_REMOTE_SETUP",
+    "PLACECELL_REMOTE_PYTHON",
+    "PLACECELL_CODE_SNAPSHOT",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_user_settings(monkeypatch, tmp_path_factory):
+    """Keep the developer's own user file and PLACECELL_* variables out of every test."""
+    user_file = tmp_path_factory.mktemp("user_settings") / "user.yaml"
+    monkeypatch.setenv("PLACECELL_USER_CONFIG", str(user_file))
+    for name in USER_SETTING_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)

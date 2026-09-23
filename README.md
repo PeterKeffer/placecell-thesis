@@ -7,34 +7,39 @@ trained to predict its own next code. Its place code then carries position, and 
 behave like place cells. The repository trains every model variant of the thesis, computes the
 measures the thesis reports, and trains the navigation agents that use the frozen codes.
 
-[QUICKSTART.md](QUICKSTART.md) walks through a first run.
+[QUICKSTART.md](QUICKSTART.md) walks through a first run on a PC, on the lab cluster and on any
+other SLURM cluster.
 
 ## Install
 
-Python 3.11 or newer; the code was developed on 3.12.
-
 ```bash
-conda create -n placecell python=3.12
+bash scripts/setup_env.sh        # --dry-run prints the steps, --help lists the options
 conda activate placecell
-pip install -e ".[rl,jax,dev]"
+pc doctor
 ```
 
-`rl` adds Stable-Baselines3 for navigation. `jax` adds JAX and the JAXenstein simulator (pinned
-commit) for the museum environment. `dev` adds pytest and ruff.
+`setup_env.sh` creates a conda environment with Python 3.12, PyTorch and JAX builds for the machine
+(CUDA on Linux GPU machines and clusters, MPS or CPU on a Mac), MiniWorld, and this package with the
+extras `rl` (Stable-Baselines3), `jax` (JAX and the JAXenstein simulator at a pinned commit) and
+`dev` (pytest, ruff). It installs Miniforge first if no conda is found. `pc doctor` then checks
+Python, the torch and JAX devices, one MiniWorld and one museum frame, and write access. By hand:
+`pip install -e ".[rl,jax,dev]"` into any Python 3.11 or newer.
 
-MiniWorld, which renders the WallGap environment, needs an OpenGL context. On macOS it runs only
-while the display is awake (for long runs, `caffeinate -d -i pc ...`). JAXenstein needs no display.
+MiniWorld, which renders the WallGap environment, needs an OpenGL context: on Linux the NVIDIA EGL
+driver (or a software Mesa build), on macOS a display that stays awake (for long runs,
+`caffeinate -d -i pc ...`). JAXenstein renders in JAX and needs no display.
 
 ## Smoke test
 
 ```bash
-pc pipeline --config configs/experiment/smoke_jaxenstein.yaml   # museum, no display, about 2 min
-pc pipeline --config configs/experiment/smoke_miniworld.yaml    # WallGap, needs a display
+pc reproduce --profile local --smoke --only baseline,no_competition,retrofitted_competition
+pc pipeline --config configs/experiment/smoke_jaxenstein.yaml   # museum pipeline, no display
 pytest tests/
 ```
 
-Each smoke run executes all seven stages (collect, split, visual encoder, encode, place-cell
-model, evaluate, analyze) on a few short episodes and writes to `smoke/`, which git ignores.
+The first line runs the thesis chain at toy size: data, visual encoder, three models (the last
+starts from the second), their stored forward passes and measures, one navigation policy and the
+summaries, in about ten minutes on a laptop. Everything goes to `smoke/`, which git ignores.
 
 ## How a run works
 
@@ -51,9 +56,23 @@ seeds as `<condition>_seed1` and `<condition>_seed2`.
 
 ## Reproducing the thesis
 
-Every condition of the thesis has one file in `configs/thesis/`. It inherits
-`configs/thesis/baseline.yaml` (or `museum.yaml`) and sets only the keys in which the condition
-differs. For a condition `C`:
+```bash
+pc reproduce --profile local        # this machine, one job after the other
+pc reproduce --profile hpc3         # the lab cluster, as a SLURM dependency chain
+pc reproduce --profile slurm        # any SLURM cluster (QUICKSTART.md, section 3)
+```
+
+`pc reproduce` builds the whole plan from `configs/thesis/` and `configs/reproduce.yaml`: the three
+data chains (WallGap, museum, objects removed), every condition with the seeds the thesis used
+(42, 1 and 2 where the thesis reports three seeds, 42 otherwise), the retrofitted competition after
+the model without competition, the stored forward pass and `pc measures` of every model, the
+navigation policies after the baseline, and `pc summarize` at the end. `--only`, `--seeds`,
+`--smoke` and `--dry-run` narrow or preview it. Finished jobs are recorded in
+`runs/reproduce/done/` and skipped when the command runs again.
+
+The rest of this section lists the commands the plan runs. Every condition of the thesis has one
+file in `configs/thesis/`. It inherits `configs/thesis/baseline.yaml` (or `museum.yaml`) and sets
+only the keys in which the condition differs. For a condition `C`:
 
 ```bash
 pc pipeline -c configs/thesis/C.yaml --place-tag C
@@ -99,7 +118,7 @@ Collection, split and visual encoder keep seed 42 for every run.
 pc pipeline -c configs/thesis/C.yaml -o seed.training_seed=1 --place-tag C_seed1
 pc collect-representations -c configs/thesis/C.yaml -o reuse.place_model_artifact_id=tag:C_seed1
 pc measures -c configs/thesis/C.yaml -o reuse.place_model_artifact_id=tag:C_seed1
-pc summarize measures/*.csv --output measures/summary.csv
+pc summarize measures --output measures/summary.csv
 ```
 
 `pc summarize` groups the rows by condition and writes n, mean and sample SD of every column. A
@@ -118,8 +137,8 @@ column is left out for a condition when any of its runs has no value.
 - `weight_decay_1e-5_retrained` is the baseline recipe trained a second time as the matched
   reference of the weight-decay rows. Its config forces a new model and runs only the training,
   evaluation and analysis stages, so pass the WallGap data:
-  `pc pipeline -c configs/thesis/weight_decay_1e-5_retrained.yaml --dataset <encoded id> --split <split id>`
-  (the folder names in `artifacts/datasets/encoded/` and `artifacts/splits/`).
+  `pc pipeline -c configs/thesis/weight_decay_1e-5_retrained.yaml --dataset auto`, which picks
+  the finished data chain that matches the config.
 
 ### Decoding inputs and stages
 
@@ -146,7 +165,7 @@ Policy seeds are 7, 8 and 9:
 
 ```bash
 pc downstream-train -c configs/thesis/navigation/ppo_place_code_north.yaml -o seed=7
-pc navigation-measures runs/by_id/ppo_* runs/by_id/dqn_* --epsilon 0.05 --output navigation/policies.csv
+pc navigation-measures runs/by_id --epsilon 0.05 --output navigation/policies.csv
 pc summarize navigation/policies.csv --output navigation/summary.csv
 ```
 
@@ -159,7 +178,8 @@ rooms. A policy that reaches the goal receives 1 - 0.2 x step / 1,024. The model
 its checkpoint with the lowest validation decoding error (`models.place_model_checkpoint:
 best_primary`); all other measures use the last checkpoint.
 
-`pc navigation-measures` reads each run's final deterministic evaluation (30 episodes from saved
+Given a folder of runs, `pc navigation-measures` takes the newest finished run of every config and
+policy seed. It reads each run's final deterministic evaluation (30 episodes from saved
 start poses), counts failures whose last 64 poses repeat with period one or two, bins the training
 history into 100,000-step bins, and reports the first bin of three in a row with at least 50% and
 80% success. With `--epsilon 0.05` it runs the same starts again, taking a random action on 5% of
@@ -196,7 +216,41 @@ steps.
   Spearman correlation of code distance (1 - Pearson) and Euclidean distance controlling for
   path distance on 20 x 20 bins, and the mean number of units with a field per visited bin.
 
-## Running on the cluster
+## Running on a cluster
+
+An execution profile in `configs/launcher/` says where and how jobs run: `local` (this machine),
+`slurm` (any SLURM cluster, neutral defaults) and `hpc3` (the lab cluster the thesis ran on: its
+partitions, a full H100 per GPU job, MIG slices refused, `klab-7` excluded, 200 GB and 16 CPUs per
+GPU job, at most two GPU jobs at once, spack `mesa-glu` for MiniWorld). Personal values (account,
+QOS, partition, how jobs activate the environment, the SSH host and checkout for remote use) never
+go into the repository; they come from `~/.config/placecell/user.yaml` or `PLACECELL_*` variables,
+and `pc doctor` prints which file it reads. QUICKSTART.md lists the keys.
+
+| Command | What it does |
+|---|---|
+| `pc reproduce --profile hpc3` | submits the whole plan with `afterok` dependencies, at most `max_concurrent_gpu_jobs` GPU jobs at a time |
+| `pc submit -c <config> -o launcher=hpc3` | writes the batch script for one command and submits it (`--dry-run` only writes it) |
+| `pc hpc -c <config>` | from a laptop: copies the checkout to the cluster, freezes the code for the job, submits, streams the log |
+| `pc hpc-logs --job-id <id>`, `pc remote-sync` | reattach to a job's log; copy the checkout without submitting |
+| `pc reproduce --profile hpc3 --remote` | runs `pc reproduce` on the login node from a laptop |
+
+Every batch script comes from one template (`launch/submit.py`). It sets per-job temporary
+folders, caps threads, runs a CUDA check, forwards TERM to the whole process tree on a timeout
+and cleans up after it. It then sources `scripts/slurm/env_miniworld.sh` or `env_jaxenstein.sh`,
+which set up headless EGL rendering and check MiniWorld or JAX before the job starts. Data
+collection runs in spawned workers with a progress watchdog, a memory watchdog and a render
+timeout.
+
+## Other commands
+
+- `pc sweep -c configs/study/example_grid.yaml` and `pc curriculum -c configs/study/example_curriculum.yaml`
+  train a grid of variants or a sequence of phases from one base config.
+- `pc analyze` can run every analysis module of the project, not only the ones the thesis uses:
+  list a module under `analysis.targets.<target>.modules` to enable it
+  (`src/placecell_research/analysis/registry.py` has the names).
+- `pc inspect-config`, `pc collect`, `pc create-split`, `pc train-vision`, `pc encode-dataset`,
+  `pc train-model`, `pc evaluate`, `pc downstream-train` and `pc downstream-rollout` run single
+  stages; `pc --help` lists everything.
 
 ## Compute
 
@@ -208,20 +262,26 @@ Rough figures for one condition at full size, measured on the runs behind the th
 | Visual encoder | one GPU | about 2 h |
 | Place-cell model (128 epochs) | one GPU (H100 class) | about 4 h |
 | `pc analyze` on all test episodes | up to 181 GB RAM for the 1,024-unit encoder, 16 CPUs | about 5 h |
-| `pc measures` | CPU; the traversal null keeps 999 shifted indices of all 5 million test steps (about 40 GB) | not timed at full size |
+| `pc measures` | CPU; the codes of all test episodes (about 10 GB for 512 units); the shift nulls are computed in chunks | not timed at full size |
 | Navigation, 3 million steps per policy | CPU, pixels on a GPU; seven policies in parallel on one machine | PPO about 6 to 7 h, DQN about 9 to 11 h per batch of seven |
 
-A representation set with the place code of 3 x 512 episodes takes about 3.5 GB.
+A representation set with the place code of 3 x 512 episodes takes about 3.5 GB, with all five
+stages about 20 GB. The full plan (83 trainings, 84 measure jobs, 84 navigation policies) needs
+about 750 GPU hours for the models, a little over two weeks with two GPUs at a time.
 
 ## Repository layout
 
 ```
 configs/thesis/              one config per thesis condition
 configs/thesis/navigation/   one config per navigation algorithm, input and goal
+configs/reproduce.yaml       seeds, stage decoding and smoke sizes of the pc reproduce plan
+configs/launcher/            execution profiles: local, slurm, hpc3
 configs/experiment/          WallGap and museum base recipes, smoke configs
+configs/study/               example sweep and curriculum
 configs/<group>/             shared blocks (environment, collection, vision, model, analysis, ...)
 configs/downstream/          navigation base configs (PPO, DQN)
 src/placecell_research/
+  reproduce/                 the pc reproduce plan and its local and SLURM executors
   stages/                    one module per pipeline stage
   collection/ envs/          data collection, MiniWorld WallGap and JAXenstein museum
   vision/                    convolutional autoencoder
@@ -229,7 +289,9 @@ src/placecell_research/
   evaluation/ analysis/      pc evaluate and pc analyze
   measures/                  pc measures, pc summarize, pc navigation-measures
   downstream/                navigation agents
-  launch/                    the pc command line
-scripts/                     standalone scripts: frozen-code controls, traversal and navigation evaluation, SLURM environment setup
+  launch/                    the pc command line, SLURM scripts, remote runs, user settings
+scripts/setup_env.sh         creates the conda environment and runs pc doctor
+scripts/slurm/               per-job environment setup (common, MiniWorld/EGL, JAXenstein, site/hpc3)
+scripts/evaluation/ scripts/experiments/   standalone frozen-code, traversal and navigation evaluation
 tests/                       pytest suite
 ```

@@ -1,0 +1,97 @@
+seeds: [42, 1, 2]
+three_seed_conditions:
+  - baseline
+  - untrained
+  - no_prediction
+  - no_ema
+  - same_step_no_predictor
+  - same_step_with_predictor
+  - variance_regularizer_off
+  - covariance_regularizer_off
+  - both_regularizers_off
+  - actions_only
+  - self_motion_only
+  - no_motion_input
+  - no_competition
+  - l1_0.003
+  - retrofitted_competition
+  - museum
+  - museum_untrained
+stage_decoding_conditions:
+  - baseline
+  - untrained
+  - no_prediction
+  - no_ema
+  - next_visual_latent_target
+  - same_step_no_predictor
+  - same_step_with_predictor
+  - reconstruction_target
+  - variance_regularizer_off
+  - covariance_regularizer_off
+  - both_regularizers_off
+  - actions_only
+  - self_motion_only
+  - no_motion_input
+  - feedforward_encoder
+  - winners_1
+  - winners_5
+  - winners_26
+  - winners_51
+  - winners_128
+  - no_competition
+  - l1_0.003
+  - l1_0.01
+  - l1_0.03
+  - objects_removed
+stage_decoding_sources:
+  - encoder.hidden_state
+  - encoder.pre_sparsifier
+  - encoder.place_codes
+  - predictor.hidden_state
+  - predictor.place_codes
+input_decoding_conditions: [baseline]
+navigation_model_condition: baseline
+navigation_seeds: [7, 8, 9]
+navigation_epsilon: 0.05
+smoke:
+  output_root: smoke
+  seeds: [42]
+  navigation_seeds: [7]
+  navigation_configs: [ppo_place_code_north]
+  layer_size_divisor: 32
+  code_dim_divisor: 8
+  experiment_overrides:
+    - environment.episode_length=256
+    - collection.episodes=16
+    - collection.episode_length=256
+    - splits.train_fraction=0.5
+    - splits.validation_fraction=0.25
+    - splits.test_fraction=0.25
+    - splits.constraints.minimum_episodes_per_split=1
+    - vision.epochs=1
+    - vision.batch_size=16
+    - vision.data_loader_num_workers=0
+    - vision.data_loader_persistent_workers=false
+    - vision.data_loader_pin_memory=false
+    - spatial_model.training.epochs=1
+    - spatial_model.training.batch_size=2
+    - spatial_model.training.num_workers=0
+    - evaluation.eval_every_n_epochs=1
+    - evaluation.nonlinear_decode_enabled=false
+    - analysis.decode_nonlinear_enabled=false
+    - analysis.num_bins_x=16
+    - analysis.num_bins_y=16
+    - analysis.rate_map_panel_top_k=8
+    - analysis.rate_map_grid_top_k=8
+    - measures.null_shuffles=19
+    - measures.traversal_shifts=19
+  environment_overrides:
+    jaxenstein:
+      - collection.num_parallel_envs=16
+  navigation_overrides:
+    - environment.episode_length=64
+    - training.total_timesteps=256
+    - training.n_envs=2
+    - training.n_steps=64
+    - training.batch_size=32
+    - training.final_eval_episodes=2

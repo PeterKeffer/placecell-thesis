@@ -10,6 +10,8 @@ from placecell_research.analysis import rate_maps as rate_map_module
 from placecell_research.analysis.base import AnalysisInput
 from placecell_research.analysis.figures import figure_to_rgb_array
 from placecell_research.analysis.registry import (
+    ANALYSIS_MODULES,
+    COMPARATIVE_MODULES,
     run_analysis_modules,
 )
 from placecell_research.analysis.sparsity_metrics import SparsityModule
@@ -34,6 +36,11 @@ def _synthetic_input() -> AnalysisInput:
         split_name="test",
         rgb=rgb,
     )
+
+
+def test_successor_analyses_use_their_matching_registry_axes() -> None:
+    assert "sr_oracle" not in ANALYSIS_MODULES
+    assert COMPARATIVE_MODULES["sr_oracle"]().name == "sr_oracle"
 
 
 def test_run_analysis_modules_executes_requested_modules(tmp_path) -> None:

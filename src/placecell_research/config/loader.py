@@ -13,6 +13,7 @@ from .schema import (
     L1_OBJECTIVE_TYPES,
     L1_SEMANTICS_VERSION,
     ExperimentConfig,
+    StudyConfig,
 )
 
 ConfigT = TypeVar("ConfigT")
@@ -84,8 +85,9 @@ def _resolve_group_override_payload(
     group: str,
     name: str,
 ) -> dict[str, Any] | None:
-    group_path = config_path.parents[1] / group / f"{name}.yaml"
-    if not group_path.exists():
+    candidates = [parent / group / f"{name}.yaml" for parent in config_path.parents[1:]]
+    group_path = next((candidate for candidate in candidates if candidate.exists()), None)
+    if group_path is None:
         return None
     resolved_group_payload = _resolve_defaults(group_path, _load_yaml(group_path))
     if (
@@ -254,6 +256,14 @@ def load_experiment_config(
     _require_l1_semantics_marker(payload, path)
     payload = apply_overrides(payload, overrides, config_path=path)
     return _materialize_dataclass(ExperimentConfig, payload)
+
+
+def load_study_config(config_path: str | Path, overrides: list[str] | None = None) -> StudyConfig:
+    """Load and compose a study config."""
+    path = Path(config_path)
+    payload = _resolve_defaults(path, _load_yaml(path))
+    payload = apply_overrides(payload, overrides, config_path=path)
+    return _materialize_dataclass(StudyConfig, payload)
 
 
 def load_downstream_run_config(

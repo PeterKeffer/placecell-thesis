@@ -217,5 +217,29 @@ def navigation_row(run: Path, *, epsilon: float) -> dict:
     return row
 
 
+def expand_navigation_runs(paths: list[Path]) -> list[Path]:
+    """Run folders as given; a folder of runs gives its newest finished run per config and seed."""
+    runs: list[Path] = []
+    for path in paths:
+        if (path / "results/downstream_train").is_dir():
+            runs.append(path)
+            continue
+        newest: dict[tuple[str, int], Path] = {}
+        for run in sorted(path.iterdir()):
+            metrics = run / "results/downstream_train/metrics.json"
+            config_path = run / "manifests/resolved_config.yaml"
+            if not metrics.is_file() or not config_path.is_file():
+                continue
+            config = yaml.safe_load(config_path.read_text())
+            key = (str(config["name"]), int(config["seed"]))
+            previous = newest.get(key)
+            if previous is None or metrics.stat().st_mtime > (
+                previous / "results/downstream_train/metrics.json"
+            ).stat().st_mtime:
+                newest[key] = run
+        runs.extend(newest[key] for key in sorted(newest))
+    return runs
+
+
 def navigation_rows(runs: list[Path], *, epsilon: float) -> list[dict]:
     return [navigation_row(run, epsilon=epsilon) for run in runs]

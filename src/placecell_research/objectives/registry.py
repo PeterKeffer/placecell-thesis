@@ -19,6 +19,7 @@ from .intrinsic import compute_intrinsic_losses
 from .prediction import PredictionAlignmentObjective
 from .reconstruction import LatentReconstructionObjective
 from .sparsity import L1CapacityObjective, L1SparsityObjective, NormalizedL1CapacityObjective
+from .temporal_stability import TemporalStabilityObjective
 from .timescale_alignment import TimescaleAlignmentObjective
 from .vicreg import VICRegObjective
 
@@ -113,6 +114,7 @@ OBJECTIVE_REGISTRY: dict[str, ObjectiveRegistration] = {
     "l1_sparsity": ObjectiveRegistration(L1SparsityObjective),
     "l1_capacity": ObjectiveRegistration(L1CapacityObjective),
     "normalized_l1_capacity": ObjectiveRegistration(NormalizedL1CapacityObjective),
+    "temporal_stability": ObjectiveRegistration(TemporalStabilityObjective),
 }
 
 

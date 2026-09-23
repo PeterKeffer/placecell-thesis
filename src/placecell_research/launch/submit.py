@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 
 from placecell_research.tracking.naming import generate_variant_slug, make_run_id
-from placecell_research.utils.repo_paths import find_repo_root
+from placecell_research.utils.repo_paths import find_repo_root, resolve_experiment_config_path
 
+from .code_snapshot import SNAPSHOT_ENV_VAR
 from .remote_entrypoints import resolve_remote_cli_entrypoint
 
-_SLURM_ENVIRONMENT_SCRIPTS = {
+SLURM_ENVIRONMENT_SCRIPTS = {
     "miniworld": "env_miniworld.sh",
     "jaxenstein": "env_jaxenstein.sh",
+    "common": "env_common.sh",
 }
+SBATCH_JOB_ID_PATTERN = re.compile(r"Submitted batch job (\d+)")
 
 
 _SLURM_DEPENDENCY_PATTERN = re.compile(r"^[A-Za-z0-9_:+,?.-]+$")
@@ -49,8 +54,82 @@ def normalize_slurm_job_name(job_name: str) -> str:
     return normalized
 
 
-def _threading_exports(config) -> list[str]:
-    safety = config.launcher.threading_safety
+def parse_sbatch_job_id(submit_output: str) -> str:
+    match = SBATCH_JOB_ID_PATTERN.search(submit_output)
+    if match is None:
+        raise RuntimeError(
+            "Could not parse a SLURM job id from sbatch output:\n"
+            f"{submit_output.strip() or '<empty output>'}"
+        )
+    return match.group(1)
+
+
+def raise_if_gpu_request_may_land_on_a_partial_gpu(launcher) -> None:
+    """Refuse a GPU request that the scheduler may place on a MIG slice."""
+    partial_types = {str(name).strip().lower() for name in launcher.mig_gpu_types if name}
+    if launcher.type != "slurm" or int(launcher.gpus) <= 0 or not partial_types:
+        return
+    gpu_type = str(launcher.gpu_type or "").strip().lower()
+    if gpu_type and gpu_type not in partial_types:
+        return
+    raise ValueError(
+        f"This cluster has partial GPU slices (launcher.mig_gpu_types={launcher.mig_gpu_types}), "
+        f"and this job requests gpu_type={launcher.gpu_type!r}. MIG slices have no graphics "
+        "API, so MiniWorld rendering dies on them, and too little memory for the place model. "
+        "Set launcher.gpu_type to a full GPU type."
+    )
+
+
+def resolve_environment_kind(config, config_path: Path) -> str:
+    """environment.kind of an experiment, or of the base experiment of a sweep or curriculum."""
+    direct = str(getattr(getattr(config, "environment", None), "kind", "") or "").strip().lower()
+    if direct:
+        return direct
+    for block_name in ("curriculum", "sweep"):
+        block = getattr(config, block_name, None)
+        base = str(getattr(block, "base_experiment", "") or "").strip() if block else ""
+        if base:
+            from placecell_research.config import load_experiment_config
+
+            base_path = resolve_experiment_config_path(config_path, base)
+            return str(load_experiment_config(base_path, []).environment.kind).strip().lower()
+    raise ValueError(f"{config_path} names neither environment.kind nor a base experiment.")
+
+
+def _conda_shell_script(prefix: Path) -> Path | None:
+    if not (prefix / "conda-meta").is_dir():
+        return None
+    bases = []
+    conda_executable = os.environ.get("CONDA_EXE", "")
+    if conda_executable:
+        bases.append(Path(conda_executable).resolve().parents[1])
+    if prefix.parent.name == "envs":
+        bases.append(prefix.parent.parent)
+    bases.append(prefix)
+    for base in bases:
+        script = base / "etc" / "profile.d" / "conda.sh"
+        if script.is_file():
+            return script
+    return None
+
+
+def default_environment_activation(prefix: Path | None = None) -> str:
+    """Shell line that activates the Python environment running this process."""
+    resolved_prefix = Path(prefix or sys.prefix)
+    conda_script = _conda_shell_script(resolved_prefix)
+    if conda_script is not None:
+        return (
+            f"source {shlex.quote(str(conda_script))} && "
+            f"conda activate {shlex.quote(str(resolved_prefix))}"
+        )
+    activate_script = resolved_prefix / "bin" / "activate"
+    if activate_script.is_file():
+        return f"source {shlex.quote(str(activate_script))}"
+    return f'export PATH={shlex.quote(str(resolved_prefix / "bin"))}:"${{PATH}}"'
+
+
+def _threading_exports(launcher) -> list[str]:
+    safety = launcher.threading_safety
     exports = [
         f"export OMP_NUM_THREADS={int(safety.omp_num_threads)}",
         f"export NUMBA_NUM_THREADS={int(safety.omp_num_threads)}",
@@ -58,7 +137,7 @@ def _threading_exports(config) -> list[str]:
         f"export OPENBLAS_NUM_THREADS={int(safety.openblas_num_threads)}",
         f"export TORCH_NUM_THREADS={int(safety.torch_num_threads)}",
     ]
-    analysis_workers = int(getattr(config.launcher, "analysis_workers", 0))
+    analysis_workers = int(getattr(launcher, "analysis_workers", 0))
     if analysis_workers > 0:
         exports.append(f"export PLACECELL_ANALYSIS_WORKERS={analysis_workers}")
     return exports
@@ -75,7 +154,8 @@ def _render_launcher_command(
     return " ".join(quoted_parts)
 
 
-def _render_launcher_payload(launcher_line: str) -> str:
+def _render_launcher_payload(commands: list[str]) -> str:
+    body = [f"exec {commands[0]}"] if len(commands) == 1 else list(commands)
     return "\n".join(
         [
             "set -euo pipefail",
@@ -88,7 +168,7 @@ def _render_launcher_payload(launcher_line: str) -> str:
             "    python -u -m placecell_research.utils.cuda_smoke",
             "  fi",
             "fi",
-            f"exec {launcher_line}",
+            *body,
         ]
     )
 
@@ -121,92 +201,112 @@ def _render_launch_provenance(
     ]
 
 
-def submit_cli_entrypoint(
-    config_path: str | Path,
-    overrides: list[str] | None = None,
+def _render_sbatch_header(
+    launcher,
     *,
-    entrypoint: str = "pipeline",
-    launcher_command: str | None = None,
-    force_recompute: bool = False,
-    slurm_dependency: str | None = None,
-    slurm_job_name: str = "placecell_research",
-) -> str:
-    """Generate and optionally submit a thin but hardened SLURM script."""
-    resolved_config_path = Path(config_path).resolve()
-    resolved_entrypoint = resolve_remote_cli_entrypoint(
-        resolved_config_path,
-        entrypoint,
-        overrides,
-        force_recompute=force_recompute,
-    )
-    repo_root = find_repo_root(resolved_config_path)
-    config = resolved_entrypoint.config
-    environment_kind = str(config.environment.kind).strip().lower()
-    if environment_kind not in _SLURM_ENVIRONMENT_SCRIPTS:
-        raise ValueError(f"No SLURM environment script for environment.kind={environment_kind!r}.")
-    fallback_run_id = make_run_id(
-        repo_root,
-        descriptor=generate_variant_slug(
-            config.to_dict(),
-            fallback_name=config.tracking.variant_name,
-        ),
-        include_slurm_job=False,
-    )
-    normalized_slurm_dependency = normalize_slurm_dependency(slurm_dependency)
-
-    slurm_log_dir = repo_root / config.tracking.run_root / "slurm_logs"
-    slurm_log_dir.mkdir(parents=True, exist_ok=True)
-    slurm_output_path = slurm_log_dir / "%x_%j.out"
-    script_dir = repo_root / config.tracking.run_root / "slurm_scripts"
-    script_dir.mkdir(parents=True, exist_ok=True)
-    script_path = script_dir / f"generated_submit_{uuid.uuid4().hex[:12]}.sh"
-
-    normalized_slurm_job_name = normalize_slurm_job_name(slurm_job_name)
-    sbatch_lines = [
+    job_name: str,
+    output_path: Path,
+    dependency: str | None,
+) -> list[str]:
+    header = [
         "#!/usr/bin/env bash",
-        f"#SBATCH --job-name={normalized_slurm_job_name}",
-        f"#SBATCH --partition={config.launcher.partition}",
-        f"#SBATCH --cpus-per-task={int(config.launcher.cpus_per_task)}",
-        f"#SBATCH --mem={int(config.launcher.memory_gb)}G",
-        f"#SBATCH --time={_format_wallclock_hours(config.launcher.time_hours)}",
-        f"#SBATCH --output={slurm_output_path}",
-        "#SBATCH --signal=B:TERM@120",
+        f"#SBATCH --job-name={normalize_slurm_job_name(job_name)}",
+        f"#SBATCH --partition={launcher.partition}",
     ]
-    if normalized_slurm_dependency is not None:
-        sbatch_lines.append(f"#SBATCH --dependency={normalized_slurm_dependency}")
-    excluded_nodes = [
-        str(node).strip()
-        for node in config.launcher.exclude_nodes
-        if str(node).strip()
-    ]
+    for option, value in (
+        ("account", launcher.account),
+        ("qos", launcher.qos),
+        ("constraint", launcher.constraint),
+    ):
+        if str(value).strip():
+            header.append(f"#SBATCH --{option}={str(value).strip()}")
+    header.extend(
+        [
+            f"#SBATCH --cpus-per-task={int(launcher.cpus_per_task)}",
+            f"#SBATCH --mem={int(launcher.memory_gb)}G",
+            f"#SBATCH --time={_format_wallclock_hours(launcher.time_hours)}",
+            f"#SBATCH --output={output_path}",
+            "#SBATCH --signal=B:TERM@120",
+        ]
+    )
+    normalized_dependency = normalize_slurm_dependency(dependency)
+    if normalized_dependency is not None:
+        header.append(f"#SBATCH --dependency={normalized_dependency}")
+        header.append("#SBATCH --kill-on-invalid-dep=yes")
+    excluded_nodes = [str(node).strip() for node in launcher.exclude_nodes if str(node).strip()]
     if excluded_nodes:
-        sbatch_lines.append(f"#SBATCH --exclude={','.join(excluded_nodes)}")
-    if int(config.launcher.gpus) > 0:
-        gpu_count = int(config.launcher.gpus)
-        gpu_type = str(config.launcher.gpu_type or "").strip()
+        header.append(f"#SBATCH --exclude={','.join(excluded_nodes)}")
+    if int(launcher.gpus) > 0:
+        gpu_count = int(launcher.gpus)
+        gpu_type = str(launcher.gpu_type or "").strip()
         gpu_request = f"gpu:{gpu_type}:{gpu_count}" if gpu_type else f"gpu:{gpu_count}"
-        sbatch_lines.append(f"#SBATCH --gres={gpu_request}")
+        header.append(f"#SBATCH --gres={gpu_request}")
+    return header
 
-    resolved_launcher_command = (
-        launcher_command
-        or f"python -u -m placecell_research.launch.cli {resolved_entrypoint.cli_command}"
-    )
-    launcher_line = _render_launcher_command(
-        resolved_launcher_command,
-        resolved_config_path,
-        resolved_entrypoint.overrides,
-    )
-    launcher_command_string = shlex.quote(_render_launcher_payload(launcher_line))
-    environment_setup = str(config.launcher.env_setup).strip()
+
+def _render_environment_lines(launcher, environment_kind: str) -> list[str]:
+    if environment_kind not in SLURM_ENVIRONMENT_SCRIPTS:
+        raise ValueError(f"No SLURM environment script for environment.kind={environment_kind!r}.")
+    activation = str(launcher.env_setup).strip() or default_environment_activation()
+    lines = [
+        f'PLACECELL_SLURM_SCRIPT_ROOT="${{{SNAPSHOT_ENV_VAR}:-.}}/scripts/slurm"',
+        'source "${PLACECELL_SLURM_SCRIPT_ROOT}/env_common.sh"',
+        "set +u",
+        activation,
+        "set -u",
+    ]
+    site_env_script = str(launcher.site_env_script).strip()
+    if site_env_script:
+        lines.append(f'source "${{PLACECELL_SLURM_SCRIPT_ROOT}}/{site_env_script}"')
+    if environment_kind != "common":
+        script_name = SLURM_ENVIRONMENT_SCRIPTS[environment_kind]
+        lines.append(f'source "${{PLACECELL_SLURM_SCRIPT_ROOT}}/{script_name}"')
+    return lines
+
+
+def _render_snapshot_exports() -> list[str]:
+    snapshot = os.environ.get(SNAPSHOT_ENV_VAR, "").strip()
+    if not snapshot:
+        return []
+    return [
+        f"export {SNAPSHOT_ENV_VAR}={shlex.quote(snapshot)}",
+        f"export PYTHONPATH={shlex.quote(snapshot + '/src')}" + "${PYTHONPATH:+:${PYTHONPATH}}",
+    ]
+
+
+def render_slurm_script(
+    launcher,
+    *,
+    environment_kind: str,
+    commands: list[str],
+    repo_root: Path,
+    job_name: str,
+    output_path: Path,
+    fallback_run_id: str,
+    dependency: str | None = None,
+    provenance_lines: list[str] | None = None,
+) -> str:
+    """The hardened batch script: resources, per-job environment, TERM forwarding, cleanup."""
+    raise_if_gpu_request_may_land_on_a_partial_gpu(launcher)
+    if not commands:
+        raise ValueError("A SLURM job needs at least one command.")
+    launcher_command_string = shlex.quote(_render_launcher_payload(commands))
+    exports = [
+        f"export {name}={shlex.quote(str(value))}" for name, value in launcher.exports.items()
+    ]
     script_lines = [
-        *sbatch_lines,
+        *_render_sbatch_header(
+            launcher, job_name=job_name, output_path=output_path, dependency=dependency
+        ),
         "",
         "set -euo pipefail",
         "",
         f"cd {shlex.quote(str(repo_root))}",
-        *([environment_setup] if environment_setup else []),
-        *(_threading_exports(config)),
-        f"export PLACECELL_REQUESTED_GPUS={int(config.launcher.gpus)}",
+        *_render_snapshot_exports(),
+        *_threading_exports(launcher),
+        f"export PLACECELL_REQUESTED_GPUS={int(launcher.gpus)}",
+        f"export PLACECELL_ENVIRONMENT_KIND={environment_kind}",
+        *exports,
         'export PLACECELL_DATASET_STAGE_DIR="${PLACECELL_DATASET_STAGE_DIR:-/dev/shm}"',
         f"export PLACECELL_FALLBACK_RUN_ID={shlex.quote(fallback_run_id)}",
         'PLACECELL_EFFECTIVE_JOB_ID="${SLURM_JOB_ID:-${SLURM_JOBID:-}}"',
@@ -219,14 +319,8 @@ def submit_cli_entrypoint(
         '  export PLACECELL_RUN_ID="${PLACECELL_FALLBACK_RUN_ID}_manual_$$"',
         "fi",
         'echo "[placecell_research] run_id=${PLACECELL_RUN_ID}"',
-        f'source scripts/slurm/{_SLURM_ENVIRONMENT_SCRIPTS[environment_kind]}',
-        *_render_launch_provenance(
-            resolved_config_path,
-            resolved_entrypoint.cli_command,
-            resolved_entrypoint.overrides,
-            config,
-            fallback_run_id,
-        ),
+        *_render_environment_lines(launcher, environment_kind),
+        *(provenance_lines or []),
         "",
         "launcher_pid=\"\"",
         "launcher_pgid=\"\"",
@@ -343,12 +437,19 @@ def submit_cli_entrypoint(
         "exit \"${launcher_status}\"",
         "",
     ]
-    script_path.write_text("\n".join(script_lines))
+    return "\n".join(script_lines)
+
+
+def write_slurm_script(script_dir: Path, script_text: str, *, stem: str = "") -> Path:
+    script_dir.mkdir(parents=True, exist_ok=True)
+    name = stem or f"generated_submit_{uuid.uuid4().hex[:12]}"
+    script_path = script_dir / f"{name}.sh"
+    script_path.write_text(script_text)
     script_path.chmod(0o755)
+    return script_path
 
-    if config.launcher.type != "slurm":
-        return str(script_path)
 
+def run_sbatch(script_path: Path) -> str:
     completed = subprocess.run(
         ["sbatch", str(script_path)],
         capture_output=True,
@@ -356,3 +457,68 @@ def submit_cli_entrypoint(
         check=False,
     )
     return completed.stdout.strip() or completed.stderr.strip()
+
+
+def submit_cli_entrypoint(
+    config_path: str | Path,
+    overrides: list[str] | None = None,
+    *,
+    entrypoint: str = "pipeline",
+    launcher_command: str | None = None,
+    force_recompute: bool = False,
+    slurm_dependency: str | None = None,
+    slurm_job_name: str = "placecell_research",
+    dry_run: bool = False,
+) -> str:
+    """Generate and optionally submit a thin but hardened SLURM script."""
+    resolved_config_path = Path(config_path).resolve()
+    resolved_entrypoint = resolve_remote_cli_entrypoint(
+        resolved_config_path,
+        entrypoint,
+        overrides,
+        force_recompute=force_recompute,
+    )
+    repo_root = find_repo_root(resolved_config_path)
+    config = resolved_entrypoint.config
+    environment_kind = resolve_environment_kind(config, resolved_config_path)
+    fallback_run_id = make_run_id(
+        repo_root,
+        descriptor=generate_variant_slug(
+            config.to_dict(),
+            fallback_name=config.tracking.variant_name,
+        ),
+        include_slurm_job=False,
+    )
+    run_root = repo_root / config.tracking.run_root
+    slurm_log_dir = run_root / "slurm_logs"
+    slurm_log_dir.mkdir(parents=True, exist_ok=True)
+    resolved_launcher_command = (
+        launcher_command
+        or f"python -u -m placecell_research.launch.cli {resolved_entrypoint.cli_command}"
+    )
+    launcher_line = _render_launcher_command(
+        resolved_launcher_command,
+        resolved_config_path,
+        resolved_entrypoint.overrides,
+    )
+    script_text = render_slurm_script(
+        config.launcher,
+        environment_kind=environment_kind,
+        commands=[launcher_line],
+        repo_root=repo_root,
+        job_name=slurm_job_name,
+        output_path=slurm_log_dir / "%x_%j.out",
+        fallback_run_id=fallback_run_id,
+        dependency=slurm_dependency,
+        provenance_lines=_render_launch_provenance(
+            resolved_config_path,
+            resolved_entrypoint.cli_command,
+            resolved_entrypoint.overrides,
+            config,
+            fallback_run_id,
+        ),
+    )
+    script_path = write_slurm_script(run_root / "slurm_scripts", script_text)
+    if config.launcher.type != "slurm" or dry_run:
+        return str(script_path)
+    return run_sbatch(script_path)

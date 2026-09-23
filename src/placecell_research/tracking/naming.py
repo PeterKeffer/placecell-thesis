@@ -100,6 +100,10 @@ def capture_git_state(repo_root: Path) -> dict[str, str | bool]:
         "branch": branch,
         "dirty": dirty,
     }
+    code_snapshot = os.environ.get("PLACECELL_CODE_SNAPSHOT", "").strip()
+    if code_snapshot:
+        git_state["code_snapshot"] = code_snapshot
+        git_state["code_snapshot_hash"] = Path(code_snapshot).name.rpartition("_")[2]
     return git_state
 
 
