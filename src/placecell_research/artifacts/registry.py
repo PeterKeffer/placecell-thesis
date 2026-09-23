@@ -143,7 +143,7 @@ class ArtifactRegistry:
     def artifact_path(self, artifact_type: str, artifact_id: str) -> Path:
         return self._type_directory(artifact_type) / artifact_id
 
-    def _write_relative_symlink(self, link_path: Path, target_path: Path) -> None:
+    def write_relative_symlink(self, link_path: Path, target_path: Path) -> None:
         link_path.parent.mkdir(parents=True, exist_ok=True)
         resolved_target = target_path.resolve()
         if link_path.is_symlink():
@@ -181,7 +181,7 @@ class ArtifactRegistry:
                 continue
             upstream_artifact = upstream_matches[0]
             link_name = f"{relationship_label}__{upstream_artifact.artifact_id}"
-            self._write_relative_symlink(
+            self.write_relative_symlink(
                 artifact.path / link_name,
                 upstream_artifact.path,
             )

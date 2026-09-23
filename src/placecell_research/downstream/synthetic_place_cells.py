@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -161,9 +160,7 @@ class SyntheticPlaceCodeEncoder:
     sigma_center: float
     sigma_surround: float
     normalization: str = "l2"
-    distance_metric: str = "l2"
     normalize_codes: bool = True
-    success_threshold: float = 0.35
 
     @property
     def feature_dim(self) -> int:
@@ -176,34 +173,3 @@ class SyntheticPlaceCodeEncoder:
         ).reshape(-1)
 
 
-class PlaceCodeGoalCodebook:
-    """A coordinate-free bank of place-code goals recorded during offline exploration."""
-
-    def __init__(self, codes: np.ndarray) -> None:
-        self.codes = np.asarray(codes, dtype=np.float32)
-        if self.codes.ndim != 2 or self.codes.shape[0] < 1:
-            raise ValueError(
-                f"codebook codes must be (num_entries, feature_dim), got {self.codes.shape}."
-            )
-
-    @property
-    def feature_dim(self) -> int:
-        return int(self.codes.shape[1])
-
-    @classmethod
-    def load(cls, path: str | Path) -> PlaceCodeGoalCodebook:
-        codebook_path = Path(path)
-        if not codebook_path.exists():
-            raise FileNotFoundError(f"Goal codebook not found: {codebook_path}")
-        with np.load(codebook_path) as payload:
-            if "codes" not in payload:
-                raise ValueError(
-                    f"Goal codebook '{codebook_path}' must contain a 'codes' array, "
-                    f"found {list(payload.files)!r}."
-                )
-            codes = np.asarray(payload["codes"], dtype=np.float32)
-        return cls(codes=codes)
-
-    def sample(self, rng: np.random.Generator) -> np.ndarray:
-        index = int(rng.integers(self.codes.shape[0]))
-        return self.codes[index].copy()

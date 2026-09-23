@@ -11,7 +11,7 @@ import numpy as np
 from placecell_research.evaluation.decode import chunked_ridge_fit_predict
 
 from .base import AnalysisInput, AnalysisResult
-from .helpers import _subsample_indices, write_csv
+from .helpers import subsample_indices, write_csv
 from .probing import _distance_to_points, _distance_to_segments, _episode_split_indices
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
@@ -158,7 +158,7 @@ def _subsample_selection(sample_count: int, max_samples: int, seed: int) -> np.n
     """Row indices to keep so the RBF design matrix and ridge solves stay bounded."""
     if max_samples <= 0 or sample_count <= max_samples:
         return None
-    return _subsample_indices(sample_count, max_samples, seed)
+    return subsample_indices(sample_count, max_samples, seed)
 
 
 @dataclass(slots=True)

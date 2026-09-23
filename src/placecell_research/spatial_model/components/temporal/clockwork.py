@@ -5,10 +5,10 @@ from __future__ import annotations
 import torch
 from torch import Tensor, nn
 
-from .core import _ProjectedTemporalBase
+from .core import ProjectedTemporalBase
 
 
-class ClockworkTemporal(_ProjectedTemporalBase):
+class ClockworkTemporal(ProjectedTemporalBase):
     def __init__(
         self,
         input_dim: int,

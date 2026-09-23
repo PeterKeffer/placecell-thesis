@@ -14,7 +14,6 @@ from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
 from placecell_research.collection.collector import (
     collect_raw_dataset,
 )
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     augment_stage_result,
     initialize_stage_runtime,
@@ -52,7 +51,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         **runtime.raw_payload,
         "collection": _collection_config_snapshot(config, runtime.raw_payload),
     }
-    policies = resolve_policies(raw_config)
+    policies = config.policies
     collection_seed = (
         config.seed.global_seed
         if config.seed.collection_seed is None

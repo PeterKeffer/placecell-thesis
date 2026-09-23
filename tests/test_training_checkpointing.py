@@ -13,7 +13,7 @@ from torch import nn
 
 from placecell_research.config import artifact_match_fingerprint
 from placecell_research.config.schema import ExperimentConfig
-from placecell_research.spatial_model import select_place_model_checkpoint
+from placecell_research.spatial_model.loading import select_place_model_checkpoint
 from placecell_research.stages.train_place_model import (
     _place_model_resume_fingerprint_payload,
 )

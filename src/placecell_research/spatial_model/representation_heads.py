@@ -1,6 +1,6 @@
-from __future__ import annotations
+"""Cell-type readout heads trained beside the place model."""
 
-from typing import Protocol, runtime_checkable
+from __future__ import annotations
 
 import torch
 from torch import Tensor, nn
@@ -11,27 +11,14 @@ from .components.sparsifiers import KWinnersSparsifier
 from .types import ModuleOutputs, RepresentationBundle
 
 
-@runtime_checkable
-class RepresentationHead(Protocol):
-    """A trainable module that adds one namespaced module to the bundle."""
-
-    namespace: str
-
-    def forward(self, bundle: RepresentationBundle, batch: dict[str, Tensor]) -> ModuleOutputs: ...
-
-
 def run_representation_heads(
     representation_heads: nn.ModuleDict,
     bundle: RepresentationBundle,
     batch: dict[str, Tensor],
-    *,
-    skip: tuple[str, ...] = (),
 ) -> None:
     """Run each head and register its outputs under bundle.modules[head.namespace]."""
     for head in representation_heads.values():
         namespace = head.namespace
-        if namespace in skip:
-            continue
         if namespace in bundle.modules:
             raise ValueError(
                 f"Representation head namespace '{namespace}' already exists in bundle."

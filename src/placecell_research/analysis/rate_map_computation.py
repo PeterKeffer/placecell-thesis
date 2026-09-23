@@ -35,7 +35,7 @@ def _normalize_rate_map_colormap_mode(raw_value: object) -> str:
         return normalized_value
     return "reds"
 
-def _normalize_panel_reliability_metric(raw_value: object) -> str:
+def normalize_panel_reliability_metric(raw_value: object) -> str:
     normalized_value = str(raw_value).strip().lower()
     if normalized_value in {
         "thresholded_reliability",
@@ -90,7 +90,7 @@ def _order_indices_by_field_position(
     ordered_centered = [centered_units[leaf] for leaf in leaves_list(linkage_matrix).tolist()]
     return np.asarray(ordered_centered + uncentered_units, dtype=np.int64)
 
-def _select_high_activation_positions(
+def select_high_activation_positions(
     analysis_input: AnalysisInput,
     unit_indices: np.ndarray,
     *,
@@ -142,14 +142,14 @@ def _show_all_rate_map_panel_units(config: dict) -> bool:
     return bool(raw_value)
 
 
-def _use_shared_rate_map_color_scale(config: dict) -> bool:
+def use_shared_rate_map_color_scale(config: dict) -> bool:
     raw_value = config.get("rate_map_shared_color_scale", False)
     if isinstance(raw_value, str):
         return raw_value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(raw_value)
 
 
-def _resolve_rate_map_colormap_mode(config: dict) -> str:
+def resolve_rate_map_colormap_mode(config: dict) -> str:
     return _normalize_rate_map_colormap_mode(config.get("rate_map_colormap_mode", "reds"))
 
 @dataclass(frozen=True, slots=True)
@@ -188,7 +188,7 @@ class _RankedUnits:
 
 
 @dataclass(slots=True)
-class _PanelFamilyOutcome:
+class PanelFamilyOutcome:
     """What one panel family (primary, thresholded, quantile) wrote."""
 
     first_path: Path | None = None
@@ -198,7 +198,7 @@ class _PanelFamilyOutcome:
 
 
 @dataclass(slots=True)
-class _GridOutcome:
+class GridOutcome:
     """What the companion grid wrote."""
 
     first_path: Path | None = None
@@ -330,7 +330,7 @@ _PER_UNIT_KEYS_BY_GROUP: dict[str, set[str]] = {
     },
 }
 
-def _panel_metric_family(
+def panel_metric_family(
     bundle: RateMapMetricBundle,
     metric_name: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -359,7 +359,7 @@ def _panel_metric_family(
         bundle.fields.bin_consistency_supported_fraction,
     )
 
-def _select_ranked_units(
+def select_ranked_units(
     bundle: RateMapMetricBundle,
     settings: _PanelSettings,
     config: dict,
@@ -390,7 +390,7 @@ def _select_ranked_units(
         render_all_grid_units=render_all_grid_units,
     )
 
-def _population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]:
+def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]:
     """Population headlines, before the module's metric groups filter them."""
     place_metrics = bundle.place_metrics
     fields = bundle.fields
@@ -531,7 +531,7 @@ def _population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]:
         "fraction_units_majority_negative": signed.fraction_units_majority_negative,
     }
 
-def _per_unit_metrics(bundle: RateMapMetricBundle) -> dict[str, np.ndarray]:
+def rate_map_per_unit_metrics(bundle: RateMapMetricBundle) -> dict[str, np.ndarray]:
     """One vector per metric, before the module's metric groups filter them."""
     place_metrics = bundle.place_metrics
     fields = bundle.fields

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import os
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -43,12 +41,6 @@ def configure_start_method(safety: CollectionSafetyConfig) -> mp.context.BaseCon
     if safety.multiprocessing_start_method != "spawn":
         raise ValueError("Collection requires multiprocessing_start_method='spawn'.")
     return mp.get_context("spawn")
-
-
-def make_scratch_directory(safety: CollectionSafetyConfig, prefix: str) -> Path:
-    """Allocate a scratch directory for stage outputs."""
-    root = str(safety.scratch_root) if safety.scratch_root is not None else None
-    return Path(tempfile.mkdtemp(prefix=prefix, dir=root))
 
 
 def render_topdown_with_timeout(

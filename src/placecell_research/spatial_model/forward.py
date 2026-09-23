@@ -16,9 +16,7 @@ from .batch_access import (
     resolve_position_xy,
     resolve_valid_steps,
 )
-from .components.input_assemblers import predictor_assembler_uses_belief
 from .predictor_runtime import (
-    closed_loop_rollout_predictor_sequence,
     context_from_inputs,
     detach_state,
     open_loop_rollout_predictor_sequence,
@@ -69,13 +67,6 @@ class EncoderTeacherPass:
 
 
 @dataclass(slots=True)
-class MaskedPredictorPass:
-    outputs: ModuleOutputs | None
-    context_mask: Tensor | None
-    target_mask: Tensor | None
-
-
-@dataclass(slots=True)
 class PlaceModelChunkState:
     encoder_state: Any
     teacher_state: Any
@@ -107,11 +98,10 @@ class PlaceModelChunkState:
         )
 
 
-def resolve_batch(batch: dict[str, Tensor], observation_source: str) -> ResolvedBatch:
-    actions = resolve_actions(batch)
+def resolve_batch(batch: dict[str, Tensor]) -> ResolvedBatch:
     return ResolvedBatch(
-        observations=(actions if observation_source == "action" else resolve_observations(batch)),
-        actions=actions,
+        observations=resolve_observations(batch),
+        actions=resolve_actions(batch),
         valid_steps=resolve_valid_steps(batch),
         kinematics=resolve_kinematics(batch),
         position_xy=resolve_position_xy(batch),
@@ -123,13 +113,6 @@ def _expand_mask(mask: Tensor, reference_tensor: Tensor) -> Tensor:
     while expanded.ndim < reference_tensor.ndim:
         expanded = expanded.unsqueeze(-1)
     return expanded
-
-
-def _action_history_tokens(actions: Tensor, valid_steps: Tensor, padding_action: int) -> Tensor:
-    history_tokens = torch.full_like(actions, int(padding_action))
-    if actions.shape[1] > 1:
-        history_tokens[:, 1:] = actions[:, :-1]
-    return history_tokens.masked_fill(~valid_steps.bool(), int(padding_action))
 
 
 def _delay_observations(observations: Tensor, delay_steps: int) -> Tensor:
@@ -551,19 +534,8 @@ def _encode_sequence_stateful(
     encoder_state: Any = None,
     teacher_state: Any = None,
 ) -> tuple[EncoderTeacherPass, Any, Any]:
-    observation_source = model.components.config.inputs.observation_source
-    if observation_source == "action":
-        padding_action = getattr(model.encoder_stack.observation_encoder, "padding_action", None)
-        if padding_action is None:
-            raise RuntimeError("Action observation source requires an action embedding backbone.")
-        clean_observations = _action_history_tokens(
-            resolved_batch.actions,
-            resolved_batch.valid_steps,
-            int(padding_action),
-        )
-    else:
-        clean_observations = resolved_batch.observations.float()
-    if observation_source == "rgb":
+    clean_observations = resolved_batch.observations.float()
+    if model.components.config.inputs.observation_source == "rgb":
         clean_observations = clean_observations / 255.0
     current_clean_observations = clean_observations
     encoder_observations = _delay_observations(
@@ -582,7 +554,6 @@ def _encode_sequence_stateful(
         valid_steps=resolved_batch.valid_steps,
         training_regularizer=model.training_regularizer,
         initial_state=encoder_state,
-        external_context=getattr(model, "_top_down_context", None),
     )
     teacher_input = (
         current_clean_observations
@@ -598,7 +569,6 @@ def _encode_sequence_stateful(
             kinematics=resolved_batch.kinematics,
             valid_steps=resolved_batch.valid_steps,
             initial_state=teacher_state,
-            external_context=getattr(model, "_top_down_context", None),
         )
         if teacher_full_outputs is not None:
             teacher_outputs = ModuleOutputs(
@@ -653,40 +623,14 @@ def _encode_sequence(
     return encoder_teacher_pass
 
 
-def _run_masked_predictor(
-    model: CompositePlaceModel,
-    resolved_batch: ResolvedBatch,
-    encoder_teacher_pass: EncoderTeacherPass,
-) -> MaskedPredictorPass:
-    if model.masked_predictor is None:
-        return MaskedPredictorPass(outputs=None, context_mask=None, target_mask=None)
-    valid_steps = resolved_batch.valid_steps.bool()
-    clean_context_mask = (encoder_teacher_pass.corruption.corruption_regime == 0) & valid_steps
-    target_mask = (encoder_teacher_pass.corruption.corruption_regime > 0) & valid_steps
-    outputs = model.masked_predictor(
-        encoder_teacher_pass.encoder_outputs.place_codes,
-        context_mask=clean_context_mask,
-        target_mask=target_mask,
-        training_regularizer=model.training_regularizer,
-    )
-    return MaskedPredictorPass(
-        outputs=outputs,
-        context_mask=clean_context_mask,
-        target_mask=target_mask,
-    )
-
-
 def _rollout_predictor(
     model: CompositePlaceModel,
     resolved_batch: ResolvedBatch,
     encoder_outputs: ModuleOutputs,
     corruption_regime: Tensor,
     temporal_offset: Tensor | None,
-    input_codes: Tensor | None = None,
-    belief_codes: Tensor | None = None,
 ) -> ModuleOutputs:
-    predictor_input_codes = encoder_outputs.place_codes if input_codes is None else input_codes
-    predictor_input_codes = _prediction_gradient_view(model, predictor_input_codes)
+    predictor_input_codes = _prediction_gradient_view(model, encoder_outputs.place_codes)
     predictor_outputs, _, _ = rollout_predictor_sequence(
         model,
         predictor_input_codes,
@@ -701,44 +645,8 @@ def _rollout_predictor(
         detach_intermediate_predictions=bool(
             model.components.config.rollout.detach_intermediate_predictions
         ),
-        belief_codes=belief_codes,
     )
     return predictor_outputs
-
-
-def _rollout_predictor_closed_loop(
-    model: CompositePlaceModel,
-    resolved_batch: ResolvedBatch,
-    encoder_teacher_pass: EncoderTeacherPass,
-) -> tuple[ModuleOutputs, ModuleOutputs]:
-    """I1: run the closed-loop fusion rollout; returns (predictor, inline comparator) outputs."""
-    encoder_outputs = encoder_teacher_pass.encoder_outputs
-    if encoder_outputs.place_codes is None or encoder_outputs.pre_sparsifier is None:
-        raise RuntimeError(
-            "comparator.closed_loop needs encoder place_codes and pre_sparsifier; this backbone "
-            "produced no dense pre-sparsifier activation."
-        )
-    comparator_head = model.representation_heads["comparator"]
-    if model.attractor_binding is not None and encoder_outputs.hidden_state is None:
-        raise RuntimeError(
-            "attractor_binding needs encoder.hidden_state; this backbone exports none."
-        )
-    return closed_loop_rollout_predictor_sequence(
-        model,
-        encoder_outputs.place_codes,
-        encoder_outputs.pre_sparsifier,
-        comparator_head.comparator,
-        context_from_inputs(
-            model,
-            actions=resolved_batch.actions,
-            kinematics_tensor=resolved_batch.kinematics,
-            corruption_regime=encoder_teacher_pass.corruption.corruption_regime,
-            temporal_offset=encoder_teacher_pass.corruption.temporal_offset,
-        ),
-        regularizer=model.training_regularizer,
-        attractor_binding=model.attractor_binding,
-        encoder_hidden=encoder_outputs.hidden_state,
-    )
 
 
 def _slow_operator_stack(model: CompositePlaceModel) -> DetachedPredictorStack:
@@ -846,7 +754,6 @@ def _bundle_representations(
     resolved_batch: ResolvedBatch,
     encoder_teacher_pass: EncoderTeacherPass,
     predictor_outputs: ModuleOutputs,
-    masked_predictor_pass: MaskedPredictorPass,
     open_loop_outputs: ModuleOutputs | None = None,
 ) -> RepresentationBundle:
     actions = resolved_batch.actions
@@ -862,11 +769,6 @@ def _bundle_representations(
         "any": corruption_mask.sum().to(torch.float32) / valid_count,
     }
     external_observations = resolved_batch.observations.detach()
-    if model.components.config.inputs.observation_source == "action":
-        external_observations = torch.nn.functional.one_hot(
-            encoder_teacher_pass.clean_observations.long(),
-            num_classes=model.components.observation_dim,
-        ).float()
     bundle = RepresentationBundle(
         modules={
             "encoder": encoder_teacher_pass.encoder_outputs,
@@ -913,11 +815,6 @@ def _bundle_representations(
             "rollout_detach_intermediate_predictions": bool(
                 model.components.config.rollout.detach_intermediate_predictions
             ),
-            "predictor_runtime_contract": model.model_contract().get(
-                "predictor_runtime_contract",
-                "",
-            ),
-            "masked_predictor_enabled": model.masked_predictor is not None,
             "corruption_fractions": {
                 name: value.detach() for name, value in corruption_fractions.items()
             },
@@ -926,12 +823,6 @@ def _bundle_representations(
     )
     if open_loop_outputs is not None:
         bundle.modules["predictor_rollout"] = open_loop_outputs
-    if masked_predictor_pass.outputs is not None:
-        bundle.modules["jepa_predictor"] = masked_predictor_pass.outputs
-    if masked_predictor_pass.context_mask is not None:
-        bundle.masks["jepa_context_mask"] = masked_predictor_pass.context_mask
-    if masked_predictor_pass.target_mask is not None:
-        bundle.masks["jepa_target_mask"] = masked_predictor_pass.target_mask
     if model.inverse_dynamics_head is not None:
         encoder_codes = encoder_teacher_pass.encoder_outputs.place_codes
         if (
@@ -949,50 +840,11 @@ def _bundle_representations(
     return bundle
 
 
-def _run_inline_grid(
-    model: CompositePlaceModel,
-    resolved_batch: ResolvedBatch,
-    encoder_teacher_pass: EncoderTeacherPass,
-) -> ModuleOutputs | None:
-    grid_stream = model.grid_stream
-    if grid_stream is None or not model.components.config.grid_stream.functional:
-        return None
-    if not predictor_assembler_uses_belief(model.predictor_input_assembler):
-        raise ValueError(
-            "grid_stream.functional=true needs a belief-using predictor_input_mode "
-            "(conditional/gated/dual): the grid readout is fed as the predictor's belief code."
-        )
-    if resolved_batch.kinematics is None:
-        raise ValueError(
-            "grid_stream.functional=true requires kinematics (self-motion); the grid integrates "
-            "velocity, not coordinates."
-        )
-    teacher = encoder_teacher_pass.teacher_outputs
-    if grid_stream.teacher_representation == "pre_sparsifier":
-        teacher_codes = teacher.pre_sparsifier
-        if teacher_codes is None:
-            raise ValueError(
-                "grid_stream.teacher_representation='pre_sparsifier' but the teacher produced no "
-                "pre_sparsifier activation for this backbone."
-            )
-    else:
-        teacher_codes = teacher.place_codes
-    return grid_stream(
-        teacher_codes=teacher_codes,
-        kinematics=resolved_batch.kinematics,
-        valid_steps=resolved_batch.valid_steps,
-        corruption_regime=encoder_teacher_pass.corruption.corruption_regime,
-    )
-
-
 def forward_sequence(model: CompositePlaceModel, batch: dict[str, Tensor]) -> RepresentationBundle:
     """Run the full sequence model using the module's train/eval mode."""
     if model.training_regularizer is not None:
         model.training_regularizer.reset_sequence()
-    resolved_batch = resolve_batch(
-        batch,
-        model.components.config.inputs.observation_source,
-    )
+    resolved_batch = resolve_batch(batch)
     encoder_teacher_pass = _encode_sequence(model, resolved_batch)
     return forward_from_encoded(model, batch, resolved_batch, encoder_teacher_pass)
 
@@ -1004,23 +856,13 @@ def forward_from_encoded(
     encoder_teacher_pass: EncoderTeacherPass,
 ) -> RepresentationBundle:
     """Run predictors and heads on already computed student and teacher encodings."""
-    grid_outputs = _run_inline_grid(model, resolved_batch, encoder_teacher_pass)
-    comparator_config = model.components.config.comparator
-    inline_comparator_outputs = None
-    if comparator_config.enabled and comparator_config.closed_loop:
-        predictor_outputs, inline_comparator_outputs = _rollout_predictor_closed_loop(
-            model, resolved_batch, encoder_teacher_pass
-        )
-    else:
-        predictor_outputs = _rollout_predictor(
-            model,
-            resolved_batch,
-            encoder_teacher_pass.encoder_outputs,
-            encoder_teacher_pass.corruption.corruption_regime,
-            encoder_teacher_pass.corruption.temporal_offset,
-            input_codes=None,
-            belief_codes=(None if grid_outputs is None else grid_outputs.auxiliary["pred"]),
-        )
+    predictor_outputs = _rollout_predictor(
+        model,
+        resolved_batch,
+        encoder_teacher_pass.encoder_outputs,
+        encoder_teacher_pass.corruption.corruption_regime,
+        encoder_teacher_pass.corruption.temporal_offset,
+    )
     open_loop_outputs = None
     open_loop_steps = getattr(model, "export_open_loop_rollout_steps", None)
     if open_loop_steps:
@@ -1032,11 +874,6 @@ def forward_from_encoded(
             encoder_teacher_pass.corruption.temporal_offset,
             int(open_loop_steps),
         )
-    masked_predictor_pass = _run_masked_predictor(
-        model,
-        resolved_batch,
-        encoder_teacher_pass,
-    )
     slow_operator_outputs = _rollout_slow_operator(model, resolved_batch, encoder_teacher_pass)
     projected_codes = _project_for_slow_operator(model, encoder_teacher_pass.encoder_outputs)
     if projected_codes is not None:
@@ -1046,27 +883,12 @@ def forward_from_encoded(
         resolved_batch,
         encoder_teacher_pass,
         predictor_outputs,
-        masked_predictor_pass,
         open_loop_outputs,
     )
     if slow_operator_outputs is not None:
         bundle.modules["teacher_predictor"] = slow_operator_outputs
-    if grid_outputs is not None:
-        bundle.modules["grid"] = grid_outputs
-    if inline_comparator_outputs is not None:
-        bundle.modules["comparator"] = inline_comparator_outputs
     if len(model.representation_heads) > 0:
-        inline_head_namespaces = []
-        if grid_outputs is not None:
-            inline_head_namespaces.append("grid")
-        if inline_comparator_outputs is not None:
-            inline_head_namespaces.append("comparator")
-        run_representation_heads(
-            model.representation_heads,
-            bundle,
-            batch,
-            skip=tuple(inline_head_namespaces),
-        )
+        run_representation_heads(model.representation_heads, bundle, batch)
     if len(model.auxiliary_heads) > 0:
         run_auxiliary_heads(model.auxiliary_heads, bundle, batch)
     return bundle
@@ -1086,9 +908,7 @@ def _validate_chunk_forward_runtime(model: CompositePlaceModel) -> None:
         and model.training_regularizer.has_active_site("")
     ):
         raise ValueError("Stateful BPTT does not support an active sequence regularizer.")
-    if model.masked_predictor is not None:
-        raise ValueError("Stateful BPTT does not support the masked predictor.")
-    if model.grid_stream is not None or len(model.representation_heads) > 0:
+    if len(model.representation_heads) > 0:
         raise ValueError("Stateful BPTT does not support representation heads.")
     if len(model.auxiliary_heads) > 0:
         raise ValueError("Stateful BPTT does not support objectives with auxiliary heads.")
@@ -1105,10 +925,7 @@ def forward_chunk(
 ) -> tuple[RepresentationBundle, PlaceModelChunkState]:
     """Carry state across chunks; new episodes omit the cross-boundary transition."""
     _validate_chunk_forward_runtime(model)
-    resolved_batch = resolve_batch(
-        batch,
-        model.components.config.inputs.observation_source,
-    )
+    resolved_batch = resolve_batch(batch)
     encoder_teacher_pass, next_encoder_state, next_teacher_state = _encode_sequence_stateful(
         model,
         resolved_batch,
@@ -1147,17 +964,11 @@ def forward_chunk(
         initial_state=None if state is None else state.predictor_state,
         previous_encoder_code=state.previous_encoder_code if contiguous else None,
     )
-    empty_masked_pass = MaskedPredictorPass(
-        outputs=None,
-        context_mask=None,
-        target_mask=None,
-    )
     bundle = _bundle_representations(
         model,
         resolved_batch,
         encoder_teacher_pass,
         predictor_outputs,
-        empty_masked_pass,
     )
     if contiguous:
         boundary_valid = state.previous_valid_step & resolved_batch.valid_steps[:, 0]

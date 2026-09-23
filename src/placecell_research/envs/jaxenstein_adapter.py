@@ -268,22 +268,11 @@ class JaxensteinAdapter:
             return bool(grid[row, col] == 0)
         return False
 
-    def renders_goal_object(self) -> bool:
-        return False
-
-    def navigation_convention(self):
-        from .base import NavigationConvention
-
-        return NavigationConvention(forward_y_sign=1.0, turn_left_increases_heading=False)
-
     def get_goal_position_xy(self) -> np.ndarray:
         return np.asarray(self._env.maze.goal_xy, dtype=np.float32).reshape(-1)[:2]
 
     def goal_reach_radius(self) -> float:
         return float(np.asarray(self._env.params.goal_radius))
-
-    def set_terminate_on_goal(self, enabled: bool) -> None:
-        self._terminate_on_goal = bool(enabled)
 
     def set_goal_position_xy(self, goal_position_xy: np.ndarray | list[float]) -> None:
         from .jaxenstein_maps import build_jaxenstein_env

@@ -238,20 +238,7 @@ def test_grouped_output_file_name_preserves_non_source_segments() -> None:
     assert unchanged == "summary.json"
 
 
-def test_comparative_input_payloads_requires_inputs_and_rejects_legacy_sources() -> None:
-    try:
-        _comparative_input_payloads(
-            "remapping",
-            {
-                "enabled": True,
-                "sources": [{"label": "old"}],
-            },
-        )
-    except ValueError as exc:
-        assert "removed legacy key 'sources'" in str(exc)
-    else:  # pragma: no cover
-        raise AssertionError("expected legacy 'sources' to be rejected")
-
+def test_comparative_input_payloads_requires_inputs() -> None:
     try:
         _comparative_input_payloads(
             "remapping",

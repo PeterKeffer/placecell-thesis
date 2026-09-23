@@ -8,7 +8,6 @@ from typing import Any
 
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import short_fingerprint, slugify
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     augment_stage_result,
     initialize_stage_runtime,
@@ -56,7 +55,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     progress.emit(detail="load dataset manifest")
     config = runtime.config
     raw_config = runtime.raw_payload
-    policies = resolve_policies(raw_config)
+    policies = config.policies
     if not config.dataset.artifact_id:
         raise ValueError(
             "create_split requires dataset.artifact_id to reference a dataset artifact."

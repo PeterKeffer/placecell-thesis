@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from ..numerics.occupancy import (
     EpisodeBinOccupancy,
     EpisodeBinStatistics,
-    _prepare_episode_bin_statistics,
+    prepare_episode_bin_statistics,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ def get_or_compute_episode_bin_statistics(
     """Prepare episode/bin statistics, reusing the collection's shared bin-level counts."""
     cache_key = ("episode_bin_occupancy", num_bins_x, num_bins_y, bounds)
     cached_occupancy = analysis_input.position_cache.get(cache_key)
-    statistics = _prepare_episode_bin_statistics(
+    statistics = prepare_episode_bin_statistics(
         analysis_input.representation,
         analysis_input.position_xy,
         analysis_input.valid_mask,

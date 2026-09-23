@@ -66,35 +66,6 @@ def resolve_inference_device(device: str) -> str:
     return str(resolve_device(device))
 
 
-def resolve_required_artifact_path(
-    registry: ArtifactRegistry,
-    artifact_id: str,
-    *,
-    expected_type: str | None,
-) -> Path:
-    artifact_reference = str(artifact_id or "").strip()
-    if not artifact_reference:
-        raise ValueError("Artifact reference must be non-empty.")
-    path_reference = _absolute_path_reference(artifact_reference)
-    if path_reference is not None:
-        if not path_reference.exists():
-            raise FileNotFoundError(f"Artifact path does not exist: {path_reference}")
-        return path_reference
-    if expected_type is not None and ArtifactRegistry.is_tag_reference(artifact_reference):
-        artifact = registry.resolve_completed_reference(expected_type, artifact_reference)
-    else:
-        artifact = registry.find_by_id(artifact_reference)
-    if artifact is None:
-        raise FileNotFoundError(f"Could not find artifact '{artifact_reference}'.")
-    if expected_type is not None and artifact.artifact_type != expected_type:
-        raise ValueError(
-            f"Artifact '{artifact_reference}' has type '{artifact.artifact_type}', expected "
-            f"'{expected_type}'."
-        )
-    registry.require_completed(artifact)
-    return artifact.path
-
-
 def _absolute_path_reference(artifact_reference: str) -> Path | None:
     path = Path(artifact_reference).expanduser()
     if path.is_absolute():

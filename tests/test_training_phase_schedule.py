@@ -7,11 +7,7 @@ from placecell_research.config.schema import (
 )
 from placecell_research.objectives.registry import build_objectives
 from placecell_research.spatial_model.builder import ModelBuildContext, build_place_model
-from placecell_research.training.loop import (
-    active_phase_for_epoch,
-    build_phase_schedule,
-    grid_phase_local_epoch,
-)
+from placecell_research.training.loop import active_phase_for_epoch, build_phase_schedule
 
 
 def _context() -> ModelBuildContext:
@@ -35,12 +31,12 @@ def _base_model():
     return build_place_model(config, _context())
 
 
-def test_base_model_without_grid_is_single_all_trainable_phase():
+def test_default_schedule_is_single_all_trainable_phase():
     model = _base_model()
     schedule = build_phase_schedule(epochs=8, phases=[], model=model)
     assert len(schedule) == 1
     assert schedule[0].epochs == 8
-    assert "grid" not in schedule[0].train
+    assert set(schedule[0].train) == model.available_selectors()
 
 
 def test_default_all_phase_keeps_targeted_objective_head_trainable():
@@ -69,19 +65,13 @@ def test_default_all_phase_keeps_targeted_objective_head_trainable():
 def test_active_phase_picks_by_cumulative_epochs():
     phases = [
         PhaseConfig(name="place", epochs=3, train=["encoder"]),
-        PhaseConfig(name="grid", epochs=2, train=["grid"]),
+        PhaseConfig(name="head", epochs=2, train=["encoder_head"]),
     ]
     assert [active_phase_for_epoch(phases, e)[0].name for e in range(5)] == [
         "place",
         "place",
         "place",
-        "grid",
-        "grid",
+        "head",
+        "head",
     ]
     assert [active_phase_for_epoch(phases, e)[1] for e in range(5)] == [0, 1, 2, 0, 1]
-
-
-def test_grid_phase_local_epoch_is_none_without_grid_phase():
-    model = _base_model()
-    schedule = build_phase_schedule(epochs=4, phases=[], model=model)
-    assert all(grid_phase_local_epoch(schedule, epoch) is None for epoch in range(4))

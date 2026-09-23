@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     )
 
 
-def _disable_targets_where(
+def disable_targets_where(
     analysis_config: dict[str, object],
     predicate: Callable[[str, dict[str, object]], bool],
 ) -> tuple[dict[str, object], list[dict[str, str]]]:
@@ -133,7 +133,7 @@ def _log_group_boundary_memory(
         )
 
 
-def _build_target_work_items(
+def build_target_work_items(
     target_config: dict[str, object],
     *,
     coverage_extra_splits: list[str],
@@ -193,7 +193,7 @@ def _build_target_work_items(
     return target_work_items
 
 
-def _build_comparative_work_items(
+def build_comparative_work_items(
     enabled_comparative_items: list[tuple[str, dict[str, object]]],
     *,
     default_model_id: str,
@@ -232,7 +232,7 @@ def _build_comparative_work_items(
     return comparative_work_items
 
 
-def _execute_single_work_items(
+def execute_single_work_items(
     target_work_items: list[_SingleAnalysisWorkItem],
     *,
     single_results: dict[str, AnalysisResult],
@@ -343,7 +343,7 @@ def _execute_single_work_items(
     _release_work_item_memory()
 
 
-def _execute_comparative_work_items(
+def execute_comparative_work_items(
     comparative_work_items: list[tuple[str, dict[str, object], list[_AnalysisSourceReference]]],
     *,
     single_results: dict[str, AnalysisResult],
@@ -450,7 +450,7 @@ def _execute_comparative_work_items(
         collection_cache.clear()
 
 
-def _finalize_report(
+def finalize_report(
     *,
     single_results: dict[str, AnalysisResult],
     comparative_results: dict[str, AnalysisResult],

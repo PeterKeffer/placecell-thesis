@@ -14,18 +14,11 @@ from placecell_research.spatial_model.types import RepresentationBundle
 
 from .base import ConfiguredObjective, ObjectiveResult
 from .masking import valid_steps
-from .targeting import (
-    model_config_for_representation,
-    representation_parts,
-    runtime_representation,
-)
 
 
 def _configured_width(model_config: SpatialModelConfig, target: str) -> int | None:
     """Width of a target as the CONFIG declares it, or None when the config cannot say."""
-    owner = model_config_for_representation(model_config, target)
-    _namespace, module_name, field_name = representation_parts(target)
-    shape = base_representation_shapes(owner).get(f"{module_name}.{field_name}")
+    shape = base_representation_shapes(model_config).get(target)
     if isinstance(shape, list) and shape and isinstance(shape[-1], int):
         return int(shape[-1])
     return None
@@ -65,22 +58,16 @@ class TimescaleAlignmentObjective(ConfiguredObjective):
         )
 
     def compute(self, bundle: RepresentationBundle, batch: dict[str, Tensor]) -> ObjectiveResult:
-        head_bundle, head_name = runtime_representation(
-            bundle, self.config.targets[0], objective_name=self.name
-        )
-        target_bundle, target_name = runtime_representation(
-            bundle, self.config.targets[1], objective_name=self.name
-        )
-        head_codes = head_bundle.get_representation(head_name)
-        target_codes = target_bundle.get_representation(target_name).detach()
+        head_codes = bundle.get_representation(self.config.targets[0])
+        target_codes = bundle.get_representation(self.config.targets[1]).detach()
         mask = valid_steps(bundle, batch)
         timescale = int(self.config.timescale)
         if timescale > 0:
             decay = timescale / (timescale + 1.0)
             step_decay = None
             if self.config.event_gated:
-                expectation = target_bundle.get_representation("predictor.pre_sparsifier")
-                reference = target_bundle.get_representation("teacher.pre_sparsifier")
+                expectation = bundle.get_representation("predictor.pre_sparsifier")
+                reference = bundle.get_representation("teacher.pre_sparsifier")
                 surprise = 1.0 - F.cosine_similarity(
                     expectation.detach(), reference.detach(), dim=-1
                 )

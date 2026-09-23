@@ -66,7 +66,7 @@ def run_downstream_rollout(
         successes = []
         steps_per_episode = []
         for episode_index in range(int(config.rollout.episodes)):
-            observation, info = env.reset(seed=int(config.seed) + episode_index)
+            _, info = env.reset(seed=int(config.seed) + episode_index)
             total_return = 0.0
             steps = 0
             terminated = False
@@ -81,7 +81,7 @@ def run_downstream_rollout(
                     action = 2 if int(env.action_space.n) > 2 else 0
                 else:
                     action = env.action_space.sample()
-                observation, reward, terminated, truncated, final_info = env.step(action)
+                _, reward, terminated, truncated, final_info = env.step(action)
                 total_return += float(reward)
                 steps += 1
             returns.append(total_return)

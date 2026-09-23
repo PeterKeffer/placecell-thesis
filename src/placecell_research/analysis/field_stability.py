@@ -11,7 +11,7 @@ import numpy as np
 
 from ..numerics.bin_maps import _smooth_flat_bin_maps
 from ..numerics.occupancy import (
-    _iter_episode_activity_sum_chunks,
+    iter_episode_activity_sum_chunks,
     reachable_bin_visited_fractions,
 )
 from .base import AnalysisInput, AnalysisResult
@@ -161,7 +161,7 @@ def _compute_field_stability_episode_metrics(
         )
     safe_valid_occupancy = safe_episode_occupancy[valid_episode_indices]
 
-    for start_index, stop_index, chunk_activity_sums in _iter_episode_activity_sum_chunks(
+    for start_index, stop_index, chunk_activity_sums in iter_episode_activity_sum_chunks(
         episode_statistics,
         unit_chunk_size=16,
     ):

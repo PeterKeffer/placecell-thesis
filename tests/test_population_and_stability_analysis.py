@@ -286,7 +286,7 @@ def test_field_stability_split_modules_share_episode_metrics(
     activity_chunk_passes = 0
     from placecell_research.analysis import field_stability
 
-    original_iter_chunks = field_stability._iter_episode_activity_sum_chunks
+    original_iter_chunks = field_stability.iter_episode_activity_sum_chunks
 
     def counted_iter_chunks(*args, **kwargs):
         nonlocal activity_chunk_passes
@@ -294,7 +294,7 @@ def test_field_stability_split_modules_share_episode_metrics(
         yield from original_iter_chunks(*args, **kwargs)
 
     monkeypatch.setattr(
-        "placecell_research.analysis.field_stability._iter_episode_activity_sum_chunks",
+        "placecell_research.analysis.field_stability.iter_episode_activity_sum_chunks",
         counted_iter_chunks,
     )
     config = {

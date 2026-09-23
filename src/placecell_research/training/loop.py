@@ -19,7 +19,6 @@ from placecell_research.config.schema import (
 )
 from placecell_research.objectives import compute_total_loss
 from placecell_research.objectives.registry import BuiltObjectives, MetricValue
-from placecell_research.spatial_model.composite import BASE_MODULE_SELECTORS
 from placecell_research.spatial_model.protocol import PlaceModel
 from placecell_research.tracking.progress import ProgressUpdate
 from placecell_research.utils.metrics import materialize_metric_values
@@ -65,7 +64,6 @@ class TrainLoopConfig:
     device: torch.device
     eval_every_n_epochs: int = 1
     eval_schedule: str = "uniform"
-    expert_probe_metric: str | None = None
     sequence_length: int | None = None
     build_context: dict[str, object] | None = None
     resume_checkpoint: Path | None = None
@@ -80,7 +78,6 @@ class TrainLoopResult:
     final_metrics: dict[str, float]
     best_primary_path: Path | None
     best_validation_loss_path: Path | None
-    best_expert_probe_path: Path | None
     last_path: Path | None
     parameter_groups: dict[str, list[nn.Parameter]]
 
@@ -91,13 +88,6 @@ def build_phase_schedule(
     """The effective ordered phase schedule the loop runs."""
     if phases:
         return phases
-    grid_stream = getattr(model, "grid_stream", None)
-    warmup_epochs = getattr(grid_stream, "place_warmup_epochs", 0) if grid_stream is not None else 0
-    if grid_stream is not None and warmup_epochs > 0:
-        return [
-            PhaseConfig(name="place", epochs=warmup_epochs, train=sorted(BASE_MODULE_SELECTORS)),
-            PhaseConfig(name="grid", epochs=epochs - warmup_epochs, train=["grid"]),
-        ]
     return [PhaseConfig(name="all", epochs=epochs, train=sorted(model.available_selectors()))]
 
 
@@ -109,15 +99,6 @@ def active_phase_for_epoch(phases: list[PhaseConfig], epoch: int) -> tuple[Phase
             return phase, epoch - cumulative
         cumulative += phase.epochs
     return phases[-1], epoch - (cumulative - phases[-1].epochs)
-
-
-def grid_phase_local_epoch(phases: list[PhaseConfig], epoch: int) -> int | None:
-    grid_phase_start = 0
-    for phase in phases:
-        if "grid" in phase.train:
-            return max(0, epoch - grid_phase_start)
-        grid_phase_start += phase.epochs
-    return None
 
 
 def _metric_value_to_tensor(value: MetricValue, device: torch.device) -> Tensor:
@@ -218,10 +199,7 @@ def _iter_sequence_chunks(
 
 
 def _predictor_side_is_active(phase_selectors: set[str]) -> bool:
-    return any(
-        selector.rpartition(":")[2] in PREDICTOR_SIDE_SELECTORS
-        for selector in phase_selectors
-    )
+    return bool(phase_selectors & PREDICTOR_SIDE_SELECTORS)
 
 
 def _selectors_for_optimizer_step(
@@ -236,11 +214,7 @@ def _selectors_for_optimizer_step(
         return phase_selectors, False
     if predictor_update:
         return phase_selectors, True
-    return {
-        selector
-        for selector in phase_selectors
-        if selector.rpartition(":")[2] not in PREDICTOR_SIDE_SELECTORS
-    }, False
+    return phase_selectors - PREDICTOR_SIDE_SELECTORS, False
 
 
 def apply_tf32_policy(allow_tf32: bool) -> None:
@@ -274,8 +248,6 @@ def train_model(
     start_epoch = 0
     best_primary_path: Path | None = None
     best_validation_loss_path: Path | None = None
-    best_expert_probe_path: Path | None = None
-    best_expert_probe_value: float | None = None
     last_path: Path | None = None
     final_metrics: dict[str, float] = {}
     latest_evaluation_metrics: dict[str, float] | None = None
@@ -301,15 +273,12 @@ def train_model(
             selector.best_primary = loop_state.get("best_primary")
             selector.best_primary_tie_break = loop_state.get("best_primary_tie_break")
             selector.best_validation_loss = loop_state.get("best_validation_loss")
-            best_expert_probe_value = loop_state.get("best_expert_probe_value")
             primary_candidate = loop_config.checkpoint_dir / "weights_best_primary.pt"
             validation_candidate = loop_config.checkpoint_dir / "weights_best_validation_loss.pt"
-            expert_candidate = loop_config.checkpoint_dir / "weights_best_expert_probe.pt"
             best_primary_path = primary_candidate if primary_candidate.exists() else None
             best_validation_loss_path = (
                 validation_candidate if validation_candidate.exists() else None
             )
-            best_expert_probe_path = expert_candidate if expert_candidate.exists() else None
         elif loop_config.resume_policy == "weights_only":
             step_count = checkpoint_state.step
 
@@ -354,15 +323,6 @@ def train_model(
             for namespace in getattr(model, "representation_heads", {})
             if namespace in active_phase.train
         }
-        grid_stream_module = getattr(model, "grid_stream", None)
-        if grid_stream_module is not None and grid_stream_module.bptt_curriculum:
-            grid_local_epoch = grid_phase_local_epoch(phase_schedule, epoch)
-            if grid_local_epoch is not None:
-                grid_phase = next(phase for phase in phase_schedule if "grid" in phase.train)
-                grid_epochs = max(1, grid_phase.epochs)
-                stage_count = len(grid_stream_module.bptt_curriculum)
-                stage_index = min(stage_count - 1, (grid_local_epoch * stage_count) // grid_epochs)
-                grid_stream_module.bptt_window = grid_stream_module.bptt_curriculum[stage_index]
         epoch_metric_sums: dict[str, Tensor] = {}
         epoch_metric_counts: dict[str, int] = {}
         for batch in train_loader:
@@ -465,18 +425,7 @@ def train_model(
         scheduler.step()
         final_metrics = _materialize_metric_means(epoch_metric_sums, epoch_metric_counts)
         final_metrics["epoch"] = float(epoch)
-        with torch.no_grad():
-            ssm_eigenvalue_moduli = [
-                module.discrete_eigenvalue_modulus_max()
-                for module in model.modules()
-                if hasattr(module, "discrete_eigenvalue_modulus_max")
-            ]
-        if ssm_eigenvalue_moduli:
-            final_metrics["train/ssm_max_discrete_eig_modulus"] = float(
-                torch.stack(ssm_eigenvalue_moduli).max()
-            )
         selection_metrics = dict(final_metrics)
-        save_best_expert_probe = False
         if evaluate_fn is not None:
             should_run_evaluation = epoch == start_epoch or epoch in evaluation_epoch_set
             if should_run_evaluation:
@@ -489,16 +438,6 @@ def train_model(
                 latest_evaluation_metrics = dict(validation_metrics)
                 final_metrics.update(validation_metrics)
                 selection_metrics.update(validation_metrics)
-                expert_probe_metric = loop_config.expert_probe_metric
-                if expert_probe_metric is not None and expert_probe_metric in validation_metrics:
-                    expert_probe_value = float(validation_metrics[expert_probe_metric])
-                    if math.isfinite(expert_probe_value) and (
-                        best_expert_probe_value is None
-                        or expert_probe_value < best_expert_probe_value
-                    ):
-                        best_expert_probe_value = expert_probe_value
-                        save_best_expert_probe = True
-                    final_metrics["checkpoint/expert_probe_saved"] = float(save_best_expert_probe)
             elif latest_evaluation_metrics is not None:
                 selection_metrics.update(latest_evaluation_metrics)
         decisions = selector.update(selection_metrics)
@@ -508,13 +447,11 @@ def train_model(
             checkpoint_epoch: int = epoch,
             checkpoint_step: int = step_count,
             checkpoint_metrics: dict[str, float] = final_metrics,
-            checkpoint_best_expert_probe: float | None = best_expert_probe_value,
         ) -> None:
             checkpoint_loop_state: dict[str, object] = {
                 "best_primary": selector.best_primary,
                 "best_primary_tie_break": selector.best_primary_tie_break,
                 "best_validation_loss": selector.best_validation_loss,
-                "best_expert_probe_value": checkpoint_best_expert_probe,
             }
             save_checkpoint(
                 path,
@@ -538,9 +475,6 @@ def train_model(
                 loop_config.checkpoint_dir / "weights_best_validation_loss.pt"
             )
             save_training_checkpoint(best_validation_loss_path)
-        if save_best_expert_probe:
-            best_expert_probe_path = loop_config.checkpoint_dir / "weights_best_expert_probe.pt"
-            save_training_checkpoint(best_expert_probe_path)
         if decisions["save_last"]:
             last_path = loop_config.checkpoint_dir / "weights_last.pt"
             save_training_checkpoint(last_path)
@@ -555,7 +489,6 @@ def train_model(
         final_metrics=final_metrics,
         best_primary_path=best_primary_path,
         best_validation_loss_path=best_validation_loss_path,
-        best_expert_probe_path=best_expert_probe_path,
         last_path=last_path,
         parameter_groups=parameter_groups,
     )

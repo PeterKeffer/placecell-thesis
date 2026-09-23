@@ -14,12 +14,12 @@ import numpy as np
 
 from placecell_research.analysis.rate_map_export import (
     _render_summary_panel,
-    _render_support_map,
+    render_support_map,
 )
 from placecell_research.analysis.rate_map_rendering import (
-    _build_rate_map_grid_figure,
-    _build_summary_panel_figure,
     _panel_metric_cmap_name,
+    build_rate_map_grid_figure,
+    build_summary_panel_figure,
 )
 
 _DIVERGING_CMAPS = {"coolwarm", "bwr", "seismic", "RdBu", "RdBu_r"}
@@ -52,7 +52,7 @@ def _heatmap_overlay_texts(axis: plt.Axes) -> list[str]:
 
 def test_grid_metrics_render_as_caption_not_overlay() -> None:
     rate_maps = _fake_rate_maps()
-    figure, heatmap_axes = _build_rate_map_grid_figure(
+    figure, heatmap_axes = build_rate_map_grid_figure(
         source_name="encoder.place_codes",
         split_name="test",
         bounds=_BOUNDS,
@@ -83,7 +83,7 @@ def test_grid_metrics_render_as_caption_not_overlay() -> None:
 
 def test_grid_clean_variant_drops_the_caption() -> None:
     rate_maps = _fake_rate_maps()
-    figure, heatmap_axes = _build_rate_map_grid_figure(
+    figure, heatmap_axes = build_rate_map_grid_figure(
         source_name="encoder.place_codes",
         split_name="test",
         bounds=_BOUNDS,
@@ -110,7 +110,7 @@ def test_grid_clean_variant_drops_the_caption() -> None:
 def test_panel_metrics_render_off_the_heatmap() -> None:
     rate_maps = _fake_rate_maps()
     panel_metric_maps = np.clip(rate_maps / (rate_maps.max() + 1e-9), 0.0, 1.0)
-    figure, rate_axes = _build_summary_panel_figure(
+    figure, rate_axes = build_summary_panel_figure(
         source_name="encoder.place_codes",
         split_name="test",
         bounds=_BOUNDS,
@@ -152,7 +152,7 @@ def _panel_rate_axis_cmaps(rate_axes: list[plt.Axes]) -> list[str]:
 
 def _build_panel(rate_maps: np.ndarray):
     num_units = rate_maps.shape[0]
-    return _build_summary_panel_figure(
+    return build_summary_panel_figure(
         source_name="encoder.place_codes",
         split_name="test",
         bounds=((-7.0, 7.0), (-8.0, 8.0)),
@@ -179,7 +179,7 @@ def _build_panel(rate_maps: np.ndarray):
 
 def test_support_map_renders_as_standalone_file(tmp_path: Path) -> None:
     out = tmp_path / "support_map.png"
-    _render_support_map(
+    render_support_map(
         out,
         bounds=_BOUNDS,
         support_counts=np.full((14, 12), 3.0, dtype=np.float32),
@@ -301,7 +301,7 @@ def test_signed_population_uses_one_diverging_colormap() -> None:
 def test_panel_world_axis_ticks_are_round_numbers() -> None:
     rate_maps = _fake_rate_maps()
     panel_metric_maps = np.clip(rate_maps / (rate_maps.max() + 1e-9), 0.0, 1.0)
-    figure, rate_axes = _build_summary_panel_figure(
+    figure, rate_axes = build_summary_panel_figure(
         source_name="encoder.place_codes",
         split_name="test",
         bounds=((-7.0, 7.0), (-8.0, 8.0)),

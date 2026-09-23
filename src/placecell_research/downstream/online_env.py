@@ -19,7 +19,6 @@ from placecell_research.downstream.feature_sources import FeatureConcatenator, S
 from placecell_research.downstream.goal_codes import GoalPlaceCodeRuntime
 from placecell_research.downstream.synthetic_grid_cells import GridCodeEncoder
 from placecell_research.downstream.synthetic_place_cells import (
-    PlaceCodeGoalCodebook,
     SyntheticPlaceCodeEncoder,
 )
 from placecell_research.envs import assert_environment_supports
@@ -75,24 +74,6 @@ class GoalScheduler:
                 raise ValueError(f"Unsupported goal schedule: {self.schedule}")
         return self.positions[self._current_index].copy()
 
-    def advance_goal(self) -> np.ndarray | None:
-        """Choose the next goal without resetting the environment state."""
-        if not self.positions:
-            return None
-        if self._current_index < 0:
-            self._current_index = max(0, min(len(self.positions) - 1, self._initial_index))
-        if self.schedule == "cycle":
-            self._current_index = (self._current_index + 1) % len(self.positions)
-        elif self.schedule == "random" and len(self.positions) > 1:
-            candidate = self._random.randrange(len(self.positions) - 1)
-            if candidate >= self._current_index:
-                candidate += 1
-            self._current_index = candidate
-        elif self.schedule != "fixed":
-            raise ValueError(
-                f"Goal chaining requires fixed, cycle, or random scheduling, got {self.schedule!r}."
-            )
-        return self.positions[self._current_index].copy()
 
 
 def _uses_uniform_random_goal_schedule(schedule: object) -> bool:
@@ -171,7 +152,6 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
         goal_place_code_runtime: GoalPlaceCodeRuntime | None = None,
         grid_code_encoder: GridCodeEncoder | None = None,
         synthetic_place_code_encoder: SyntheticPlaceCodeEncoder | None = None,
-        goal_codebook: PlaceCodeGoalCodebook | None = None,
         observation_mode: str,
         seed: int,
     ) -> None:
@@ -183,8 +163,6 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
         self.goal_place_code_runtime = goal_place_code_runtime
         self.grid_code_encoder = grid_code_encoder
         self.synthetic_place_code_encoder = synthetic_place_code_encoder
-        self.goal_codebook = goal_codebook
-        self._goal_codebook_random = np.random.default_rng(int(seed) + 2_003)
         self.observation_mode = observation_mode
         self.seed = int(seed)
         self._base_spawn_regions = [
@@ -273,7 +251,6 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
         self.seed = int(seed)
         self.goal_scheduler = GoalScheduler(self.goal_task_config, seed=self.seed)
         self._curriculum_goal_random = random.Random(self.seed + 1_003)
-        self._goal_codebook_random = np.random.default_rng(self.seed + 2_003)
         self._curriculum_goal_current_index = -1
         self._seed_spaces(self.seed)
 
@@ -522,12 +499,6 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
         if self.goal_place_code_runtime is not None:
             self.goal_place_code_runtime.reset_episode()
 
-    def _uses_codebook_goal_schedule(self) -> bool:
-        return (
-            self.goal_codebook is not None
-            and str(self.goal_task_config.schedule).strip().lower() == "codebook"
-        )
-
     def _resolve_goal_place_code(self) -> np.ndarray | None:
         if self._current_goal_xy is None:
             return None
@@ -655,29 +626,10 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
             info["current_place_code"] = self._current_place_code.copy()
         if self._current_goal_place_code is not None:
             info["goal_place_code"] = self._current_goal_place_code.copy()
-            if self.goal_place_code_runtime is not None:
-                info["goal_code_distance_metric"] = str(
-                    self.goal_place_code_runtime.distance_metric
-                )
-                info["goal_code_normalize"] = bool(self.goal_place_code_runtime.normalize_codes)
-                info["goal_code_success_threshold"] = float(
-                    self.goal_place_code_runtime.success_threshold
-                )
-            elif self.synthetic_place_code_encoder is not None:
-                encoder = self.synthetic_place_code_encoder
-                info["goal_code_distance_metric"] = str(encoder.distance_metric)
-                info["goal_code_normalize"] = bool(encoder.normalize_codes)
-                info["goal_code_success_threshold"] = float(encoder.success_threshold)
         if self._current_grid_code is not None:
             info["current_grid_code"] = self._current_grid_code.copy()
         if self._current_goal_grid_code is not None:
             info["goal_grid_code"] = self._current_goal_grid_code.copy()
-            if self.grid_code_encoder is not None:
-                info["goal_code_distance_metric"] = str(self.grid_code_encoder.distance_metric)
-                info["goal_code_normalize"] = bool(self.grid_code_encoder.normalize_codes)
-                info["goal_code_success_threshold"] = float(
-                    self.grid_code_encoder.success_threshold
-                )
         info["episode_index"] = int(self._episode_index)
         return info
 
@@ -685,13 +637,7 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
         del options
         if seed is not None:
             self._seed_internal_rngs(int(seed))
-        codebook_goal_code: np.ndarray | None = None
-        if self._uses_codebook_goal_schedule():
-            codebook_goal_code = self.goal_codebook.sample(self._goal_codebook_random)
-            self._current_goal_index = None
-            self._current_goal_xy = None
-        else:
-            self._current_goal_index, self._current_goal_xy = self._resolve_goal_for_reset()
+        self._current_goal_index, self._current_goal_xy = self._resolve_goal_for_reset()
         goal_xy = self._current_goal_xy
         if goal_xy is not None and hasattr(self._adapter, "set_goal_position_xy"):
             self._adapter.set_goal_position_xy(goal_xy)
@@ -728,11 +674,7 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
                 "DownstreamNavigationEnv.reset() did not receive an observation from the adapter."
             )
         self._reset_feature_state()
-        self._current_goal_place_code = (
-            np.asarray(codebook_goal_code, dtype=np.float32)
-            if codebook_goal_code is not None
-            else self._resolve_goal_place_code()
-        )
+        self._current_goal_place_code = self._resolve_goal_place_code()
         self._current_goal_grid_code = self._resolve_goal_grid_code()
         rendered = self._render_observation(observation)
         info = self._build_info(observation, observation.info)
@@ -756,42 +698,6 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
             info,
         )
 
-    def advance_goal(self) -> dict[str, Any]:
-        """Switch the commanded goal while preserving the current agent pose."""
-        if self._curriculum_phase is not None or self._uses_codebook_goal_schedule():
-            raise RuntimeError("Goal chaining does not support curriculum or codebook goals.")
-        goal_xy = self.goal_scheduler.advance_goal()
-        if goal_xy is None:
-            raise RuntimeError("Goal chaining requires configured candidate goal positions.")
-        self._current_goal_index = self.goal_scheduler.current_index
-        self._current_goal_xy = goal_xy
-        goal_setter = getattr(self._adapter, "set_goal_position_xy", None)
-        if not callable(goal_setter):
-            raise RuntimeError("Goal chaining requires runtime goal override support.")
-        goal_setter(goal_xy)
-        self._current_goal_place_code = self._resolve_goal_place_code()
-        self._current_goal_grid_code = self._resolve_goal_grid_code()
-        if self._last_adapter_observation is None:
-            raise RuntimeError("Goal chaining requires an environment reset before advance_goal().")
-        return self._build_info(
-            self._last_adapter_observation,
-            self._last_adapter_observation.info,
-        )
-
-    def enable_goal_code_reward_mode(self) -> None:
-        terminate_on_goal_setter = getattr(self._adapter, "set_terminate_on_goal", None)
-        if callable(terminate_on_goal_setter):
-            terminate_on_goal_setter(False)
-        unwrapped = self._get_unwrapped_env()
-        if unwrapped is None:
-            return
-        if hasattr(unwrapped, "reward_on_goal"):
-            unwrapped.reward_on_goal = False
-        if hasattr(unwrapped, "terminate_on_goal"):
-            unwrapped.terminate_on_goal = False
-        if hasattr(unwrapped, "render_goal_object"):
-            unwrapped.render_goal_object = False
-
     @property
     def goal_place_code_dim(self) -> int:
         if self.synthetic_place_code_encoder is not None:
@@ -802,14 +708,6 @@ class DownstreamNavigationEnv(gym.Env[Any, int]):
                 "set."
             )
         return int(self.goal_place_code_runtime.feature_dim)
-
-    @property
-    def goal_grid_code_dim(self) -> int:
-        if self.grid_code_encoder is None:
-            raise RuntimeError(
-                "Goal grid-code dimension is unavailable because grid_code_encoder is not set."
-            )
-        return int(self.grid_code_encoder.feature_dim)
 
     def close(self) -> None:
         if hasattr(self._adapter, "close"):

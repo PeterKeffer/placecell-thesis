@@ -1,30 +1,13 @@
-"""Collection policies and config helpers."""
+"""Action policies for dataset collection."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 import numpy as np
 
-from placecell_research.config.loader import (
-    _load_yaml,
-    _resolve_defaults,
-    apply_overrides,
-    stamp_l1_semantics_marker,
-)
 from placecell_research.config.schema import ContinuousMotionConfig
 from placecell_research.envs.base import ContinuousMotion
-
-
-@runtime_checkable
-class Sampler(Protocol):
-    """Action source for collection: decides the next action given an observation."""
-
-    def reset(self, adapter: Any, episode_seed: int, episode_index: int) -> None: ...
-
-    def sample(self, observation: Any) -> int | ContinuousMotion: ...
 
 
 class ContinuousRandomPolicy:
@@ -213,26 +196,3 @@ class MotionBoutPolicy:
             )
         self.previous_position = position.copy()
         return self.action
-
-
-@dataclass
-class ResumePolicy:
-    """Resolved policy snapshot."""
-
-    artifact_reuse: str
-    training_resume: str
-
-
-def load_raw_config_payload(config_path: Path, overrides: list[str]) -> dict[str, Any]:
-    """Load config including keys not represented in typed dataclasses."""
-    payload = _resolve_defaults(config_path, _load_yaml(config_path))
-    return stamp_l1_semantics_marker(apply_overrides(payload, overrides, config_path=config_path))
-
-
-def resolve_policies(raw_payload: dict[str, Any]) -> ResumePolicy:
-    """Resolve reuse and resume policies from raw config."""
-    policies = raw_payload.get("policies", {})
-    return ResumePolicy(
-        artifact_reuse=str(policies.get("artifact_reuse", "error")),
-        training_resume=str(policies.get("training_resume", "fresh")),
-    )

@@ -13,8 +13,8 @@ from .base import AnalysisInput
 from .helpers import write_csv
 from .parallel import render_block_count, render_pool
 from .rate_map_computation import (
-    _GridOutcome,
-    _PanelFamilyOutcome,
+    GridOutcome,
+    PanelFamilyOutcome,
     _PanelSettings,
     _RankedUnits,
 )
@@ -23,17 +23,17 @@ from .rate_map_metrics import (
     nanmean_or_nan,
 )
 from .rate_map_rendering import (
-    _agg_safe_dpi,
     _apply_world_context,
     _attach_gutter_colorbar,
     _bounds_to_extent,
-    _build_rate_map_grid_figure,
-    _build_summary_panel_figure,
-    _empty_rate_map_figure,
     _family_limit,
     _population_is_signed,
     _style_for_limit,
-    _support_map_style,
+    agg_safe_dpi,
+    build_rate_map_grid_figure,
+    build_summary_panel_figure,
+    empty_rate_map_figure,
+    support_map_style,
 )
 from .world_overlay import (
     POSITION_X_LABEL,
@@ -162,7 +162,7 @@ def _render_summary_panel(
     if clean_path is not None:
         clean_path.parent.mkdir(parents=True, exist_ok=True)
     if len(ranked_indices) == 0:
-        figure = _empty_rate_map_figure(
+        figure = empty_rate_map_figure(
             f"No units available for {source_name} {title_prefix} ({split_name})"
         )
         if clean_path is not None:
@@ -171,7 +171,7 @@ def _render_summary_panel(
         plt.close(figure)
         return path, clean_path
 
-    figure, rate_axes = _build_summary_panel_figure(
+    figure, rate_axes = build_summary_panel_figure(
         source_name=source_name,
         split_name=split_name,
         bounds=bounds,
@@ -194,7 +194,7 @@ def _render_summary_panel(
         title_prefix=title_prefix,
         show_captions=True,
     )
-    panel_dpi = _agg_safe_dpi(figure, render_dpi)
+    panel_dpi = agg_safe_dpi(figure, render_dpi)
 
     if clean_path is not None:
         metric_captions = [axis.get_xlabel() for axis in rate_axes]
@@ -247,7 +247,7 @@ def _render_rate_map_grid(
     if clean_path is not None:
         clean_path.parent.mkdir(parents=True, exist_ok=True)
     if len(ranked_indices) == 0:
-        figure = _empty_rate_map_figure(
+        figure = empty_rate_map_figure(
             f"No units available for {source_name} {title_prefix} ({split_name})"
         )
         if clean_path is not None:
@@ -256,7 +256,7 @@ def _render_rate_map_grid(
         plt.close(figure)
         return path, clean_path
 
-    figure, heatmap_axes = _build_rate_map_grid_figure(
+    figure, heatmap_axes = build_rate_map_grid_figure(
         source_name=source_name,
         split_name=split_name,
         bounds=bounds,
@@ -281,7 +281,7 @@ def _render_rate_map_grid(
     plt.close(figure)
     return path, clean_path
 
-def _render_support_map(
+def render_support_map(
     path: Path,
     *,
     bounds: tuple[tuple[float, float], tuple[float, float]],
@@ -292,7 +292,7 @@ def _render_support_map(
 ) -> Path:
     """Render the occupancy/support map as a standalone single figure."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    cmap_name, norm = _support_map_style(support_counts)
+    cmap_name, norm = support_map_style(support_counts)
     display_map = np.ma.masked_where(support_counts <= 0.0, support_counts)
     figure, axis = plt.subplots(figsize=(5.6, 5.6), constrained_layout=True)
     axis.imshow(
@@ -389,7 +389,7 @@ def _render_per_unit_chunks(chunks: list[_PerUnitRenderChunk]) -> None:
         future.result()
 
 
-def _export_per_unit_rate_maps(
+def export_per_unit_rate_maps(
     module_dir: Path,
     *,
     source_name: str,
@@ -485,7 +485,7 @@ _METRICS_TABLE_HEADER = [
     "episode_rate_map_correlation",
 ]
 
-def _render_panel_family(
+def render_panel_family(
     *,
     analysis_input: AnalysisInput,
     bundle: RateMapMetricBundle,
@@ -503,9 +503,9 @@ def _render_panel_family(
     title_prefix_root: str,
     spike_positions_by_unit: dict[int, np.ndarray],
     world_overlay: WorldOverlay | None,
-) -> _PanelFamilyOutcome:
+) -> PanelFamilyOutcome:
     """Render one panel family across its pages; the first page keeps the un-suffixed name."""
-    outcome = _PanelFamilyOutcome()
+    outcome = PanelFamilyOutcome()
     for page_index, (start_index, end_index) in enumerate(page_ranges):
         page_ranked_indices = ranked_units.summary_indices[start_index:end_index]
         page_path = (
@@ -570,7 +570,7 @@ def _render_panel_family(
                 )
     return outcome
 
-def _render_grid_pages(
+def render_grid_pages(
     *,
     analysis_input: AnalysisInput,
     bundle: RateMapMetricBundle,
@@ -581,7 +581,7 @@ def _render_grid_pages(
     all_units_page_size: int,
     figures: dict[str, Path],
     world_overlay: WorldOverlay | None,
-) -> _GridOutcome:
+) -> GridOutcome:
     """Render the companion rate-map grid across its pages."""
     grid_indices = ranked_units.grid_indices
     page_ranges = (
@@ -589,7 +589,7 @@ def _render_grid_pages(
         if ranked_units.render_all_grid_units and len(grid_indices) > all_units_page_size
         else [(0, len(grid_indices))]
     )
-    outcome = _GridOutcome()
+    outcome = GridOutcome()
     grid_base_path = (
         module_dir
         / f"rate_map_grid__{analysis_input.source_name}__{analysis_input.split_name}.png"
@@ -648,7 +648,7 @@ def _render_grid_pages(
                 )
     return outcome
 
-def _write_rate_map_metrics_table(
+def write_rate_map_metrics_table(
     path: Path,
     bundle: RateMapMetricBundle,
 ) -> Path:

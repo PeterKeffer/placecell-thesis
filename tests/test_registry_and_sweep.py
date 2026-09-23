@@ -182,7 +182,6 @@ def test_run_sweep_triggers_cleanup_after_each_trial(monkeypatch, tmp_path: Path
     assert "seed.split_seed=0" in observed_overrides[0]
     assert "seed.training_seed=0" in observed_overrides[0]
     assert "splits.seed=0" in observed_overrides[0]
-    assert "spatial_model.training.online.seed=0" in observed_overrides[0]
     assert "analysis.example_episode_random_seed=0" in observed_overrides[0]
     assert "analysis.umap_random_seed=0" in observed_overrides[0]
     assert "analysis.probing_shuffle_seed=0" in observed_overrides[0]

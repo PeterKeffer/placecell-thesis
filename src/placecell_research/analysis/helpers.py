@@ -32,7 +32,7 @@ class OccupancyComputation:
     bounds: tuple[tuple[float, float], tuple[float, float]]
 
 
-def _subsample_indices(num_points: int, max_points: int, random_seed: int) -> np.ndarray:
+def subsample_indices(num_points: int, max_points: int, random_seed: int) -> np.ndarray:
     """Sorted index subsample (all indices when within budget)."""
     if num_points <= max_points:
         return np.arange(num_points, dtype=np.int64)
@@ -41,7 +41,7 @@ def _subsample_indices(num_points: int, max_points: int, random_seed: int) -> np
     return np.sort(chosen.astype(np.int64, copy=False))
 
 
-def _compute_trustworthiness(
+def compute_trustworthiness(
     features: np.ndarray,
     embedding: np.ndarray,
     neighbor_count: int,

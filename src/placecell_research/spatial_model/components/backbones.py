@@ -10,32 +10,6 @@ from einops import rearrange
 from torch import Tensor, nn
 
 
-class ActionEmbeddingBackbone(nn.Module):
-    """Embed one discrete action per timestep, reserving num_actions for padding."""
-
-    def __init__(self, num_actions: int, embedding_dim: int) -> None:
-        super().__init__()
-        if num_actions < 1:
-            raise ValueError(f"num_actions must be positive, got {num_actions}.")
-        if embedding_dim < 1:
-            raise ValueError(f"embedding_dim must be positive, got {embedding_dim}.")
-        self.padding_action = int(num_actions)
-        self.embedding = nn.Embedding(
-            num_embeddings=self.padding_action + 1,
-            embedding_dim=int(embedding_dim),
-            padding_idx=self.padding_action,
-        )
-        self.output_dim = int(embedding_dim)
-
-    def forward(self, actions: Tensor) -> Tensor:
-        if actions.ndim != 2:
-            raise ValueError(
-                "ActionEmbeddingBackbone expects discrete actions shaped [batch, time], "
-                f"got {tuple(actions.shape)}."
-            )
-        return self.embedding(actions.long())
-
-
 class IdentityBackbone(nn.Module):
     """Pass latent observations through unchanged."""
 

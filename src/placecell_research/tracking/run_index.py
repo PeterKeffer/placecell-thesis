@@ -8,9 +8,9 @@ from typing import Any
 
 from placecell_research.artifacts.ids import short_fingerprint
 from placecell_research.tracking._run_paths import (
-    _iter_run_paths,
-    _load_run_manifest,
-    _write_relative_symlink,
+    iter_run_paths,
+    read_run_manifest,
+    write_relative_symlink,
 )
 
 DEFAULT_VARIANT_INDEX_NAME = "by_variant"
@@ -126,7 +126,7 @@ def _write_grouped_run_link(
         variant_slug=visible_name,
         run_id=normalized_run_id,
     )
-    return _write_relative_symlink(environment_dir / link_name, run_path)
+    return write_relative_symlink(environment_dir / link_name, run_path)
 
 
 def manifest_should_be_indexed(manifest: dict[str, Any]) -> bool:
@@ -151,8 +151,8 @@ def rebuild_variant_run_index(
     link_paths: list[Path] = []
     skipped_run_ids: list[str] = []
 
-    for run_path in _iter_run_paths(run_root):
-        manifest = _load_run_manifest(run_path)
+    for run_path in iter_run_paths(run_root):
+        manifest = read_run_manifest(run_path)
         run_id = str(manifest.get("run_id") or run_path.name).strip()
         variant_slug = str(manifest.get("variant_slug") or "").strip()
         if not variant_slug or not manifest_should_be_indexed(manifest):
@@ -190,8 +190,8 @@ def rebuild_stage_run_index(
     link_paths: list[Path] = []
     skipped_run_ids: list[str] = []
 
-    for run_path in _iter_run_paths(run_root):
-        manifest = _load_run_manifest(run_path)
+    for run_path in iter_run_paths(run_root):
+        manifest = read_run_manifest(run_path)
         run_id = str(manifest.get("run_id") or run_path.name).strip()
         stage_name = str(manifest.get("stage_name") or "").strip()
         variant_slug = str(manifest.get("variant_slug") or "").strip()

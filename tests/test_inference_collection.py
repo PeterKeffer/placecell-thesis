@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from contextlib import closing
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -128,7 +127,7 @@ def test_collect_representations_collects_requested_latent_into_metadata(
     assert metadata["latent"].shape == (2, 4, 5)
 
 
-def test_collect_action_representations_without_position_metadata(
+def test_collect_representations_without_position_metadata(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -153,51 +152,13 @@ def test_collect_action_representations_without_position_metadata(
         ["encoder.place_codes"],
         torch.device("cpu"),
         batch_size=1,
-        observation_source="action",
+        observation_source="latent",
     )
 
-    assert captured_iterator_kwargs["observation_source"] == "action"
+    assert captured_iterator_kwargs["observation_source"] == "latent"
     assert representations["encoder.place_codes"].shape == (1, 4, 3)
     assert metadata["actions"].shape == (1, 4)
     assert "position_xy" not in metadata
-
-
-def test_collect_representations_infers_action_source_from_dag_root(
-    monkeypatch,
-    tmp_path: Path,
-) -> None:
-    captured_iterator_kwargs: dict[str, object] = {}
-
-    def fake_iterate_dataset_batches(*args, **kwargs):
-        del args
-        captured_iterator_kwargs.update(kwargs)
-        yield {
-            "actions": torch.tensor([[0, 1, 2, 3]], dtype=torch.long),
-            "valid_steps": torch.ones((1, 4), dtype=torch.bool),
-        }
-
-    monkeypatch.setattr(inference, "load_split_indices", lambda *_args, **_kwargs: np.arange(1))
-    monkeypatch.setattr(inference, "iterate_dataset_batches", fake_iterate_dataset_batches)
-    model = _FakeModel()
-    model.root = SimpleNamespace(
-        components=SimpleNamespace(
-            config=SimpleNamespace(
-                inputs=SimpleNamespace(observation_source="action"),
-            ),
-        ),
-    )
-
-    collect_representations(
-        model,
-        tmp_path,
-        tmp_path,
-        "test",
-        ["encoder.place_codes"],
-        torch.device("cpu"),
-        batch_size=1,
-    )
-
-    assert captured_iterator_kwargs["observation_source"] == "action"
 
 
 def _latent_batches(read_counter: list[int], *, with_rgb: bool = False):

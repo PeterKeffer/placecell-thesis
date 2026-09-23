@@ -184,14 +184,14 @@ def test_rate_map_metric_bundle_reuses_episode_bin_statistics(monkeypatch) -> No
         metadata={},
     )
     prepare_calls = 0
-    original_prepare = occupancy._prepare_episode_bin_statistics
+    original_prepare = occupancy.prepare_episode_bin_statistics
 
     def counted_prepare(*args, **kwargs):
         nonlocal prepare_calls
         prepare_calls += 1
         return original_prepare(*args, **kwargs)
 
-    monkeypatch.setattr(occupancy, "_prepare_episode_bin_statistics", counted_prepare)
+    monkeypatch.setattr(occupancy, "prepare_episode_bin_statistics", counted_prepare)
 
     compute_rate_map_metric_bundle(
         analysis_input,
@@ -557,7 +557,7 @@ def test_rate_map_metrics_module_skips_spike_position_selection(
         raise AssertionError("metrics-only rate-map modules should not select spike overlays")
 
     monkeypatch.setattr(
-        "placecell_research.analysis.rate_maps._select_high_activation_positions",
+        "placecell_research.analysis.rate_maps.select_high_activation_positions",
         fail_if_selected,
     )
 
@@ -1090,23 +1090,23 @@ def test_agg_safe_dpi_clamps_tall_summary_panel(tmp_path):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from placecell_research.analysis.rate_map_rendering import _agg_safe_dpi
+    from placecell_research.analysis.rate_map_rendering import agg_safe_dpi
 
     requested_dpi = 170
     crashing_panel = plt.figure(figsize=(12.15, 3.1 * 128))
-    safe_dpi = _agg_safe_dpi(crashing_panel, requested_dpi)
+    safe_dpi = agg_safe_dpi(crashing_panel, requested_dpi)
     assert safe_dpi < requested_dpi
     assert max(crashing_panel.get_size_inches()) * safe_dpi < 65536
     plt.close(crashing_panel)
 
     small_panel = plt.figure(figsize=(12.15, 3.1 * 8))
-    assert _agg_safe_dpi(small_panel, requested_dpi) == requested_dpi
+    assert agg_safe_dpi(small_panel, requested_dpi) == requested_dpi
     plt.close(small_panel)
 
     overflowing = plt.figure(figsize=(0.4, 80.0))
     with pytest.raises(ValueError, match="Image size"):
         overflowing.savefig(tmp_path / "raw.png", dpi=900)
-    overflowing.savefig(tmp_path / "clamped.png", dpi=_agg_safe_dpi(overflowing, 900))
+    overflowing.savefig(tmp_path / "clamped.png", dpi=agg_safe_dpi(overflowing, 900))
     assert (tmp_path / "clamped.png").exists()
     plt.close(overflowing)
 
@@ -1143,7 +1143,7 @@ def test_field_traversal_reliability_counts_traversals_and_hits() -> None:
     position_xy = np.array(
         [[[0.5, 0.5], [0.5, 0.5], [1.5, 0.5], [0.5, 0.5], [1.5, 0.5]]], dtype=np.float32
     )
-    statistics = occupancy._prepare_episode_bin_statistics(
+    statistics = occupancy.prepare_episode_bin_statistics(
         representation,
         position_xy,
         None,
@@ -1166,7 +1166,7 @@ def test_field_traversal_reliability_counts_traversals_and_hits() -> None:
     )
     assert gated_counts.tolist() == [2]
     assert np.isnan(gated_reliability[0])
-    two_episodes = occupancy._prepare_episode_bin_statistics(
+    two_episodes = occupancy.prepare_episode_bin_statistics(
         np.repeat(representation, 2, axis=0),
         np.repeat(position_xy, 2, axis=0),
         None,

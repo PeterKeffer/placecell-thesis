@@ -35,7 +35,7 @@ def test_vision_encoder_stage_fingerprint_sorts_dataset_ids() -> None:
 
 
 def test_encoded_dataset_stage_fingerprint_ignores_transient_dataset_handoff_fields() -> None:
-    stable = {"canonicality_policy": "latent_canonical", "keep_rgb": False, "keep_latent": True}
+    stable = {"canonicality_policy": "latent_canonical", "keep_rgb": False}
     reuse_check_payload = {"dataset": {**stable, "artifact_id": "", "artifact_type": ""}}
     encode_time_payload = {
         "dataset": {**stable, "artifact_id": "raw_xyz", "artifact_type": "raw_dataset"}

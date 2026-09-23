@@ -22,6 +22,3 @@ nonlinear_decode_random_seed: 0
 compute_spatial_info: false
 spatial_info_top_k: 8
 compute_gridness: false
-gridness_threshold: 0.37
-history_ablation:
-  enabled: false

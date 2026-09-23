@@ -5,10 +5,10 @@ from __future__ import annotations
 import torch
 from torch import Tensor, nn
 
-from .core import _ProjectedTemporalBase
+from .core import ProjectedTemporalBase
 
 
-class GRUSequenceTemporal(_ProjectedTemporalBase):
+class GRUSequenceTemporal(ProjectedTemporalBase):
     def __init__(
         self,
         input_dim: int,
@@ -164,7 +164,7 @@ class GRUSequenceTemporal(_ProjectedTemporalBase):
         return outputs, next_state
 
 
-class RNNSequenceTemporal(_ProjectedTemporalBase):
+class RNNSequenceTemporal(ProjectedTemporalBase):
     """Vanilla (Elman) tanh RNN backbone: the ungated control for the gated GRU/LSTM cores."""
 
     def __init__(
@@ -237,57 +237,7 @@ class RNNSequenceTemporal(_ProjectedTemporalBase):
         return layer_output.squeeze(1), next_states
 
 
-class GRUStepTemporal(_ProjectedTemporalBase):
-    def __init__(
-        self,
-        input_dim: int,
-        layer_sizes: list[int],
-        dropout: float = 0.0,
-    ) -> None:
-        super().__init__(input_dim, layer_sizes, dropout)
-        self.input_projection = nn.Linear(input_dim, self.layer_sizes[0])
-        self.cells = nn.ModuleList(
-            [
-                nn.GRUCell(
-                    self.layer_sizes[0] if layer_index == 0 else self.layer_sizes[layer_index - 1],
-                    self.layer_sizes[layer_index],
-                )
-                for layer_index in range(self.num_layers)
-            ]
-        )
-        self.hidden_size = int(self.layer_sizes[-1])
-
-    def initial_state(self, batch_size: int, device: torch.device) -> list[Tensor]:
-        return [
-            torch.zeros(batch_size, hidden_size, device=device) for hidden_size in self.layer_sizes
-        ]
-
-    def forward_step(
-        self, x_t: Tensor, state: list[Tensor] | None = None
-    ) -> tuple[Tensor, list[Tensor]]:
-        if state is None:
-            state = self.initial_state(x_t.shape[0], x_t.device)
-        next_states: list[Tensor] = []
-        layer_input = self._project_inputs(x_t)
-        for layer_index, cell in enumerate(self.cells):
-            layer_state = state[layer_index]
-            layer_output = cell(layer_input, layer_state)
-            next_states.append(layer_output)
-            layer_input = self._apply_dropout(layer_output, layer_index)
-        return next_states[-1], next_states
-
-
-class GRUSoftplusStepTemporal(GRUStepTemporal):
-    def forward_step(
-        self, x_t: Tensor, state: list[Tensor] | None = None
-    ) -> tuple[Tensor, list[Tensor]]:
-        output, new_state = super().forward_step(x_t, state)
-        output = torch.nn.functional.softplus(output)
-        new_state = [torch.nn.functional.softplus(layer_state) for layer_state in new_state]
-        return output, new_state
-
-
-class LSTMSequenceTemporal(_ProjectedTemporalBase):
+class LSTMSequenceTemporal(ProjectedTemporalBase):
     def __init__(
         self,
         input_dim: int,

@@ -62,7 +62,7 @@ class AdaptiveStateGate(nn.Module):
         return updated_state, update_rate.squeeze(-1), open_probability.squeeze(-1)
 
 
-class _ProjectedTemporalBase(nn.Module):
+class ProjectedTemporalBase(nn.Module):
     def __init__(
         self,
         input_dim: int,

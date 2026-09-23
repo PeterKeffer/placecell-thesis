@@ -8,6 +8,5 @@ spatial_model:
       type: l1_sparsity
       targets: [encoder.place_codes]
       weight: 15.36
-      semantics_version: 2
 tracking:
   variant_name: l1_0.03

@@ -20,14 +20,14 @@ from .helpers import (
     write_csv,
 )
 from .remapping_metrics import (
-    _add_pair_metrics,
-    _add_pair_per_unit_metrics,
     _finite_values,
-    _pair_diagnostics,
-    _pair_name,
     _pairwise_map_correlation,
-    _save_map,
-    _write_pair_tables,
+    add_pair_metrics,
+    add_pair_per_unit_metrics,
+    pair_diagnostics,
+    remapping_pair_name,
+    save_map,
+    write_pair_tables,
 )
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
@@ -146,7 +146,7 @@ class RemappingComparisonModule:
             for column_index, second_label in enumerate(labels):
                 if column_index < row_index:
                     continue
-                correlations, mean_correlation = _pairwise_map_correlation(
+                _, mean_correlation = _pairwise_map_correlation(
                     rate_maps_by_label[first_label].rate_maps,
                     rate_maps_by_label[second_label].rate_maps,
                 )
@@ -154,8 +154,8 @@ class RemappingComparisonModule:
                 pairwise_matrix[column_index, row_index] = mean_correlation
                 if column_index == row_index:
                     continue
-                pair_name = _pair_name(first_label, second_label)
-                diagnostics = _pair_diagnostics(
+                pair_name = remapping_pair_name(first_label, second_label)
+                diagnostics = pair_diagnostics(
                     rate_maps_by_label[first_label],
                     rate_maps_by_label[second_label],
                     field_threshold_fraction=field_threshold_fraction,
@@ -163,22 +163,22 @@ class RemappingComparisonModule:
                     shuffle_iterations=shuffle_iterations,
                     shuffle_seed=shuffle_seed + row_index * len(labels) + column_index,
                 )
-                _add_pair_metrics(metrics, pair_name, diagnostics)
-                _add_pair_per_unit_metrics(per_unit_metrics, pair_name, diagnostics)
+                add_pair_metrics(metrics, pair_name, diagnostics)
+                add_pair_per_unit_metrics(per_unit_metrics, pair_name, diagnostics)
                 figures[f"{pair_name}__unit_correlation_histogram"] = save_histogram(
                     module_dir / f"remapping_unit_correlation_histogram__{pair_name}.png",
                     _finite_values(diagnostics.unit_correlations),
                     f"Unit remapping correlations: {first_label} vs {second_label}",
                     "unit correlation",
                 )
-                figures[f"{pair_name}__population_vector_correlation"] = _save_map(
+                figures[f"{pair_name}__population_vector_correlation"] = save_map(
                     module_dir / f"remapping_population_vector_correlation__{pair_name}.png",
                     diagnostics.population_vector_correlation,
                     f"PVC: {first_label} vs {second_label}",
                     "population vector correlation",
                     rate_maps_by_label[first_label].bounds,
                 )
-                tables.update(_write_pair_tables(module_dir, pair_name, diagnostics))
+                tables.update(write_pair_tables(module_dir, pair_name, diagnostics))
                 summary_rows.append(
                     [
                         first_label,

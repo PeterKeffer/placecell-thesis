@@ -9,7 +9,6 @@ from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
-from matplotlib.lines import Line2D
 
 WorldPoint = tuple[float, float]
 WorldSegment = tuple[WorldPoint, WorldPoint]
@@ -509,47 +508,3 @@ def draw_landmarks_on_axis(
         )
 
 
-def build_overlay_legend_handles(
-    world_overlay: WorldOverlay | None,
-    *,
-    include_spike_samples: bool = True,
-    include_field_outline: bool = True,
-) -> list[Line2D]:
-    handles: list[Line2D] = []
-    if world_overlay is not None:
-        handles.append(Line2D([0], [0], color="#404040", linewidth=1.3, label="walls"))
-    if include_spike_samples:
-        handles.append(
-            Line2D(
-                [0],
-                [0],
-                marker="o",
-                linestyle="None",
-                markerfacecolor="#8DEBFF",
-                markeredgecolor="black",
-                markeredgewidth=0.35,
-                markersize=6,
-                label="high-activation positions",
-            )
-        )
-    if include_field_outline:
-        handles.append(
-            Line2D([0], [0], color="#404040", linestyle="--", linewidth=1.0, label="field outline")
-        )
-    if world_overlay is None:
-        return handles
-    for layer in world_overlay.landmarks:
-        handles.append(
-            Line2D(
-                [0],
-                [0],
-                marker=layer.marker,
-                linestyle="None",
-                markerfacecolor=layer.color,
-                markeredgecolor="black",
-                markeredgewidth=0.35,
-                markersize=6,
-                label=layer.label.replace("_", " "),
-            )
-        )
-    return handles

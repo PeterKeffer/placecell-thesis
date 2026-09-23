@@ -16,7 +16,6 @@ import yaml
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import generate_artifact_id
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     augment_stage_result,
     initialize_stage_runtime,
@@ -100,14 +99,12 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     progress_reporter = ConsoleProgressReporter("encode_dataset")
     config = runtime.config
     raw_payload = runtime.raw_payload
-    policies = resolve_policies(raw_payload)
+    policies = config.policies
     if not config.dataset.artifact_id or config.dataset.artifact_type != "raw_dataset":
         raise ValueError(
             "encode_dataset requires dataset.artifact_id pointing to a raw_dataset artifact."
         )
-    encoder_artifact_id = (
-        raw_payload.get("vision", {}).get("artifact_id") or config.reuse.vision_encoder_artifact_id
-    )
+    encoder_artifact_id = config.vision.artifact_id or config.reuse.vision_encoder_artifact_id
     if not encoder_artifact_id:
         raise ValueError(
             "encode_dataset requires an explicit vision encoder artifact id via "
@@ -165,17 +162,19 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     model = build_vision_model(vision_config, tuple(int(value) for value in sample_rgb.shape[1:]))
     if not isinstance(model, torch.nn.Identity):
         checkpoint = torch.load(encoder_artifact.path / "weights.pt", map_location="cpu")
-        model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-    encode_settings = raw_payload.get("encode_dataset", {})
-    requested_device = str(encode_settings.get("device", "auto"))
-    device = resolve_device(requested_device)
-    read_workers = int(encode_settings.get("read_workers", parallel_read_worker_count()))
-    episode_batch_size = int(encode_settings.get("encode_episode_batch", 1))
+        model.load_state_dict(checkpoint["model_state_dict"])
+    device = resolve_device(config.encoding.device)
+    read_workers = (
+        parallel_read_worker_count()
+        if config.encoding.read_workers is None
+        else config.encoding.read_workers
+    )
+    episode_batch_size = config.encoding.episode_batch
     emit_text_block(
         "encode_dataset_runtime",
         "\n".join(
             [
-                f"requested_device: {requested_device}",
+                f"requested_device: {config.encoding.device}",
                 f"resolved_device: {device}",
                 f"slurm_cpus_per_task: {allocated_cpu_count()}",
                 f"read_workers: {read_workers}",
@@ -232,7 +231,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         modalities=modalities,
         episode_environment_ids=summary.episode_environment_ids,
     )
-    artifact_id = raw_payload.get("dataset", {}).get("output_artifact_id") or generate_artifact_id(
+    artifact_id = generate_artifact_id(
         "encoded",
         summary.env_id,
         runtime.run_directory.identity.run_id,

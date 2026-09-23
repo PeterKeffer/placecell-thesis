@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 from collections.abc import Hashable
@@ -31,7 +30,6 @@ from placecell_research.artifacts.compatibility import (
 )
 from placecell_research.artifacts.ids import short_fingerprint
 from placecell_research.artifacts.registry import ArtifactRegistry
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     augment_stage_result,
     initialize_stage_runtime,
@@ -41,8 +39,8 @@ from placecell_research.datasets.batch_iterator import available_split_names, lo
 from placecell_research.datasets.zarr_io import _require_zarr, load_dataset_manifest
 from placecell_research.evaluation.inference import (
     InputBatchCache,
-    _configure_open_loop_rollout,
     collect_representations,
+    configure_open_loop_rollout,
     load_model_checkpoint,
 )
 from placecell_research.evaluation.metrics import place_code_quality
@@ -61,12 +59,12 @@ from placecell_research.evaluation.runtime import (
 )
 from placecell_research.numerics.error_metrics import RMSE_AGGREGATION
 from placecell_research.stages._analyze_model_run import (
-    _build_comparative_work_items,
-    _build_target_work_items,
-    _disable_targets_where,
-    _execute_comparative_work_items,
-    _execute_single_work_items,
-    _finalize_report,
+    build_comparative_work_items,
+    build_target_work_items,
+    disable_targets_where,
+    execute_comparative_work_items,
+    execute_single_work_items,
+    finalize_report,
 )
 from placecell_research.tracking import (
     ConsoleProgressReporter,
@@ -75,7 +73,7 @@ from placecell_research.tracking import (
     managed_stage_run,
     stage_tags,
 )
-from placecell_research.tracking.campaign_index import index_published_report
+from placecell_research.tracking._run_paths import link_if_absent
 from placecell_research.training.loop import apply_tf32_policy
 from placecell_research.utils.source_fingerprint import package_source_fingerprint
 
@@ -142,7 +140,7 @@ _ANALYSIS_RANDOM_SEED_KEYS = (
     "successor_return_shuffle_seed",
 )
 _LAYERWISE_HIDDEN_STATE_SOURCE_PATTERN = re.compile(
-    r"^(encoder|predictor|jepa_predictor)\.hidden_state_layer_\d+$"
+    r"^(encoder|predictor)\.hidden_state_layer_\d+$"
 )
 _ROLLOUT_LAYERWISE_HIDDEN_STATE_SOURCE_PATTERN = re.compile(
     r"^predictor_rollout\.hidden_state_layer_\d+$"
@@ -267,7 +265,7 @@ def _analysis_config_with_available_layer_targets(
             availability_source is not None and availability_source not in available_representations
         )
 
-    return _disable_targets_where(analysis_config, _layer_source_unavailable)
+    return disable_targets_where(analysis_config, _layer_source_unavailable)
 
 
 def _available_representations_from_model_artifact(
@@ -301,14 +299,6 @@ def _model_consumes_belief(registry, model_artifact_id: str) -> bool:
         contract = json.loads(contract_path.read_text())
         if str(contract.get("predictor_input_mode", "")) in _BELIEF_INPUT_MODES:
             return True
-    objectives_path = model_artifact.path / "active_objectives.json"
-    if objectives_path.exists():
-        objectives = json.loads(objectives_path.read_text())
-        if isinstance(objectives, dict):
-            return any(
-                isinstance(cfg, dict) and str(cfg.get("type", "")) == "multistep_rollout"
-                for cfg in objectives.values()
-            )
     return False
 
 
@@ -324,7 +314,7 @@ def _disable_open_loop_targets_when_not_belief_trained(
     def _is_open_loop_rollout(source_name: str, _payload: dict[str, object]) -> bool:
         return source_name.startswith("predictor_rollout.")
 
-    return _disable_targets_where(analysis_config, _is_open_loop_rollout)
+    return disable_targets_where(analysis_config, _is_open_loop_rollout)
 
 
 def _reference_from_payload(
@@ -523,7 +513,7 @@ def _build_analysis_input(
                     selection=checkpoint_selection,
                 )
             model = model_cache[reference.model_artifact_id]
-            _configure_open_loop_rollout(model, collection_plan.source_names)
+            configure_open_loop_rollout(model, collection_plan.source_names)
             return collect_representations(
                 model,
                 dataset_artifact.path,
@@ -749,11 +739,6 @@ def _comparative_input_payloads(
     analysis_name: str,
     analysis_payload: dict[str, object],
 ) -> list[dict[str, object]]:
-    if "sources" in analysis_payload:
-        raise ValueError(
-            f"Comparative analysis '{analysis_name}' uses removed legacy key 'sources'. "
-            "Use explicit 'inputs' instead."
-        )
     input_payloads = list(analysis_payload.get("inputs", []))
     if not input_payloads:
         raise ValueError(
@@ -968,15 +953,8 @@ def _shorten_browser_link_name(
     return f"{name[:keep]}__{digest}"
 
 
-def _write_relative_symlink(link_path: Path, target_path: Path) -> None:
-    if not target_path.exists():
-        return
-    link_path = link_path.with_name(_shorten_browser_link_name(link_path.name))
-    link_path.parent.mkdir(parents=True, exist_ok=True)
-    if link_path.exists() or link_path.is_symlink():
-        return
-    relative_target = Path(os.path.relpath(target_path.resolve(), start=link_path.parent.resolve()))
-    link_path.symlink_to(relative_target, target_is_directory=target_path.is_dir())
+def _link_browser_shortcut(link_path: Path, target_path: Path) -> None:
+    link_if_absent(link_path.with_name(_shorten_browser_link_name(link_path.name)), target_path)
 
 
 def _write_analysis_browser_links(
@@ -990,19 +968,19 @@ def _write_analysis_browser_links(
     split_name: str,
 ) -> None:
     analysis_root = registry_root / "reports" / "analysis"
-    _write_relative_symlink(
+    _link_browser_shortcut(
         analysis_root
         / "by_model"
         / f"{model_artifact_id}__{split_name}__{dataset_artifact_id}__{report_id}",
         report_path,
     )
-    _write_relative_symlink(
+    _link_browser_shortcut(
         analysis_root
         / "by_dataset"
         / f"{dataset_artifact_id}__{split_name}__{model_artifact_id}__{report_id}",
         report_path,
     )
-    _write_relative_symlink(
+    _link_browser_shortcut(
         analysis_root / "by_run" / f"{run_id}__{report_id}",
         report_path,
     )
@@ -1057,7 +1035,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     runtime = initialize_stage_runtime(config_path, overrides, "analyze_model")
     config = runtime.config
     raw_config = runtime.raw_payload
-    policies = resolve_policies(raw_config)
+    policies = config.policies
     registry = runtime.artifact_registry
     run_directory = runtime.run_directory
     apply_tf32_policy(config.spatial_model.training.allow_tf32)
@@ -1238,13 +1216,6 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 }
             )
             run_directory.write_symlink("results/analysis_report", matching_report.path)
-            index_published_report(
-                artifact_root=registry.root,
-                raw_config=raw_config,
-                run_directory=run_directory,
-                artifact_type="analysis_report",
-                report_path=matching_report.path,
-            )
             _replace_partial_analysis_with_report_link(run_directory, matching_report.path)
             _refresh_analysis_run_shortcuts(run_directory, matching_report.path)
             if flat_summary:
@@ -1302,7 +1273,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 default_split_name=default_split_name,
                 available_splits=available_splits,
             )
-            target_work_items = _build_target_work_items(
+            target_work_items = build_target_work_items(
                 analysis_config.get("targets", {}),
                 coverage_extra_splits=coverage_extra_splits,
                 default_model_id=default_model_id,
@@ -1313,7 +1284,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 make_reference=_AnalysisSourceReference,
                 make_work_item=_SingleAnalysisWorkItem,
             )
-            comparative_work_items = _build_comparative_work_items(
+            comparative_work_items = build_comparative_work_items(
                 enabled_comparative_items,
                 default_model_id=default_model_id,
                 default_dataset_id=default_dataset_id,
@@ -1342,7 +1313,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                     else None
                 ),
             )
-            _execute_single_work_items(
+            execute_single_work_items(
                 target_work_items,
                 single_results=single_results,
                 comparative_results=comparative_results,
@@ -1365,7 +1336,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 snapshot_partial_and_refresh=_snapshot_partial_and_refresh,
                 preserve_workspace_and_refresh=_preserve_workspace_and_refresh,
             )
-            _execute_comparative_work_items(
+            execute_comparative_work_items(
                 comparative_work_items,
                 single_results=single_results,
                 comparative_results=comparative_results,
@@ -1387,7 +1358,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 preserve_workspace_and_refresh=_preserve_workspace_and_refresh,
             )
 
-            return _finalize_report(
+            return finalize_report(
                 single_results=single_results,
                 comparative_results=comparative_results,
                 raw_config=raw_config,

@@ -47,9 +47,6 @@ class ModelContract:
     predictor_family: str | None = None
     encoder_readout: str = "mixed"
     encoder_observation_delay_steps: int = 0
-    top_down_source: str = ""
-    top_down_mode: str = "aligned"
-    top_down_context_dim: int = 0
 
     @property
     def requires_kinematics(self) -> bool:
@@ -84,9 +81,6 @@ def _load_contract(
         predictor_family=payload.get("predictor_family"),
         encoder_readout=str(payload.get("encoder_readout", "mixed")),
         encoder_observation_delay_steps=int(payload.get("encoder_observation_delay_steps", 0)),
-        top_down_source=str(payload.get("top_down_source", "")),
-        top_down_mode=str(payload.get("top_down_mode", "aligned")),
-        top_down_context_dim=int(payload.get("top_down_context_dim", 0)),
     )
 
 
@@ -94,14 +88,6 @@ def _validate_online_extraction_contract(
     contract: ModelContract,
     representation_source: str,
 ) -> None:
-    if contract.top_down_source:
-        raise ValueError(
-            "Online extraction does not support open-loop top-down DAG checkpoints. "
-            f"This model requires top_down_source={contract.top_down_source!r}, "
-            f"top_down_mode={contract.top_down_mode!r}, and "
-            f"top_down_context_dim={contract.top_down_context_dim}; use an explicitly supported "
-            "online feedback runtime before exporting it to downstream control."
-        )
     local_source = representation_source
     if local_source.startswith("predictor."):
         raise ValueError(
@@ -126,11 +112,6 @@ def _validate_online_extraction_contract(
                 "the state-readout path must use a canonical stateful encoder runtime."
             )
         encoder_family = contract.encoder_family
-        if encoder_family == "transformer":
-            raise ValueError(
-                "Transformer encoder online extraction is not supported yet because "
-                "its cached attention state is not reset per env index."
-            )
         if encoder_family is not None and encoder_family not in TEMPORAL_BACKEND_CAPABILITIES:
             raise ValueError(
                 f"Unknown encoder_family={encoder_family!r} in the model contract; online "
@@ -311,19 +292,11 @@ class _OnlineEncoderRuntime:
                 "Temporal encoder online extraction requires encoder_stack.forward_stateful, "
                 "the canonical stateful encoder API that training also runs."
             )
-        unsupported_features = [
-            name
-            for name in ("environment_conditioner", "stream_temporals", "gated_mixture")
-            if getattr(encoder_stack, name, None) is not None
-        ]
         if getattr(encoder_stack, "readout_mode", "mixed") != "mixed":
-            unsupported_features.append("encoder_readout='state'")
-        if unsupported_features:
             raise NotImplementedError(
-                "Online encoder extraction cannot stream this EncoderStack: "
-                f"{sorted(set(unsupported_features))}. These features hold state that "
-                "forward_stateful does not carry between calls, so a stepwise stream would not "
-                "equal the offline forward pass."
+                "Online encoder extraction cannot stream an EncoderStack with "
+                "encoder_readout='state': the state readout is not carried between calls, so a "
+                "stepwise stream would not equal the offline forward pass."
             )
 
     @property
@@ -577,7 +550,7 @@ class FrozenRepresentationExtractor:
             return None
         input_shape = tuple(int(value) for value in rgb_tensor.shape[-3:])
         model = build_vision_model(config, input_shape)
-        model.load_state_dict(state_dict, strict=False)
+        model.load_state_dict(state_dict)
         model = model.to(self.device)
         model.eval()
         for parameter in model.parameters():

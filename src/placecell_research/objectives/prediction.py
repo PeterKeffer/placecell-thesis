@@ -3,20 +3,59 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from placecell_research.spatial_model.predictor_runtime import (
+    context_from_bundle,
+    future_prediction_from_state,
+    rollout_predictor_sequence,
+)
 from placecell_research.spatial_model.types import RepresentationBundle
 
 from .base import ConfiguredObjective, ObjectiveResult
 from .masking import flatten_valid_pairs, transition_mask
-from .predictor_rollout import bootstrap_future_prediction, replay_predictor_states
 
 if TYPE_CHECKING:
     from placecell_research.spatial_model.protocol import PlaceModel
+
+
+def replay_predictor_states(
+    model: Any,
+    bundle: RepresentationBundle,
+) -> tuple[list[Any], list[Any]]:
+    """Replay the predictor once to expose clean state snapshots for objectives."""
+    encoder_codes = bundle.get_representation("encoder.place_codes")
+    _, state_before, state_after = rollout_predictor_sequence(
+        model,
+        encoder_codes,
+        context_from_bundle(model, bundle),
+        capture_states=True,
+    )
+    if state_before is None or state_after is None:
+        raise RuntimeError("Predictor replay requested states, but rollout did not capture them.")
+    return state_before, state_after
+
+
+def bootstrap_future_prediction(
+    model: Any,
+    bundle: RepresentationBundle,
+    step_index: int,
+    state_after_step: Any,
+) -> Tensor:
+    """Recompute the detached one-step-ahead prediction used by TD bootstrap."""
+    encoder_codes = bundle.get_representation("encoder.place_codes")
+    return future_prediction_from_state(
+        model,
+        context_from_bundle(model, bundle),
+        encoder_code=encoder_codes[:, step_index],
+        belief_code=encoder_codes[:, step_index],
+        transition_index=step_index,
+        predictor_state=state_after_step,
+    )
 
 
 def _balanced_smooth_l1(predictor: Tensor, target: Tensor) -> Tensor:

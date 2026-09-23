@@ -122,15 +122,6 @@ def _dataset_provenance(
     )
 
 
-def resolve_dataset_provenance(
-    registry: ArtifactRegistry,
-    artifact_type: str,
-    artifact_id: str,
-) -> DatasetProvenance:
-    """Return the saved dataset provenance used by compatibility checks."""
-    return _dataset_provenance(registry, artifact_type, artifact_id)
-
-
 def _place_model_provenance(registry: ArtifactRegistry, artifact_id: str) -> PlaceModelProvenance:
     artifact = registry.load("place_model", artifact_id)
     context = _stage_context(artifact)
@@ -149,7 +140,7 @@ def _place_model_provenance(registry: ArtifactRegistry, artifact_id: str) -> Pla
             f"Place model '{artifact.artifact_id}' has inconsistent observation-source provenance."
         )
     observation_source = selected_observation_source or manifest_observation_source or "latent"
-    if observation_source not in {"latent", "rgb", "action"}:
+    if observation_source not in {"latent", "rgb"}:
         raise ValueError(
             f"Place model '{artifact.artifact_id}' has unsupported observation source "
             f"'{observation_source}'."
@@ -223,7 +214,7 @@ def validate_artifact_compatibility(
             continue
 
         model = _place_model_provenance(registry, reference.model_artifact_id)
-        if model.observation_source in {"rgb", "action"}:
+        if model.observation_source == "rgb":
             continue
         if dataset.artifact_type != "encoded_dataset":
             raise ValueError(

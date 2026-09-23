@@ -13,7 +13,6 @@ from placecell_research.artifacts.ids import config_fingerprint, generate_artifa
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
 from placecell_research.artifacts.registry import ArtifactRegistry, RegisteredArtifact
 from placecell_research.numerics.error_metrics import RMSE_AGGREGATION
-from placecell_research.tracking.campaign_index import index_published_report
 from placecell_research.tracking.run_directory import RunDirectory
 from placecell_research.utils.device import resolve_device
 from placecell_research.utils.source_fingerprint import package_source_fingerprint
@@ -31,35 +30,6 @@ def resolve_stage_reference(
     if value in {"", None}:
         value = fallback
     if not value:
-        if (
-            key == "dataset_artifact_id"
-            and isinstance(section.get("dataset"), dict)
-            and "artifact_id" in section["dataset"]
-        ):
-            raise ValueError(
-                f"Missing explicit `{section_name}.{key}`. "
-                f"Use `{section_name}.dataset_artifact_id`, not "
-                f"`{section_name}.dataset.artifact_id`."
-            )
-        if (
-            key == "dataset_artifact_type"
-            and isinstance(section.get("dataset"), dict)
-            and "artifact_type" in section["dataset"]
-        ):
-            raise ValueError(
-                f"Missing explicit `{section_name}.{key}`. "
-                f"Use `{section_name}.dataset_artifact_type`, not "
-                f"`{section_name}.dataset.artifact_type`."
-            )
-        if (
-            key == "split_artifact_id"
-            and isinstance(section.get("split"), dict)
-            and "artifact_id" in section["split"]
-        ):
-            raise ValueError(
-                f"Missing explicit `{section_name}.{key}`. "
-                f"Use `{section_name}.split_artifact_id`, not `{section_name}.split.artifact_id`."
-            )
         raise ValueError(
             f"Missing explicit `{section_name}.{key}`. This stage does not do implicit artifact "
             "discovery."
@@ -251,23 +221,7 @@ def publish_report(
         )
         manifest.write(temporary_path / "manifest.json")
         final_path = registry.register_directory(artifact_type, artifact_id, temporary_path)
-    if raw_config is not None:
-        index_published_report(
-            artifact_root=registry.root,
-            raw_config=raw_config,
-            run_directory=run_directory,
-            artifact_type=artifact_type,
-            report_path=final_path,
-        )
     return artifact_id, final_path
-
-
-def flatten_metrics(results: dict[str, dict[str, float]]) -> dict[str, float]:
-    """Flatten stage metrics into one report-friendly dict."""
-    flattened: dict[str, float] = {}
-    for section, metrics in results.items():
-        flattened.update({f"{section}.{key}": float(value) for key, value in metrics.items()})
-    return flattened
 
 
 def resolve_stage_device(raw_config: dict[str, Any], section_name: str) -> torch.device:

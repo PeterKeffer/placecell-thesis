@@ -13,12 +13,9 @@ from placecell_research.config import (
     validate_experiment_config,
 )
 from placecell_research.datasets.dataset import build_training_dataloaders
-from placecell_research.objectives import build_objectives_and_heads
-from placecell_research.spatial_model import (
-    ModelBuildContext,
-    build_model_contract,
-    build_place_model,
-)
+from placecell_research.objectives import build_objectives
+from placecell_research.spatial_model.builder import ModelBuildContext, build_place_model
+from placecell_research.spatial_model.contract import build_model_contract
 from placecell_research.tracking.naming import generate_signature
 from placecell_research.utils.repo_paths import find_repo_root
 
@@ -82,7 +79,7 @@ def inspect_experiment_config(
             config=config.spatial_model,
             build_context=build_context,
         )
-        built = build_objectives_and_heads(model, config.spatial_model)
+        built = build_objectives(model, config.spatial_model)
         if hasattr(model, "set_auxiliary_heads"):
             model.set_auxiliary_heads(built.auxiliary_heads)
         contract = build_model_contract(model, sorted(config.spatial_model.objectives.keys()))

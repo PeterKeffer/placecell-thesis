@@ -2,27 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-
 import torch
 from torch import Tensor, nn
-
-
-class PredictorInputAssembler(Protocol):
-    uses_belief: bool
-
-    @property
-    def output_dim(self) -> int: ...
-
-    def assemble(
-        self,
-        encoder_code: Tensor,
-        belief_code: Tensor | None,
-        action_embedding: Tensor | None,
-        kinematics: Tensor | None,
-        temporal_offset: Tensor | None,
-        corruption_info: dict[str, Tensor] | None,
-    ) -> Tensor: ...
 
 
 def _concat_channels(*channels: Tensor | None) -> Tensor:

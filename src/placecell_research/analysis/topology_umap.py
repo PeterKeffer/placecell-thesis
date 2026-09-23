@@ -26,8 +26,8 @@ from ..numerics.rate_map_kernels import (
 )
 from .base import AnalysisInput, AnalysisResult
 from .helpers import (
-    _compute_trustworthiness,
-    _subsample_indices,
+    compute_trustworthiness,
+    subsample_indices,
 )
 from .timing import log_timing, record_timing
 from .transition_geometry import _build_transition_counts, _flatten_valid_episode_bins
@@ -196,7 +196,7 @@ def _fit_pooled_manifold_embedding(
     raise ValueError(f"Unknown manifold embedding method: {method!r}.")
 
 
-def _pool_by_spatial_bin(
+def pool_by_spatial_bin(
     analysis_input: AnalysisInput,
     features: np.ndarray,
     positions: np.ndarray,
@@ -811,7 +811,7 @@ def _run_pooled_embedding(
     pooled_features, pooled_positions, pooled_counts, pooled_bin_indices, pooling_bounds = pooled
 
     section_started_at = perf_counter()
-    pooled_indices = _subsample_indices(len(pooled_features), max_points, random_seed)
+    pooled_indices = subsample_indices(len(pooled_features), max_points, random_seed)
     pooled_features = pooled_features[pooled_indices]
     pooled_positions = pooled_positions[pooled_indices]
     pooled_counts = pooled_counts[pooled_indices]
@@ -852,7 +852,7 @@ def _run_pooled_embedding(
     record_timing(timing_seconds, metric_prefix, section_started_at)
 
     section_started_at = perf_counter()
-    pooled_trustworthiness = _compute_trustworthiness(
+    pooled_trustworthiness = compute_trustworthiness(
         pooled_features,
         pooled_embedding,
         neighbor_count=trustworthiness_neighbors,
@@ -980,7 +980,7 @@ class _TopologyUMAPModuleBase:
         metadata: dict[str, Any] = {}
         if self.emit_steps:
             section_started_at = perf_counter()
-            step_indices = _subsample_indices(
+            step_indices = subsample_indices(
                 len(flattened_features),
                 max(4, int(config.get("umap_max_points", 4096))),
                 random_seed,
@@ -1024,7 +1024,7 @@ class _TopologyUMAPModuleBase:
             else:
                 record_timing(timing_seconds, "step_umap", section_started_at)
                 section_started_at = perf_counter()
-                step_trustworthiness = _compute_trustworthiness(
+                step_trustworthiness = compute_trustworthiness(
                     step_features,
                     step_embedding,
                     neighbor_count=int(config.get("umap_trustworthiness_neighbors", 15)),

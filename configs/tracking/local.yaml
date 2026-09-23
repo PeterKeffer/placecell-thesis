@@ -7,7 +7,3 @@ artifact_root: artifacts
 study_name: wallgap
 variant_name: baseline
 tags: [local]
-campaign_name: ""
-campaign_group: ""
-experiment_id: ""
-experiment_arm: ""

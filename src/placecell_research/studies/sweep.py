@@ -70,7 +70,6 @@ def seed_overrides(seed: int) -> list[str]:
         f"seed.split_seed={seed}",
         f"seed.training_seed={seed}",
         f"splits.seed={seed}",
-        f"spatial_model.training.online.seed={seed}",
         f"analysis.example_episode_random_seed={seed}",
         f"analysis.umap_random_seed={seed}",
         f"analysis.probing_shuffle_seed={seed}",

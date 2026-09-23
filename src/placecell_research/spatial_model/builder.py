@@ -11,7 +11,6 @@ from torch import nn
 from placecell_research.config.schema import SpatialModelConfig, TemporalFamilyConfig
 
 from .components.backbones import (
-    ActionEmbeddingBackbone,
     IdentityBackbone,
     MLPBackbone,
     ResNetBackbone,
@@ -31,7 +30,6 @@ from .components.sparsifiers import (
     SparsemaxSparsifier,
 )
 from .components.teacher import EncoderStack, PostHeadRMSNorm, TeacherStudentController
-from .components.temporal.capabilities import temporal_backend_capabilities
 from .components.temporal.clockwork import ClockworkTemporal
 from .components.temporal.mlp import MLPTemporal
 from .components.temporal.mtrnn import MTRNNTemporal
@@ -129,40 +127,6 @@ def validate_component_compatibility(
             "spatial_model.inputs.observation_source=rgb requires "
             "spatial_model.encoder.backbone_type in {'cnn', 'vit'}."
         )
-    if observation_source == "action" and encoder_backbone_type != "identity":
-        raise ValueError(
-            "spatial_model.inputs.observation_source=action requires "
-            "spatial_model.encoder.backbone_type='identity'; discrete actions are embedded "
-            "by the action backbone before the temporal encoder."
-        )
-    if (
-        observation_source == "action"
-        and build_context.observation_dim != build_context.num_actions + 1
-    ):
-        raise ValueError(
-            "spatial_model.inputs.observation_source=action requires observation_dim="
-            "num_actions + 1 so the external action feature includes the padding token."
-        )
-    if observation_source == "action" and uses_action_context(
-        config.inputs.encoder_context_channels
-    ):
-        raise ValueError(
-            "spatial_model.inputs.observation_source=action must not also include 'action' in "
-            "spatial_model.inputs.encoder_context_channels."
-        )
-    visual_masking = config.inputs.visual_masking
-    if observation_source == "action" and (
-        visual_masking.blackout_probability > 0.0 or visual_masking.stride > 1
-    ):
-        raise ValueError(
-            "spatial_model.inputs.observation_source=action does not support visual_masking; "
-            "zero is a valid discrete action, not a masking token."
-        )
-    if observation_source == "action" and config.inputs.input_corruption.enabled:
-        raise ValueError(
-            "spatial_model.inputs.observation_source=action does not support input_corruption; "
-            "action masking requires a distinct discrete mask token."
-        )
     required_kinematics = required_kinematics_width(config.inputs.predictor_context_channels)
     if build_context.kinematics_dim < required_kinematics:
         raise ValueError(
@@ -214,26 +178,6 @@ def validate_component_compatibility(
             "mtrnn",
             "predictor",
         )
-    predictor_capabilities = temporal_backend_capabilities(
-        config.predictor.family, config.predictor.fla_variant
-    )
-    if not predictor_capabilities.supports_stepwise:
-        reason = predictor_capabilities.stepwise_unsupported_message()
-        if config.inputs.predictor_input_mode != "encoder":
-            raise ValueError(
-                "spatial_model.inputs.predictor_input_mode must be 'encoder' for this predictor: "
-                "belief-feeding modes replay the predictor stepwise. " + reason
-            )
-        rollout_objectives = sorted(
-            name
-            for name, objective in config.objectives.items()
-            if objective.type == "multistep_rollout"
-        )
-        if rollout_objectives:
-            raise ValueError(
-                f"replay objective(s) {rollout_objectives} replay the predictor stepwise. "
-                + reason
-            )
 
 
 def _build_identity_backbone(config: TemporalFamilyConfig, observation_dim: int) -> nn.Module:
@@ -600,23 +544,15 @@ def _build_composite_place_model(
     build_context: ModelBuildContext,
 ) -> CompositePlaceModel:
     validate_component_compatibility(config, build_context=build_context)
-    observation_encoder = (
-        ActionEmbeddingBackbone(
-            build_context.num_actions,
-            config.encoder.action_embedding_dim,
-        )
-        if config.inputs.observation_source == "action"
-        else build_backbone(
-            config.encoder,
-            build_context.observation_dim,
-            config.inputs.observation_source,
-        )
+    observation_encoder = build_backbone(
+        config.encoder,
+        build_context.observation_dim,
+        config.inputs.observation_source,
     )
     use_encoder_action_context = uses_action_context(config.inputs.encoder_context_channels)
     encoder_context_dim = (
         (config.encoder.action_embedding_dim if use_encoder_action_context else 0)
         + kinematics_dim(config.inputs.encoder_context_channels)
-        + int(config.top_down_context_dim)
     )
     encoder_temporal = _prepare_encoder_state_readout(
         build_encoder_temporal(
@@ -631,58 +567,6 @@ def _build_composite_place_model(
         activation=config.encoder.head_activation,
         normalize=config.encoder.normalize_codes,
         weight_sparsity=config.encoder.head_weight_sparsity,
-    )
-    encoder_expert_heads = (
-        nn.ModuleList(
-            CodeHead(
-                input_dim=config.encoder.output_size,
-                output_dim=config.training.code_dim,
-                activation=config.encoder.head_activation,
-                normalize=config.encoder.normalize_codes,
-                weight_sparsity=config.encoder.head_weight_sparsity,
-            )
-            for _ in range(config.encoder_experts.count - 1)
-        )
-        if config.encoder_experts.count > 1 and not config.encoder_experts.streams
-        else None
-    )
-    encoder_stream_names = list(config.encoder_experts.streams[1:])
-    encoder_stream_temporals: nn.ModuleList | None = None
-    encoder_stream_heads: nn.ModuleList | None = None
-    if encoder_stream_names:
-        encoder_stream_temporals = nn.ModuleList()
-        encoder_stream_heads = nn.ModuleList()
-        for stream_name in encoder_stream_names:
-            stream_input_dim = (
-                observation_encoder.output_dim
-                if stream_name == "vision"
-                else build_context.kinematics_dim
-            )
-            encoder_stream_temporals.append(
-                _prepare_encoder_state_readout(
-                    build_encoder_temporal(config.encoder, stream_input_dim),
-                    config.encoder_readout,
-                )
-            )
-            encoder_stream_heads.append(
-                CodeHead(
-                    input_dim=config.encoder.output_size,
-                    output_dim=config.training.code_dim,
-                    activation=config.encoder.head_activation,
-                    normalize=config.encoder.normalize_codes,
-                    weight_sparsity=config.encoder.head_weight_sparsity,
-                )
-            )
-    encoder_precision_heads = (
-        nn.ModuleList(
-            nn.Linear(config.training.code_dim, 1) for _ in range(config.encoder_experts.count)
-        )
-        if (
-            config.encoder_experts.count > 1
-            and config.encoder_experts.combiner == "product"
-            and config.encoder_experts.precision_weighted
-        )
-        else None
     )
     encoder_code_norm = {
         "none": nn.Identity,
@@ -722,11 +606,6 @@ def _build_composite_place_model(
         action_embedding=encoder_action_embedding,
         encoder_code_norm=encoder_code_norm,
         encoder_post_head_norm=encoder_post_head_norm,
-        expert_heads=encoder_expert_heads,
-        precision_heads=encoder_precision_heads,
-        stream_temporals=encoder_stream_temporals,
-        stream_heads=encoder_stream_heads,
-        stream_names=encoder_stream_names,
         readout_mode=config.encoder_readout,
         export_state_readout=exports_encoder_state,
     )
@@ -819,14 +698,12 @@ def _build_composite_place_model(
         predictor_temporal=predictor_temporal,
         predictor_head=predictor_head,
         predictor_sparsifier=predictor_sparsifier,
-        masked_predictor=None,
         teacher_controller=teacher_controller,
         action_embedding=action_embedding,
         inverse_dynamics_head=inverse_dynamics_head,
         input_corruption_blackout_token=input_corruption_blackout_token,
         training_regularizer=training_regularizer,
         slow_operator_projection=slow_operator_projection,
-        attractor_binding=None,
         config=config,
         num_actions=build_context.num_actions,
         observation_dim=build_context.observation_dim,
@@ -853,9 +730,6 @@ def build_place_model(
     build_context: ModelBuildContext,
 ) -> nn.Module:
     """Build a place model from the configured architecture registry."""
-    removed = config.removed_feature_settings()
-    if removed:
-        raise ValueError(f"These settings are not supported in this repository: {removed}.")
     builder = MODEL_ARCHITECTURES.get(config.architecture)
     if builder is None:
         raise ValueError(f"Unsupported spatial_model.architecture: {config.architecture}")

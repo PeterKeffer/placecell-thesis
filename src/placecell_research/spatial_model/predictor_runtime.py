@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Protocol
+from typing import Any, Protocol
 
 import torch
 from torch import Tensor
@@ -113,21 +113,6 @@ def context_from_bundle(
         corruption_regime=bundle.masks["corruption_regime"],
         temporal_offset=temporal_offset,
     )
-
-
-def predictor_runtime_contract(model: PredictorStack) -> str:
-    active_rollout_modes = {
-        objective.rollout_state_mode
-        for objective in model.components.config.objectives.values()
-        if objective.type == "multistep_rollout" and objective.weight > 0.0
-    }
-    if "reset" in active_rollout_modes:
-        return "reset_anchored_self_fed_training_with_teacher_forced_diagnostic_pass"
-    if "replay" in active_rollout_modes:
-        return "replay_warm_started_self_fed_training_with_teacher_forced_diagnostic_pass"
-    if model.components.config.predictor.family == "transformer":
-        return "full_sequence_causal_training_with_exact_bounded_step_rollout"
-    return "stepwise_recurrent_rollout"
 
 
 def _kinematics_for_transition(
@@ -247,11 +232,6 @@ def predict_code_from_input(
 ) -> tuple[Tensor, Tensor, Tensor, Tensor, Any]:
     if regularizer is not None:
         predictor_input = regularizer.apply("predictor.input", predictor_input)
-    transition_state = None
-    wrapped = isinstance(predictor_state, PredictorTransitionState)
-    if wrapped:
-        transition_state = predictor_state.transition_state
-        predictor_state = predictor_state.temporal_state
     if model.components.config.predictor.family == "clockwork":
         if timestep is None:
             raise ValueError("clockwork predictor forward_step requires an absolute timestep.")
@@ -268,10 +248,6 @@ def predict_code_from_input(
     if regularizer is not None:
         hidden_t = regularizer.apply("predictor.hidden", hidden_t)
     logits_t = model.predictor_head.project(hidden_t)
-    transition_binder = getattr(model, "predictor_transition_binder", None)
-    if transition_binder is not None:
-        logits_t = logits_t + transition_binder.read_step(predictor_input, transition_state)
-        next_state = PredictorTransitionState(next_state, transition_state)
     if regularizer is not None:
         logits_t = regularizer.apply("predictor.logits", logits_t)
     activated_t = model.predictor_head.activate(logits_t)
@@ -290,14 +266,7 @@ def _sparsifier_auxiliary(sparsifier: Any) -> dict[str, Tensor]:
     return dict(getattr(sparsifier, "last_auxiliary_outputs", {}))
 
 
-class PredictorTransitionState(NamedTuple):
-    temporal_state: Any
-    transition_state: Tensor | None
-
-
 def _hidden_layers_from_predictor_state(state: Any) -> list[Tensor]:
-    if isinstance(state, PredictorTransitionState):
-        state = state.temporal_state
     if state is None:
         return []
     if (
@@ -361,8 +330,6 @@ def _run_fused_predictor_sequence(
         next_state = initial_state
         if next_state is None:
             next_state = model.predictor_temporal.initial_state(batch_size, device)
-            if getattr(model, "predictor_transition_binder", None) is not None:
-                next_state = PredictorTransitionState(next_state, None)
         return (
             ModuleOutputs(
                 place_codes=predictor_codes_tensor,
@@ -375,45 +342,24 @@ def _run_fused_predictor_sequence(
         )
     if regularizer is not None:
         predictor_inputs = regularizer.apply("predictor.input", predictor_inputs)
-    temporal_initial_state = (
-        initial_state.temporal_state
-        if isinstance(initial_state, PredictorTransitionState)
-        else initial_state
-    )
     if hasattr(model.predictor_temporal, "forward_sequence_with_layer_outputs"):
         hidden_sequence, next_state, layer_outputs = (
             model.predictor_temporal.forward_sequence_with_layer_outputs(predictor_inputs)
-            if temporal_initial_state is None
+            if initial_state is None
             else model.predictor_temporal.forward_sequence_with_layer_outputs(
                 predictor_inputs,
-                temporal_initial_state,
+                initial_state,
             )
         )
     else:
         hidden_sequence, next_state = model.predictor_temporal.forward_sequence(
             predictor_inputs,
-            temporal_initial_state,
+            initial_state,
         )
         layer_outputs = []
     if regularizer is not None:
         hidden_sequence = regularizer.apply("predictor.hidden", hidden_sequence)
     logits_sequence = model.predictor_head.project(hidden_sequence)
-    transition_binder = getattr(model, "predictor_transition_binder", None)
-    transition_state = None
-    auxiliary_extra: dict[str, Tensor] = {}
-    if transition_binder is not None:
-        if isinstance(initial_state, PredictorTransitionState):
-            temporal_seed = initial_state.temporal_state
-            transition_state = initial_state.transition_state
-        else:
-            temporal_seed = initial_state
-        del temporal_seed
-        target_codes = encoder_codes[:, output_start:]
-        read_contribution, transition_state = transition_binder.forward_sequence(
-            predictor_inputs, target_codes, transition_state
-        )
-        logits_sequence = logits_sequence + read_contribution
-        auxiliary_extra = dict(transition_binder.last_auxiliary_outputs)
     if regularizer is not None:
         logits_sequence = regularizer.apply("predictor.logits", logits_sequence)
     activated_sequence = model.predictor_head.activate(logits_sequence)
@@ -422,16 +368,13 @@ def _run_fused_predictor_sequence(
     if regularizer is not None:
         activated_sequence = regularizer.apply("predictor.pre_sparsifier", activated_sequence)
     codes_sequence = model.predictor_sparsifier(activated_sequence)
-    auxiliary_extra.update(_sparsifier_auxiliary(model.predictor_sparsifier))
+    auxiliary = _sparsifier_auxiliary(model.predictor_sparsifier)
     if regularizer is not None:
         codes_sequence = regularizer.apply("predictor.output", codes_sequence)
     predictor_hidden_tensor[:, output_start:] = hidden_sequence
     predictor_logits_tensor[:, output_start:] = logits_sequence
     predictor_pre_sparsifier_tensor[:, output_start:] = activated_sequence
     predictor_codes_tensor[:, output_start:] = codes_sequence
-    auxiliary = dict(auxiliary_extra)
-    if transition_binder is not None:
-        next_state = PredictorTransitionState(next_state, transition_state)
     for layer_index, layer_output in enumerate(layer_outputs):
         layer_tensor = torch.zeros(
             batch_size,
@@ -466,8 +409,6 @@ class PredictorFeedback(Protocol):
     def observe(self, timestep: int, pre_sparsifier: Tensor, codes: Tensor) -> None:
         """Take the step's outputs, so the next step_codes can use them."""
 
-    def target_code(self, timestep: int) -> Tensor | None:
-        """The OBSERVED code at timestep when the policy has one (teacher forcing), else None."""
 
 
 class TeacherForcedFeedback:
@@ -477,11 +418,9 @@ class TeacherForcedFeedback:
         self,
         encoder_codes: Tensor,
         *,
-        belief_codes: Tensor | None = None,
         detach_intermediate_predictions: bool = False,
     ) -> None:
         self._encoder_codes = encoder_codes
-        self._grid_belief_codes = belief_codes
         self._detach_intermediate_predictions = detach_intermediate_predictions
         self._running_belief = encoder_codes[:, 0]
 
@@ -489,19 +428,10 @@ class TeacherForcedFeedback:
         return self._encoder_codes[:, 0]
 
     def step_codes(self, timestep: int) -> tuple[Tensor, Tensor]:
-        fed_code = self._encoder_codes[:, timestep - 1]
-        if self._grid_belief_codes is not None:
-            return fed_code, self._grid_belief_codes[:, timestep - 1]
-        return fed_code, self._running_belief
+        return self._encoder_codes[:, timestep - 1], self._running_belief
 
     def observe(self, timestep: int, pre_sparsifier: Tensor, codes: Tensor) -> None:
-        if self._grid_belief_codes is None:
-            self._running_belief = (
-                codes.detach() if self._detach_intermediate_predictions else codes
-            )
-
-    def target_code(self, timestep: int) -> Tensor | None:
-        return self._encoder_codes[:, timestep]
+        self._running_belief = codes.detach() if self._detach_intermediate_predictions else codes
 
 
 class OpenLoopFeedback:
@@ -531,85 +461,6 @@ class OpenLoopFeedback:
     def observe(self, timestep: int, pre_sparsifier: Tensor, codes: Tensor) -> None:
         self._running_belief = (
             codes.detach() if self._detach_intermediate_predictions else codes
-        )
-
-
-class ComparatorFeedback:
-    """I1 closed loop: the comparator's posterior replaces the encoder code as the fed code."""
-
-    def __init__(
-        self,
-        comparator: Any,
-        encoder_pre: Tensor,
-        *,
-        corruption_regime: Tensor | None,
-        attractor_binding: Any = None,
-        encoder_hidden: Tensor | None = None,
-        batch_size: int,
-        device: torch.device,
-    ) -> None:
-        self._comparator = comparator
-        self._encoder_pre = encoder_pre
-        self._corruption_regime = corruption_regime
-        self._attractor_binding = attractor_binding
-        self._encoder_hidden = encoder_hidden
-        self._posterior_pre_steps: list[Tensor] = [encoder_pre[:, 0]]
-        self._posterior_code_steps: list[Tensor] = [comparator.sparsifier(encoder_pre[:, 0])]
-        self._innovation_steps: list[Tensor] = [torch.zeros_like(encoder_pre[:, 0])]
-        self._gate_steps: list[Tensor] = [torch.ones_like(encoder_pre[:, 0])]
-        self._binding_pool: Tensor | None = None
-        self._binding_pool_steps: list[Tensor] = []
-        if attractor_binding is not None:
-            if encoder_hidden is None:
-                raise RuntimeError("attractor_binding needs the encoder hidden-state sequence.")
-            self._binding_pool = attractor_binding.initial_state(batch_size, device)
-            self._binding_pool_steps.append(self._binding_pool)
-
-    def seed_code(self) -> Tensor:
-        return self._posterior_code_steps[0]
-
-    def step_codes(self, timestep: int) -> tuple[Tensor, Tensor]:
-        fed_code = self._posterior_code_steps[timestep - 1]
-        return fed_code, fed_code
-
-    def observe(self, timestep: int, pre_sparsifier: Tensor, codes: Tensor) -> None:
-        expectation = pre_sparsifier.detach()
-        evidence_t = self._encoder_pre[:, timestep]
-        dark_t = (
-            None
-            if self._corruption_regime is None
-            else (self._corruption_regime[:, timestep] == 2)
-        )
-        if self._attractor_binding is not None:
-            binding_delta, self._binding_pool = self._attractor_binding.step(
-                self._binding_pool,
-                self._encoder_hidden[:, timestep],
-                evidence_t,
-                expectation,
-                freeze=dark_t,
-            )
-            evidence_t = evidence_t + binding_delta
-            self._binding_pool_steps.append(self._binding_pool)
-        innovation_t = evidence_t - expectation
-        gate_t = self._comparator.gate(innovation_t, dark_t)
-        posterior_pre_t = expectation + gate_t * innovation_t
-        self._posterior_pre_steps.append(posterior_pre_t)
-        self._posterior_code_steps.append(self._comparator.sparsifier(posterior_pre_t))
-        self._innovation_steps.append(innovation_t)
-        self._gate_steps.append(gate_t.detach().expand_as(innovation_t))
-
-    def comparator_outputs(self) -> ModuleOutputs:
-        auxiliary = _sparsifier_auxiliary(self._comparator.sparsifier)
-        auxiliary.update({
-            "innovation": torch.stack(self._innovation_steps, dim=1),
-            "gate": torch.stack(self._gate_steps, dim=1),
-        })
-        if self._binding_pool_steps:
-            auxiliary["binding_pool"] = torch.stack(self._binding_pool_steps, dim=1)
-        return ModuleOutputs(
-            place_codes=torch.stack(self._posterior_code_steps, dim=1),
-            pre_sparsifier=torch.stack(self._posterior_pre_steps, dim=1),
-            auxiliary=auxiliary,
         )
 
 
@@ -646,15 +497,11 @@ def _run_stepwise_predictor_sequence(
     state_before = [None for _ in range(time_steps)] if capture_states else None
     state_after = [None for _ in range(time_steps)] if capture_states else None
     predictor_state = model.predictor_temporal.initial_state(batch_size, device)
-    transition_binder = getattr(model, "predictor_transition_binder", None)
-    if transition_binder is not None:
-        predictor_state = PredictorTransitionState(predictor_state, None)
     predictor_hidden_layers = [
         torch.zeros(batch_size, time_steps, layer_state.shape[-1], device=device, dtype=dtype)
         for layer_state in _hidden_layers_from_predictor_state(predictor_state)
     ]
     residual = residual_dynamics_enabled(model)
-    target_code_of = getattr(feedback, "target_code", None)
     for timestep in range(1, time_steps):
         fed_code, belief_code = feedback.step_codes(timestep)
         if capture_states and state_before is not None:
@@ -674,13 +521,6 @@ def _run_stepwise_predictor_sequence(
             timestep=timestep,
             residual_base=fed_code if residual else None,
         )
-        if transition_binder is not None and target_code_of is not None:
-            observed = target_code_of(timestep)
-            if observed is not None:
-                _read, table = transition_binder.forward_step(
-                    predictor_input, observed, predictor_state.transition_state
-                )
-                predictor_state = PredictorTransitionState(predictor_state.temporal_state, table)
         if capture_states and state_after is not None:
             state_after[timestep] = detach_state(predictor_state)
         predictor_hidden_tensor[:, timestep] = hidden_t
@@ -736,25 +576,18 @@ def rollout_predictor_sequence(
     regularizer: Any = None,
     detach_intermediate_predictions: bool = False,
     capture_states: bool = False,
-    belief_codes: Tensor | None = None,
 ) -> tuple[ModuleOutputs, list[Any] | None, list[Any] | None]:
     family = model.components.config.predictor.family
     regularization_requires_stepwise = (
         regularizer is not None and regularizer.predictor_requires_stepwise()
     )
     can_fuse_recurrent = (
-        temporal_backend_capabilities(
-            family, model.components.config.predictor.fla_variant
-        ).supports_fused
+        temporal_backend_capabilities(family).supports_fused
         and not predictor_assembler_uses_belief(model.predictor_input_assembler)
         and not regularization_requires_stepwise
         and hasattr(model.predictor_temporal, "forward_sequence")
     )
-    if (
-        not capture_states
-        and not regularization_requires_stepwise
-        and (family == "transformer" or can_fuse_recurrent)
-    ):
+    if not capture_states and can_fuse_recurrent:
         fused_outputs, _final_state = _run_fused_predictor_sequence(
             model,
             encoder_codes,
@@ -770,7 +603,6 @@ def rollout_predictor_sequence(
         model,
         TeacherForcedFeedback(
             encoder_codes,
-            belief_codes=belief_codes,
             detach_intermediate_predictions=detach_intermediate_predictions,
         ),
         context,
@@ -778,37 +610,6 @@ def rollout_predictor_sequence(
         regularizer=regularizer,
         capture_states=capture_states,
     )
-
-
-def closed_loop_rollout_predictor_sequence(
-    model: PredictorStack,
-    encoder_codes: Tensor,
-    encoder_pre: Tensor,
-    comparator: Any,
-    context: PredictorRuntimeContext,
-    *,
-    regularizer: Any = None,
-    attractor_binding: Any = None,
-    encoder_hidden: Tensor | None = None,
-) -> tuple[ModuleOutputs, ModuleOutputs]:
-    """I1 closed-loop fusion: the posterior replaces the encoder code as the predictor's input."""
-    feedback = ComparatorFeedback(
-        comparator,
-        encoder_pre,
-        corruption_regime=context.corruption_regime,
-        attractor_binding=attractor_binding,
-        encoder_hidden=encoder_hidden,
-        batch_size=encoder_codes.shape[0],
-        device=encoder_codes.device,
-    )
-    predictor_outputs, _before, _after = _run_stepwise_predictor_sequence(
-        model,
-        feedback,
-        context,
-        time_steps=encoder_codes.shape[1],
-        regularizer=regularizer,
-    )
-    return predictor_outputs, feedback.comparator_outputs()
 
 
 def open_loop_rollout_predictor_sequence(

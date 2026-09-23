@@ -7,17 +7,17 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..numerics.bin_maps import (
-    _batched_masked_map_correlation,
-    _rate_maps_from_activity_sums_with_safe_occupancy,
     _smooth_flat_bin_maps,
-    _smoothed_safe_occupancy,
+    batched_masked_map_correlation,
+    rate_maps_from_activity_sums_with_safe_occupancy,
+    smoothed_safe_occupancy,
 )
 from ..numerics.occupancy import (
     EpisodeBinStatistics,
     _episode_activity_sums,
-    _iter_episode_activity_sum_chunks,
-    _prepare_episode_bin_statistics,
     _unit_chunk_bounds,
+    iter_episode_activity_sum_chunks,
+    prepare_episode_bin_statistics,
 )
 from ..numerics.split_half import (
     _accumulate_multi_split_correlations,
@@ -190,14 +190,14 @@ def _compute_split_half_agreement_chunk(
     smoothing_sigma: float,
     epsilon: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    even_rate_maps = _rate_maps_from_activity_sums_with_safe_occupancy(
+    even_rate_maps = rate_maps_from_activity_sums_with_safe_occupancy(
         even_activity,
         safe_even_occupancy,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
         smoothing_sigma=smoothing_sigma,
     )
-    odd_rate_maps = _rate_maps_from_activity_sums_with_safe_occupancy(
+    odd_rate_maps = rate_maps_from_activity_sums_with_safe_occupancy(
         odd_activity,
         safe_odd_occupancy,
         num_bins_y=num_bins_y,
@@ -217,7 +217,7 @@ def _compute_split_half_agreement_chunk(
         0.0,
         1.0,
     ).astype(np.float32, copy=False)
-    correlations = _batched_masked_map_correlation(even_rate_maps, odd_rate_maps)
+    correlations = batched_masked_map_correlation(even_rate_maps, odd_rate_maps)
     return agreement_chunk, correlations
 
 
@@ -292,7 +292,7 @@ def _compute_episode_rate_map_correlation_chunk(
     other_rate_maps = (
         smoothed_total_activity[:, None, :, :] - smoothed_episode_activity
     ) / safe_other_occupancy[None, :, :, :]
-    pair_correlations = _batched_masked_map_correlation(
+    pair_correlations = batched_masked_map_correlation(
         episode_rate_maps.reshape(-1, num_bins_y, num_bins_x),
         other_rate_maps.reshape(-1, num_bins_y, num_bins_x),
     ).reshape(chunk_activity_sums.shape[0], chunk_activity_sums.shape[1])
@@ -336,14 +336,14 @@ def _split_half_support(
         (even_episode_visits >= int(minimum_episodes_per_half))
         & (odd_episode_visits >= int(minimum_episodes_per_half))
     ).reshape(num_bins_y, num_bins_x)
-    safe_even_occupancy = _smoothed_safe_occupancy(
+    safe_even_occupancy = smoothed_safe_occupancy(
         even_occupancy,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
         smoothing_sigma=smoothing_sigma,
         min_occupancy=min_occupancy,
     )
-    safe_odd_occupancy = _smoothed_safe_occupancy(
+    safe_odd_occupancy = smoothed_safe_occupancy(
         odd_occupancy,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -375,7 +375,7 @@ def compute_reliability_maps(
     episode_statistics: EpisodeBinStatistics | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute per-bin firing reliability across episodes."""
-    statistics = episode_statistics or _prepare_episode_bin_statistics(
+    statistics = episode_statistics or prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -593,7 +593,7 @@ def compute_bin_consistency_maps(
     episode_statistics: EpisodeBinStatistics | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute bin-local revisit consistency from episode-level mean responses."""
-    statistics = episode_statistics or _prepare_episode_bin_statistics(
+    statistics = episode_statistics or prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -615,7 +615,7 @@ def compute_bin_consistency_maps(
     coefficient_of_variation_maps = np.full_like(consistency_maps, np.nan)
     step_counts = statistics.episode_bin_step_counts.astype(np.float32, copy=False)
     visited_mask_by_episode = step_counts > 0
-    for start_index, stop_index, chunk_activity_sums in _iter_episode_activity_sum_chunks(
+    for start_index, stop_index, chunk_activity_sums in iter_episode_activity_sum_chunks(
         statistics,
         unit_chunk_size=unit_chunk_size,
     ):
@@ -697,7 +697,7 @@ def compute_split_half_agreement_maps_and_correlations(
     episode_statistics: EpisodeBinStatistics | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute split-half agreement maps and whole-map correlations in one pass."""
-    statistics = episode_statistics or _prepare_episode_bin_statistics(
+    statistics = episode_statistics or prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -738,7 +738,7 @@ def compute_split_half_agreement_maps_and_correlations(
         minimum_episodes_per_half=minimum_episodes_per_half,
     )
 
-    for start_index, stop_index, chunk_activity_sums in _iter_episode_activity_sum_chunks(
+    for start_index, stop_index, chunk_activity_sums in iter_episode_activity_sum_chunks(
         statistics,
         unit_chunk_size=unit_chunk_size,
     ):
@@ -772,7 +772,7 @@ def compute_episode_rate_map_correlations(
     episode_statistics: EpisodeBinStatistics | None = None,
 ) -> np.ndarray:
     """Compute one leave-one-episode-out rate-map correlation per unit."""
-    statistics = episode_statistics or _prepare_episode_bin_statistics(
+    statistics = episode_statistics or prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -795,7 +795,7 @@ def compute_episode_rate_map_correlations(
     if episode_support is None:
         return correlations
     supported_episode_mask, safe_episode_occupancy, safe_other_occupancy = episode_support
-    for start_index, stop_index, chunk_activity_sums in _iter_episode_activity_sum_chunks(
+    for start_index, stop_index, chunk_activity_sums in iter_episode_activity_sum_chunks(
         statistics,
         unit_chunk_size=unit_chunk_size,
     ):
@@ -832,7 +832,7 @@ def compute_revisit_activity_metrics(
     rng_seed: int = 0,
 ) -> RevisitActivityMetrics:
     """Compute revisit metrics in one pass over episode/bin activity sums."""
-    statistics = episode_statistics or _prepare_episode_bin_statistics(
+    statistics = episode_statistics or prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,

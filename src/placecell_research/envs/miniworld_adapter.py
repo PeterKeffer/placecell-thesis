@@ -363,10 +363,6 @@ class MiniWorldAdapter:
                 entity_list.append(box)
         return not bool(collides)
 
-    def renders_goal_object(self) -> bool:
-        unwrapped = getattr(self._env, "unwrapped", self._env)
-        return bool(getattr(unwrapped, "render_goal_object", False))
-
     def goal_object_radius(self) -> float:
         unwrapped = getattr(self._env, "unwrapped", self._env)
         return float(getattr(unwrapped, "goal_object_radius", 0.0))

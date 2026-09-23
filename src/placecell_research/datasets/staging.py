@@ -65,31 +65,6 @@ def create_dataset_archive(artifact_dir: Path, *, overwrite: bool = False) -> Pa
     return archive_path
 
 
-def backfill_dataset_archive_digest(artifact_dir: Path, *, overwrite: bool = False) -> Path:
-    """Write the digest sidecar for a tar that already exists, by reading it back."""
-    artifact_dir = Path(artifact_dir)
-    archive_path = dataset_archive_path(artifact_dir)
-    if not archive_path.is_file():
-        raise FileNotFoundError(f"no archive at {archive_path}; use create_dataset_archive.")
-    digest_path = dataset_archive_digest_path(artifact_dir)
-    if digest_path.exists() and not overwrite:
-        raise FileExistsError(f"{digest_path} already exists; pass overwrite=True to replace it.")
-    entries: list[tuple[str, int, str]] = []
-    with tarfile.open(archive_path, "r") as archive:
-        for member in archive:
-            if not member.isfile():
-                continue
-            source = archive.extractfile(member)
-            if source is None:
-                continue
-            hasher = hashlib.sha256()
-            for block in _read_blocks(source):
-                hasher.update(block)
-            entries.append((member.name, member.size, hasher.hexdigest()))
-    _write_atomically(digest_path, _content_digest(entries))
-    return digest_path
-
-
 def _archive_sources(artifact_dir: Path, entry_names: list[str]) -> Iterator[tuple[Path, str]]:
     """(source file, member name) for every regular file the archive holds."""
     for name in entry_names:

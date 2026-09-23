@@ -23,7 +23,4 @@ nonlinear_decode_random_seed: 0
 compute_spatial_info: true
 spatial_info_top_k: 16
 compute_gridness: false
-gridness_threshold: 0.37
 evaluate_training_split: false
-history_ablation:
-  enabled: false

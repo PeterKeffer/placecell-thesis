@@ -62,10 +62,6 @@ vision:
   data_loader_pin_memory: true
   data_loader_persistent_workers: true
 
-spatial_model:
-  encoder:
-    context_length: 256
-
 evaluation:
   split_name: test
   max_eval_episodes: 0

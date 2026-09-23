@@ -326,47 +326,6 @@ def _collect_episode_batch(
         _close_collection_adapter(adapter, collection_config)
 
 
-def _collect_parallel(
-    environment_config: EnvironmentConfig,
-    collection_config: CollectionConfig,
-    seeds: list[int],
-    on_episode_complete: Callable[[int], None] | None = None,
-) -> tuple[list[dict[str, np.ndarray | bool | int]], int]:
-    pending_batches = {}
-    ordered_episodes: list[dict[str, np.ndarray | bool | int]] = []
-    num_actions: int | None = None
-    next_shard_index = 0
-    for batch in iter_parallel_episode_batches(
-        environment_config,
-        collection_config,
-        seeds,
-        batch_collector=_collect_episode_batch,
-        on_episode_complete=on_episode_complete,
-    ):
-        pending_batches[batch.shard_index] = batch
-        while next_shard_index in pending_batches:
-            ordered_batch = pending_batches.pop(next_shard_index)
-            if num_actions is None:
-                num_actions = int(ordered_batch.num_actions)
-            elif num_actions != int(ordered_batch.num_actions):
-                raise ValueError(
-                    "Inconsistent action-space sizes across workers: "
-                    f"{num_actions} vs {ordered_batch.num_actions}."
-                )
-            ordered_episodes.extend(ordered_batch.episodes)
-            next_shard_index += 1
-    if pending_batches:
-        raise RuntimeError("Parallel collection finished with unresolved shard ordering state.")
-    if len(ordered_episodes) != len(seeds):
-        raise RuntimeError(
-            "Parallel collection returned "
-            f"{len(ordered_episodes)} episodes for {len(seeds)} requested seeds."
-        )
-    if num_actions is None:
-        raise ValueError("Parallel collection completed without reporting num_actions.")
-    return ordered_episodes, num_actions
-
-
 def _episode_arrays_for_storage(
     episode: dict[str, np.ndarray | bool | int],
 ) -> dict[str, np.ndarray]:

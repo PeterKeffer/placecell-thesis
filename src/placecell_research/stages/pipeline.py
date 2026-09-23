@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 from placecell_research.artifacts.registry import ArtifactRegistry, RegisteredArtifact
-from placecell_research.collection.policies import load_raw_config_payload, resolve_policies
 from placecell_research.config import (
     load_experiment_config,
     validate_experiment_config,
@@ -21,7 +20,11 @@ from placecell_research.config.diff import (
     compute_config_diff,
     compute_salient_diff,
 )
-from placecell_research.config.loader import _load_yaml, _resolve_defaults
+from placecell_research.config.loader import (
+    _load_yaml,
+    _resolve_defaults,
+    load_raw_config_payload,
+)
 from placecell_research.stages.collect_dataset import raw_dataset_stage_fingerprint
 from placecell_research.stages.create_split import split_stage_fingerprint
 from placecell_research.stages.encode_dataset import encoded_dataset_stage_fingerprint
@@ -69,12 +72,9 @@ _PIPELINE_HANDOFF_KEYS = {
     "dataset.artifact_type",
     "splits.artifact_id",
     "vision.artifact_id",
-    "place_model_artifact_id",
     "evaluation.model_artifact_id",
     "analysis.model_artifact_id",
     "reuse.representation_set_artifact_id",
-    "evaluation_report_id",
-    "analysis_report_id",
 }
 
 _HUMAN_ARTIFACT_ENTRY_LINKS = (
@@ -219,11 +219,10 @@ def _inject_automatic_reuse_overrides(
     active_overrides: list[str],
     registry: ArtifactRegistry,
 ) -> None:
-    raw_payload = load_raw_config_payload(config_path, active_overrides)
-    policies = resolve_policies(raw_payload)
-    if policies.artifact_reuse != "reuse_if_config_match":
-        return
     config = load_experiment_config(config_path, active_overrides)
+    if config.policies.artifact_reuse != "reuse_if_config_match":
+        return
+    raw_payload = load_raw_config_payload(config_path, active_overrides)
     if str(config.dataset.artifact_id or "").strip():
         return
     raw_dataset = _find_matching_raw_dataset(

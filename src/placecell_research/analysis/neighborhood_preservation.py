@@ -13,11 +13,11 @@ from scipy.stats import spearmanr
 from ..numerics.rate_map_kernels import flatten_valid_steps
 from .base import AnalysisInput, AnalysisResult
 from .helpers import (
-    _compute_trustworthiness,
-    _subsample_indices,
+    compute_trustworthiness,
+    subsample_indices,
 )
 from .timing import log_timing, record_timing
-from .topology_umap import _pool_by_spatial_bin
+from .topology_umap import pool_by_spatial_bin
 
 
 def _world_code_trustworthiness(
@@ -26,7 +26,7 @@ def _world_code_trustworthiness(
     neighbor_count: int,
 ) -> float:
     """World<->code trustworthiness with the shared k-clamp guard."""
-    return _compute_trustworthiness(
+    return compute_trustworthiness(
         true_space, other_space, neighbor_count, degenerate_value=float("nan")
     )
 
@@ -75,7 +75,7 @@ class NeighborhoodPreservationModule:
         metrics: dict[str, float] = {"neighbors_k": float(neighbor_count)}
 
         section_started_at = perf_counter()
-        step_indices = _subsample_indices(len(features), max_points, random_seed)
+        step_indices = subsample_indices(len(features), max_points, random_seed)
         step_features = features[step_indices]
         step_positions = positions[step_indices]
         metrics["step_world_code_trustworthiness"] = _world_code_trustworthiness(
@@ -91,7 +91,7 @@ class NeighborhoodPreservationModule:
         record_timing(timing_seconds, "step_metrics", section_started_at)
 
         section_started_at = perf_counter()
-        pooled = _pool_by_spatial_bin(
+        pooled = pool_by_spatial_bin(
             analysis_input,
             features,
             positions,

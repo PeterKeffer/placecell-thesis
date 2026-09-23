@@ -13,7 +13,6 @@ from stable_baselines3.common.type_aliases import DictReplayBufferSamples
 
 from placecell_research.config.downstream_schema import DownstreamRunConfig
 
-OFF_POLICY_DOWNSTREAM_ALGORITHMS = frozenset({"dqn"})
 AUTO_DEFAULT_UTD_GRADIENT_STEPS = "auto_default_utd"
 DEFAULT_DQN_UPDATE_TO_DATA_RATIO = 0.25
 
@@ -91,10 +90,6 @@ class Sb3Runtime:
     dummy_vec_env: type
     vec_monitor: type
     subproc_vec_env: type
-
-
-def algorithm_uses_off_policy(algorithm: str) -> bool:
-    return str(algorithm).strip().lower() in OFF_POLICY_DOWNSTREAM_ALGORITHMS
 
 
 def _observation_is_dict(config: DownstreamRunConfig) -> bool:

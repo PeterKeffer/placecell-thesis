@@ -88,7 +88,7 @@ def iterate_dataset_batches(
     split_name: str,
     batch_size: int,
     device: torch.device,
-    observation_source: Literal["latent", "rgb", "action", "both"] = "both",
+    observation_source: Literal["latent", "rgb", "both"] = "both",
     max_episodes: int | None = None,
 ) -> Iterator[dict[str, torch.Tensor]]:
     """Read batches directly from the canonical dataset Zarr schema."""
@@ -106,7 +106,7 @@ def iterate_dataset_batches(
     observation_group = dataset_group.get("observations")
     latent_array = None if observation_group is None else observation_group.get("latent")
     rgb_array = None if observation_group is None else observation_group.get("rgb")
-    if observation_source != "action" and latent_array is None and rgb_array is None:
+    if latent_array is None and rgb_array is None:
         raise KeyError("Dataset must contain either observations/latent or observations/rgb.")
     if observation_source == "latent" and latent_array is None:
         raise KeyError(

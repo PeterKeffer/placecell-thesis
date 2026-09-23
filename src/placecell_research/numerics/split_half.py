@@ -5,14 +5,14 @@ from __future__ import annotations
 import numpy as np
 
 from .bin_maps import (
-    _batched_masked_map_correlation,
     _smooth_flat_bin_maps,
-    _smoothed_safe_occupancy,
+    batched_masked_map_correlation,
+    smoothed_safe_occupancy,
 )
 from .occupancy import (
     EpisodeBinStatistics,
-    _iter_episode_activity_sum_chunks,
-    _prepare_episode_bin_statistics,
+    iter_episode_activity_sum_chunks,
+    prepare_episode_bin_statistics,
 )
 
 
@@ -59,14 +59,14 @@ def _prepare_balanced_split_supports(
             (
                 split_mask,
                 support_mask,
-                _smoothed_safe_occupancy(
+                smoothed_safe_occupancy(
                     step_counts[split_mask].sum(axis=0, dtype=np.float32),
                     num_bins_y=num_bins_y,
                     num_bins_x=num_bins_x,
                     smoothing_sigma=smoothing_sigma,
                     min_occupancy=min_occupancy,
                 ),
-                _smoothed_safe_occupancy(
+                smoothed_safe_occupancy(
                     step_counts[~split_mask].sum(axis=0, dtype=np.float32),
                     num_bins_y=num_bins_y,
                     num_bins_x=num_bins_x,
@@ -113,7 +113,7 @@ def _accumulate_multi_split_correlations(
     half_maps = np.where(np.stack(supported_half_bins)[:, None, :, :], half_maps, np.nan)
 
     chunk_width = chunk_activity_sums.shape[0]
-    split_correlations = _batched_masked_map_correlation(
+    split_correlations = batched_masked_map_correlation(
         half_maps[0::2].reshape(-1, num_bins_y, num_bins_x),
         half_maps[1::2].reshape(-1, num_bins_y, num_bins_x),
     ).reshape(len(split_supports), chunk_width)
@@ -153,7 +153,7 @@ def compute_split_half_rate_map_correlations(
     minimum_episodes_per_half: int = 2,
 ) -> np.ndarray:
     """Split-half rate-map correlation per unit, averaged over balanced episode splits."""
-    statistics = episode_statistics or _prepare_episode_bin_statistics(
+    statistics = episode_statistics or prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -176,7 +176,7 @@ def compute_split_half_rate_map_correlations(
     )
     correlation_sums = np.zeros((statistics.num_units,), dtype=np.float64)
     correlation_counts = np.zeros((statistics.num_units,), dtype=np.int64)
-    for start_index, stop_index, chunk_activity_sums in _iter_episode_activity_sum_chunks(
+    for start_index, stop_index, chunk_activity_sums in iter_episode_activity_sum_chunks(
         statistics,
         unit_chunk_size=unit_chunk_size,
     ):

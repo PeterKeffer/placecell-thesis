@@ -85,18 +85,6 @@ def compute_place_code_stats(codes: np.ndarray) -> PlaceCodeStats:
     return accumulator.to_stats()
 
 
-def save_place_code_stats(stats: PlaceCodeStats, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(
-        path,
-        mean=stats.mean.astype(np.float32, copy=False),
-        std=stats.std.astype(np.float32, copy=False),
-        active_rms=stats.active_rms.astype(np.float32, copy=False),
-        sample_count=np.asarray([stats.sample_count], dtype=np.int64),
-        active_count=stats.active_count.astype(np.int64, copy=False),
-    )
-
-
 def load_place_code_stats(path: Path | str) -> PlaceCodeStats:
     payload = np.load(Path(path), allow_pickle=False)
     return PlaceCodeStats(

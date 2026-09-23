@@ -155,7 +155,7 @@ def _fill_panel_metric_from_neighbors(
     return filled_map
 
 
-def _support_map_style(support_counts: np.ndarray) -> tuple[str, colors.Normalize]:
+def support_map_style(support_counts: np.ndarray) -> tuple[str, colors.Normalize]:
     positive_counts = support_counts[support_counts > 0]
     if positive_counts.size == 0:
         return "YlOrRd", colors.Normalize(vmin=0.0, vmax=1.0)
@@ -330,7 +330,7 @@ def _choose_grid_shape(num_items: int, target_aspect_ratio: float = 16.0 / 9.0) 
 _AGG_SAFE_PIXELS = 64000
 
 
-def _agg_safe_dpi(figure: plt.Figure, requested_dpi: int) -> int:
+def agg_safe_dpi(figure: plt.Figure, requested_dpi: int) -> int:
     longest_axis_inches = float(max(figure.get_size_inches()))
     if longest_axis_inches <= 0.0:
         return requested_dpi
@@ -403,14 +403,14 @@ def _attach_gutter_colorbar(
         colorbar.set_label(label, fontsize=7.0)
 
 
-def _empty_rate_map_figure(message: str) -> plt.Figure:
+def empty_rate_map_figure(message: str) -> plt.Figure:
     figure, axis = plt.subplots(figsize=(8.0, 4.0), constrained_layout=True)
     axis.axis("off")
     axis.text(0.5, 0.5, message, ha="center", va="center", fontsize=12)
     return figure
 
 
-def _build_summary_panel_figure(
+def build_summary_panel_figure(
     *,
     source_name: str,
     split_name: str,
@@ -597,7 +597,7 @@ def _build_summary_panel_figure(
     return figure, rate_axes
 
 
-def _build_rate_map_grid_figure(
+def build_rate_map_grid_figure(
     *,
     source_name: str,
     split_name: str,

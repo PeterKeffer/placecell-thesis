@@ -121,31 +121,3 @@ def test_vicreg_reports_variance_covariance_and_dead_dim_metrics():
     assert torch.allclose(result.metrics["dead_dim_fraction"], dead_dim_fraction)
 
 
-def test_vicreg_routing_mask_updates_only_assigned_samples() -> None:
-    codes = torch.randn(2, 4, 3, requires_grad=True)
-    winners = torch.tensor([[0, 1, 0, 1], [1, 0, 1, 0]])
-    routing = torch.nn.functional.one_hot(winners, 2).float()
-    bundle = RepresentationBundle(
-        modules={
-            "encoder": ModuleOutputs(place_codes=codes),
-            "experts": ModuleOutputs(
-                auxiliary={"routing_onehot": routing},
-            ),
-        },
-        masks={"valid_steps": torch.ones(2, 4, dtype=torch.bool)},
-    )
-    config = ObjectiveConfig(
-        type="vicreg",
-        targets=["encoder.place_codes"],
-        variance_weight=1.0,
-        covariance_weight=1.0,
-        routing_mask_source="experts.routing_onehot",
-        routing_mask_index=0,
-    )
-
-    VICRegObjective(name="vicreg_test", config=config).compute(bundle, {}).loss.backward()
-
-    assigned = winners == 0
-    assert codes.grad is not None
-    assert codes.grad[assigned].abs().sum() > 0
-    assert codes.grad[~assigned].abs().sum() == 0

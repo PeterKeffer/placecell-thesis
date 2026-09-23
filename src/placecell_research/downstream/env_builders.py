@@ -319,8 +319,7 @@ def build_eval_env_factories(
         if config.eval_candidate_positions_xy
         else list(config.goal_task.candidate_positions_xy)
     )
-    uses_codebook_goals = str(config.goal_task.schedule).strip().lower() == "codebook"
-    if not goal_positions or (uses_codebook_goals and not config.eval_candidate_positions_xy):
+    if not goal_positions:
         return [
             build_env_factory(
                 repo_root=repo_root,

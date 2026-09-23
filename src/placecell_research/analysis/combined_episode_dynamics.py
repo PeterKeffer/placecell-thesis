@@ -294,31 +294,6 @@ class _EpisodeFrameRenderer:
         plt.close(self.figure)
 
 
-def _render_frame(
-    *,
-    positions: np.ndarray,
-    headings: np.ndarray | None,
-    observation_frame: np.ndarray,
-    source_views: list[_EpisodeSourceView],
-    current_index: int,
-    env_id: str | None,
-    split_name: str,
-) -> np.ndarray:
-    """Render one standalone frame (kept for tests; the GIF loop reuses one renderer)."""
-    renderer = _EpisodeFrameRenderer(
-        positions=positions,
-        headings=headings,
-        first_observation_frame=observation_frame,
-        source_views=source_views,
-        env_id=env_id,
-        split_name=split_name,
-    )
-    try:
-        return renderer.render(observation_frame, current_index)
-    finally:
-        renderer.close()
-
-
 def _render_summary(
     path: Path,
     *,

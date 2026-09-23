@@ -11,9 +11,9 @@ from typing import Any
 import yaml
 
 from placecell_research.tracking._run_paths import (
-    _iter_run_paths,
-    _load_run_manifest,
-    _write_relative_symlink,
+    iter_run_paths,
+    read_run_manifest,
+    write_relative_symlink,
 )
 from placecell_research.tracking.naming import RunIdentity, slurm_job_id_from_token
 from placecell_research.tracking.run_index import (
@@ -120,8 +120,8 @@ def repair_slurm_log_links(run_root: Path) -> RunSlurmLogLinkSummary:
     """Ensure existing Slurm-backed runs expose logs/slurm_log.txt."""
     link_paths: list[Path] = []
     skipped_run_ids: list[str] = []
-    for run_path in _iter_run_paths(run_root):
-        manifest = _load_run_manifest(run_path)
+    for run_path in iter_run_paths(run_root):
+        manifest = read_run_manifest(run_path)
         run_id = str(manifest.get("run_id") or run_path.name).strip()
         slurm_log_path = _slurm_log_path_from_manifest(
             run_root,
@@ -131,7 +131,7 @@ def repair_slurm_log_links(run_root: Path) -> RunSlurmLogLinkSummary:
             skipped_run_ids.append(run_id)
             continue
         link_paths.append(
-            _write_relative_symlink(run_path / "logs" / "slurm_log.txt", slurm_log_path)
+            write_relative_symlink(run_path / "logs" / "slurm_log.txt", slurm_log_path)
         )
 
     return RunSlurmLogLinkSummary(
@@ -147,7 +147,7 @@ def repair_result_shortcut_links(run_root: Path) -> RunResultShortcutSummary:
     """Expose existing direct results/<name> entries at the run root."""
     link_paths: list[Path] = []
     skipped_paths: list[Path] = []
-    for run_path in _iter_run_paths(run_root):
+    for run_path in iter_run_paths(run_root):
         results_dir = run_path / "results"
         if not results_dir.exists():
             continue
@@ -158,12 +158,12 @@ def repair_result_shortcut_links(run_root: Path) -> RunResultShortcutSummary:
             if _shortcut_conflicts_with_real_path(link_path):
                 skipped_paths.append(link_path)
                 continue
-            link_paths.append(_write_relative_symlink(link_path, result_path))
+            link_paths.append(write_relative_symlink(link_path, result_path))
         for link_path, target_path in _analysis_result_shortcuts(run_path):
             if _shortcut_conflicts_with_real_path(link_path):
                 skipped_paths.append(link_path)
                 continue
-            link_paths.append(_write_relative_symlink(link_path, target_path))
+            link_paths.append(write_relative_symlink(link_path, target_path))
 
     return RunResultShortcutSummary(
         run_root=run_root,
@@ -221,16 +221,6 @@ class RunDirectory:
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         return path
 
-    def write_config_snapshots(
-        self,
-        resolved_config: dict[str, Any],
-        salient_diff: dict[str, Any],
-        run_manifest: dict[str, Any],
-    ) -> None:
-        self.write_yaml("manifests/resolved_config.yaml", resolved_config)
-        self.write_yaml("manifests/salient_diff.yaml", salient_diff)
-        self.write_run_manifest(run_manifest)
-
     def write_comparison_card(self, payload: dict[str, Any]) -> Path:
         return self.write_yaml("manifests/comparison_card.yaml", payload)
 
@@ -269,11 +259,6 @@ class RunDirectory:
     def update_run_manifest(self, updates: dict[str, Any]) -> Path:
         return self.write_run_manifest(_merge_payload(self.load_run_manifest(), updates))
 
-    def write_log(self, name: str, content: str) -> Path:
-        path = self.logs_dir / name
-        path.write_text(content)
-        return path
-
     def _link_slurm_log(self, slurm_log_path: Path | None) -> None:
         if slurm_log_path is None:
             return
@@ -281,7 +266,7 @@ class RunDirectory:
 
     def write_symlink(self, relative_path: str, target: Path) -> Path:
         path = self.path / relative_path
-        link_path = _write_relative_symlink(path, target)
+        link_path = write_relative_symlink(path, target)
         self._write_root_result_shortcut(relative_path, link_path)
         return link_path
 
@@ -289,7 +274,7 @@ class RunDirectory:
         shortcut_path = _root_result_shortcut_path(self.path, self.path / relative_path)
         if shortcut_path is None or _shortcut_conflicts_with_real_path(shortcut_path):
             return
-        _write_relative_symlink(shortcut_path, result_path)
+        write_relative_symlink(shortcut_path, result_path)
 
 
 _ROOT_RESULT_SHORTCUT_RESERVED_NAMES = {

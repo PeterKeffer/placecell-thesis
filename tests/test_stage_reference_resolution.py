@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
 from placecell_research.artifacts.registry import ArtifactRegistry
 from placecell_research.evaluation.runtime import (
@@ -101,44 +99,6 @@ def test_resolve_stage_dataset_reference_supports_tag_reference_without_explicit
 
     assert dataset_id == encoded_dataset_id
     assert dataset_type == "encoded_dataset"
-
-
-def test_resolve_stage_dataset_reference_rejects_nested_alias_with_helpful_hint(
-    tmp_path: Path,
-) -> None:
-    artifact_root = tmp_path / "artifacts"
-    registry = ArtifactRegistry(artifact_root)
-
-    with pytest.raises(
-        ValueError,
-        match="Use `analysis\\.dataset_artifact_id`, not `analysis\\.dataset\\.artifact_id`",
-    ):
-        resolve_stage_dataset_reference(
-            registry=registry,
-            raw_config={"analysis": {"dataset": {"artifact_id": "auto"}}},
-            section_name="analysis",
-            fallback_artifact_id="",
-            fallback_artifact_type="",
-            fallback_model_artifact_id="",
-        )
-
-
-def test_resolve_stage_split_reference_rejects_nested_alias_with_helpful_hint(
-    tmp_path: Path,
-) -> None:
-    artifact_root = tmp_path / "artifacts"
-    registry = ArtifactRegistry(artifact_root)
-
-    with pytest.raises(
-        ValueError, match="Use `analysis\\.split_artifact_id`, not `analysis\\.split\\.artifact_id`"
-    ):
-        resolve_stage_split_reference(
-            registry=registry,
-            raw_config={"analysis": {"split": {"artifact_id": "auto"}}},
-            section_name="analysis",
-            fallback_artifact_id="",
-            fallback_model_artifact_id="",
-        )
 
 
 def test_resolve_registry_reference_supports_tag_references(tmp_path: Path) -> None:

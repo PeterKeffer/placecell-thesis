@@ -84,7 +84,7 @@ def landmark_visibility(
 
 def _steps_since_last_sighting(visible_any: np.ndarray) -> np.ndarray:
     """Per-step steps since the last sighting, NaN before an episode's first sighting."""
-    num_episodes, num_steps = visible_any.shape
+    num_steps = visible_any.shape[1]
     step_axis = np.arange(num_steps)
     last_seen = np.where(visible_any, step_axis[None, :], -1)
     last_seen = np.maximum.accumulate(last_seen, axis=1)

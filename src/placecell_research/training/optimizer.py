@@ -165,7 +165,6 @@ def build_optimizer(
             f"training.group_learning_rates names unknown optimizer group(s) {unknown_lr_groups}; "
             f"valid groups for this model are {sorted(parameter_groups)}."
         )
-    weight_decay_overrides = getattr(model, "weight_decay_overrides", dict)()
     parameter_names, no_decay_module_parameter_ids = _named_parameter_lookup(
         [model, auxiliary_heads]
     )
@@ -174,7 +173,7 @@ def build_optimizer(
         trainable = [parameter for parameter in parameters if parameter.requires_grad]
         if not trainable:
             continue
-        group_weight_decay = weight_decay_overrides.get(group_name, config.weight_decay)
+        group_weight_decay = config.weight_decay
         group_learning_rate = config.group_learning_rates.get(group_name, config.learning_rate)
         if not config.exclude_bias_and_norm_from_weight_decay or config.weight_decay <= 0.0:
             optimizer_groups.append(

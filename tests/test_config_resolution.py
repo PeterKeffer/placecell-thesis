@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from placecell_research.config import load_experiment_config, summarize_reuse
+import pytest
+from pydantic import ValidationError
+
+from placecell_research.config import (
+    load_downstream_run_config,
+    load_experiment_config,
+    summarize_reuse,
+)
 from placecell_research.config.schema import ExperimentConfig
 
 
@@ -80,3 +87,28 @@ def test_tracking_output_tags_materialize_from_overrides() -> None:
         "place/wallgap_best",
         "place/wallgap_archive",
     ]
+
+
+def test_unknown_keys_are_rejected_at_every_level() -> None:
+    config_path = (
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+    )
+    for override in (
+        "grid_stream.enabled=true",
+        "spatial_model.dag_nodes=[]",
+        "analysis.dataset.artifact_id=auto",
+        "spatial_model.encoder.xlstm_variant=block_stack",
+    ):
+        with pytest.raises(ValidationError, match="Unexpected keyword argument"):
+            load_experiment_config(config_path, [override])
+
+
+def test_unknown_downstream_keys_are_rejected() -> None:
+    config_path = (
+        Path(__file__).resolve().parents[1]
+        / "configs"
+        / "downstream"
+        / "wallgap_navigation_ppo.yaml"
+    )
+    with pytest.raises(ValidationError, match="Unexpected keyword argument"):
+        load_downstream_run_config(config_path, ["training.her_goal_representation=goal_xy"])

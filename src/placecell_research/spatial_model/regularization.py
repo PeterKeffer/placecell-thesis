@@ -18,11 +18,6 @@ REGULARIZATION_TARGETS: tuple[str, ...] = (
     "predictor.logits",
     "predictor.pre_sparsifier",
     "predictor.output",
-    "jepa_predictor.input",
-    "jepa_predictor.hidden",
-    "jepa_predictor.logits",
-    "jepa_predictor.pre_sparsifier",
-    "jepa_predictor.output",
 )
 
 PREDICTOR_FUSION_COMPATIBLE_TARGETS: frozenset[str] = frozenset(

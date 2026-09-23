@@ -215,9 +215,9 @@ def test_perturbation_runner_reads_checkpoint_dataset_and_saves_recovery(tmp_pat
         path.mkdir()
     from dataclasses import asdict
 
-    from placecell_research.objectives.registry import build_objectives_and_heads
+    from placecell_research.objectives.registry import build_objectives
 
-    built = build_objectives_and_heads(model, config)
+    built = build_objectives(model, config)
     context = ModelBuildContext(
         num_actions=3, observation_dim=6, kinematics_dim=2, total_optimizer_steps=4
     )

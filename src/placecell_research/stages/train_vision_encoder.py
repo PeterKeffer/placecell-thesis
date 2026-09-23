@@ -13,7 +13,6 @@ import yaml
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import generate_artifact_id
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     apply_configured_output_tags,
     augment_stage_result,
@@ -226,7 +225,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     runtime = initialize_stage_runtime(config_path, overrides, "train_vision_encoder")
     config = runtime.config
     raw_payload = runtime.raw_payload
-    policies = resolve_policies(raw_payload)
+    policies = config.policies
     stage_log_path = runtime.run_directory.logs_dir / "stage_train_vision.log"
     reuse_target = resolve_reuse_target(
         config.reuse.vision_encoder_artifact_id,
@@ -234,9 +233,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         registry=runtime.artifact_registry if config.reuse.vision_encoder_artifact_id else None,
         artifact_type="vision_encoder" if config.reuse.vision_encoder_artifact_id else None,
     )
-    resume_artifact_reference = config.reuse.vision_encoder_artifact_id or str(
-        raw_payload.get("vision", {}).get("resume_from_artifact_id") or ""
-    )
+    resume_artifact_reference = config.reuse.vision_encoder_artifact_id
     resume_artifact_id = (
         resolve_artifact_reference_id(
             runtime.artifact_registry,
@@ -385,14 +382,8 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
                 or any(not recipe.split_id for recipe in config.vision.datasets)
             )
         )
-        requested_device = str(
-            raw_payload.get(
-                "train_vision_encoder",
-                {},
-            ).get(
-                "device",
-                "cpu" if config.collection.safety.cpu_encoder_during_collection else "auto",
-            )
+        requested_device = config.vision.device or (
+            "cpu" if config.collection.safety.cpu_encoder_during_collection else "auto"
         )
         device = resolve_device(requested_device)
         effective_data_loader_num_workers = int(config.vision.data_loader_num_workers)
@@ -423,9 +414,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         if policies.training_resume != "fresh" and resume_artifact_id:
             resume_artifact = runtime.artifact_registry.load("vision_encoder", resume_artifact_id)
             resume_checkpoint = resume_artifact.path / "weights.pt"
-        artifact_id = raw_payload.get("vision", {}).get(
-            "output_artifact_id"
-        ) or generate_artifact_id(
+        artifact_id = generate_artifact_id(
             "vision_encoder",
             config.environment.env_id,
             runtime.run_directory.identity.run_id,

@@ -286,7 +286,7 @@ class ExcessStabilityModule:
         representation = np.asarray(analysis_input.representation)
         if representation.ndim != 3:
             raise ValueError(f"Expected representation [N, T, D], got {representation.shape}.")
-        num_episodes, num_steps, num_units = representation.shape
+        num_episodes, num_steps, _ = representation.shape
         if analysis_input.valid_mask is None:
             valid = np.ones((num_episodes, num_steps), dtype=bool)
         else:

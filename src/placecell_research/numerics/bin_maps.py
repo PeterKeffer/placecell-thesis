@@ -6,25 +6,6 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 
 
-def _rate_map_from_activity_sum(
-    activity_sum: np.ndarray,
-    occupancy_counts: np.ndarray,
-    *,
-    num_bins_y: int,
-    num_bins_x: int,
-    smoothing_sigma: float,
-    min_occupancy: float,
-) -> np.ndarray:
-    """Convert one [bins] episode/pool activity sum into a smoothed occupancy-normalized map."""
-    activity_map = activity_sum.reshape(num_bins_y, num_bins_x).astype(np.float32, copy=False)
-    occupancy_map = occupancy_counts.reshape(num_bins_y, num_bins_x).astype(np.float32, copy=False)
-    if smoothing_sigma > 0.0:
-        activity_map = gaussian_filter(activity_map, sigma=smoothing_sigma)
-        occupancy_map = gaussian_filter(occupancy_map, sigma=smoothing_sigma)
-    safe_occupancy = np.where(occupancy_map >= min_occupancy, occupancy_map, np.nan)
-    return (activity_map / safe_occupancy).astype(np.float32, copy=False)
-
-
 def _smooth_flat_bin_maps(
     flat_maps: np.ndarray,
     *,
@@ -46,33 +27,7 @@ def _smooth_flat_bin_maps(
     return maps.astype(np.float32, copy=False)
 
 
-def _rate_maps_from_activity_sums(
-    activity_sums: np.ndarray,
-    occupancy_counts: np.ndarray,
-    *,
-    num_bins_y: int,
-    num_bins_x: int,
-    smoothing_sigma: float,
-    min_occupancy: float,
-) -> np.ndarray:
-    """Convert flattened activity sums into smoothed occupancy-normalized maps."""
-    occupancy_maps = _smooth_flat_bin_maps(
-        occupancy_counts,
-        num_bins_y=num_bins_y,
-        num_bins_x=num_bins_x,
-        smoothing_sigma=smoothing_sigma,
-    )
-    safe_occupancy = np.where(occupancy_maps >= min_occupancy, occupancy_maps, np.nan)
-    return _rate_maps_from_activity_sums_with_safe_occupancy(
-        activity_sums,
-        safe_occupancy,
-        num_bins_y=num_bins_y,
-        num_bins_x=num_bins_x,
-        smoothing_sigma=smoothing_sigma,
-    )
-
-
-def _rate_maps_from_activity_sums_with_safe_occupancy(
+def rate_maps_from_activity_sums_with_safe_occupancy(
     activity_sums: np.ndarray,
     safe_occupancy: np.ndarray,
     *,
@@ -93,7 +48,7 @@ def _rate_maps_from_activity_sums_with_safe_occupancy(
 MIN_MAP_CORRELATION_OVERLAP_BINS = 10
 
 
-def _batched_masked_map_correlation(
+def batched_masked_map_correlation(
     first_maps: np.ndarray,
     second_maps: np.ndarray,
     *,
@@ -131,7 +86,7 @@ def _batched_masked_map_correlation(
     return correlations
 
 
-def _smoothed_safe_occupancy(
+def smoothed_safe_occupancy(
     occupancy_counts: np.ndarray,
     *,
     num_bins_y: int,
@@ -148,23 +103,3 @@ def _smoothed_safe_occupancy(
     return np.where(occupancy_maps >= min_occupancy, occupancy_maps, np.nan)
 
 
-def _masked_map_correlation(
-    first_map: np.ndarray,
-    second_map: np.ndarray,
-    *,
-    epsilon: float = 1e-8,
-) -> float:
-    """Compute Pearson correlation over overlapping finite bins of two maps."""
-    overlap_mask = np.isfinite(first_map) & np.isfinite(second_map)
-    if int(overlap_mask.sum()) < 2:
-        return 0.0
-    first_values = first_map[overlap_mask].astype(np.float32, copy=False)
-    second_values = second_map[overlap_mask].astype(np.float32, copy=False)
-    first_centered = first_values - float(first_values.mean())
-    second_centered = second_values - float(second_values.mean())
-    denominator = float(
-        np.sqrt(np.square(first_centered).sum() * np.square(second_centered).sum())
-    )
-    if denominator <= epsilon:
-        return 0.0
-    return float((first_centered * second_centered).sum() / denominator)

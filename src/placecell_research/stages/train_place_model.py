@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from placecell_research.analysis.directionality import _directional_modulation_per_unit
+from placecell_research.analysis.directionality import directional_modulation_per_unit
 from placecell_research.analysis.within_heading_reliability import (
     compute_within_heading_reliability,
 )
@@ -27,7 +27,6 @@ from placecell_research.artifacts.compatibility import (
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import generate_artifact_id
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     StageRuntime,
     apply_configured_output_tags,
@@ -45,9 +44,7 @@ from placecell_research.config.schema import ExperimentConfig, SpatialTrainingCo
 from placecell_research.datasets.dataset import build_training_dataloaders
 from placecell_research.evaluation.metrics import (
     compute_heading_tuning_shape_eval_metrics,
-    summarize_code_sparsity,
 )
-from placecell_research.evaluation.online import evaluate_representations
 from placecell_research.evaluation.online_probes import (
     dense_sparse_decode_gap,
     heading_decodability,
@@ -64,23 +61,19 @@ from placecell_research.evaluation.source_decode import (
     source_decode_metrics,
 )
 from placecell_research.numerics.error_metrics import RMSE_AGGREGATION
-from placecell_research.numerics.fourier_ring import ring_metrics
 from placecell_research.numerics.place_cell_quality import resolve_place_cell_gate_thresholds
 from placecell_research.numerics.rate_map_kernels import (
-    compute_rate_maps,
     resolve_place_metric_settings,
-    skaggs_spatial_information,
 )
-from placecell_research.objectives import build_objectives_and_heads, compute_total_loss
+from placecell_research.objectives import build_objectives, compute_total_loss
 from placecell_research.objectives.registry import MetricValue
-from placecell_research.spatial_model import (
-    ModelBuildContext,
+from placecell_research.spatial_model.builder import ModelBuildContext, build_place_model
+from placecell_research.spatial_model.components.sparsifiers import KWinnersSparsifier
+from placecell_research.spatial_model.contract import (
     build_model_contract,
-    build_place_model,
-    select_place_model_checkpoint,
     write_parameter_shapes_csv,
 )
-from placecell_research.spatial_model.components.sparsifiers import KWinnersSparsifier
+from placecell_research.spatial_model.loading import select_place_model_checkpoint
 from placecell_research.tracking import (
     ConsoleProgressReporter,
     emit_metrics_block,
@@ -106,7 +99,6 @@ from placecell_research.utils.seeds import SeedBundle, seed_everything
 _CHECKPOINT_FILE_NAMES = (
     "weights_best_primary.pt",
     "weights_best_validation_loss.pt",
-    "weights_best_expert_probe.pt",
     "weights_last.pt",
 )
 
@@ -132,14 +124,8 @@ def _place_model_input_artifact_ids(
     input_artifact_ids = [config.dataset.artifact_id, config.splits.artifact_id]
     for world in _extra_world_records(config):
         input_artifact_ids.extend((world["dataset_id"], world["split_id"]))
-    if raw_config.get("vision", {}).get("artifact_id"):
-        input_artifact_ids.append(str(raw_config["vision"]["artifact_id"]))
-    if (
-        config.spatial_model.training.online.enabled
-        and config.spatial_model.inputs.observation_source == "latent"
-        and config.reuse.vision_encoder_artifact_id
-    ):
-        input_artifact_ids.append(str(config.reuse.vision_encoder_artifact_id))
+    if config.vision.artifact_id:
+        input_artifact_ids.append(config.vision.artifact_id)
     if resume_artifact_id:
         input_artifact_ids.append(resume_artifact_id)
     return input_artifact_ids
@@ -190,28 +176,16 @@ def _place_model_resume_fingerprint_payload(
     raw_config: dict[str, object],
 ) -> dict[str, object]:
     """Inputs that must agree before adopting another run's optimizer and random state."""
-    raw_vision = raw_config.get("vision", {})
-    vision_artifact_id = (
-        raw_vision.get("artifact_id", "") if isinstance(raw_vision, dict) else ""
-    )
     payload: dict[str, object] = {
         "spatial_model": raw_config.get("spatial_model", {}),
         "seed": raw_config.get("seed", {}),
         "dataset_artifact_id": config.dataset.artifact_id,
         "split_artifact_id": config.splits.artifact_id,
-        "vision_encoder_artifact_id": vision_artifact_id,
+        "vision_encoder_artifact_id": config.vision.artifact_id,
     }
     extra_worlds = _extra_world_records(config)
     if extra_worlds:
         payload["extra_worlds"] = extra_worlds
-    if config.spatial_model.training.online.enabled:
-        payload["environment"] = raw_config.get("environment", {})
-        payload["collection"] = raw_config.get("collection", {})
-        payload["vision_encoder_artifact_id"] = (
-            payload["vision_encoder_artifact_id"]
-            or config.reuse.vision_encoder_artifact_id
-            or ""
-        )
     return payload
 
 
@@ -479,7 +453,7 @@ def _compute_directionality_eval_metrics(
 ) -> dict[str, float]:
     if heading_array is None:
         return {}
-    directional_r = _directional_modulation_per_unit(
+    directional_r = directional_modulation_per_unit(
         representation=representation_array,
         position_xy=position_array,
         heading=heading_array,
@@ -619,23 +593,6 @@ def _decode_every_source(
         return decode_sources(jobs)
 
 
-def _source_action_metrics(
-    representation_array: np.ndarray,
-    valid_array: np.ndarray,
-) -> dict[str, float]:
-    """Representation-health metrics that do not assume spatial state exists."""
-    valid_flat = valid_array.reshape(-1).astype(bool, copy=False)
-    flattened = representation_array.reshape(-1, representation_array.shape[-1])[valid_flat]
-    if flattened.size == 0:
-        return {}
-    sparsity = summarize_code_sparsity(flattened)
-    return {
-        "code_sparsity_mean": float(sparsity["mean_activation"]),
-        "code_fraction_active": float(sparsity["fraction_active"]),
-        "participation_ratio": float(participation_ratio(flattened)),
-    }
-
-
 def _to_host(representation: torch.Tensor) -> np.ndarray:
     """Copy one batch of a representation to host RAM."""
     return representation.detach().cpu().numpy()
@@ -683,7 +640,6 @@ def evaluate_place_model_online(
         primary_metric = config.spatial_model.training.selection.primary_metric
         return {"validation.total_loss": 0.0, primary_metric: 0.0}
 
-    action_observation_source = config.spatial_model.inputs.observation_source == "action"
     model_instance.train(False)
     metric_batches: list[dict[str, float | torch.Tensor]] = []
     batches = 0
@@ -693,8 +649,6 @@ def evaluate_place_model_online(
     heading_chunks: list[np.ndarray] = []
     kinematics_chunks: list[np.ndarray] = []
     dense_chunks: list[np.ndarray] = []
-    grid_chunks: list[np.ndarray] = []
-    grid_target_chunks: list[np.ndarray] = []
     extra_chunks: dict[str, list[np.ndarray]] = {source: [] for source in extra_sources}
     duplicate_sources: dict[str, str] = {}
     dense_source = (
@@ -703,10 +657,6 @@ def evaluate_place_model_online(
         else None
     )
     collect_dense = dense_source is not None
-    grid_source = "grid.hidden_state"
-    collect_grid = bool(config.spatial_model.grid_stream.enabled) and bool(
-        config.evaluation.compute_gridness
-    )
     max_eval_episodes = int(config.spatial_model.training.max_validation_episodes)
     processed_episodes = 0
     with torch.inference_mode():
@@ -767,18 +717,6 @@ def evaluate_place_model_online(
                 except KeyError:
                     collect_dense = False
                     dense_chunks.clear()
-            if collect_grid:
-                try:
-                    grid_chunks.append(
-                        bundle.get_representation(grid_source).detach().cpu().numpy()
-                    )
-                    grid_target_chunks.append(
-                        bundle.get_representation("grid.target").detach().cpu().numpy()
-                    )
-                except KeyError:
-                    collect_grid = False
-                    grid_chunks.clear()
-                    grid_target_chunks.clear()
             if "position_xy" in batch:
                 position_chunks.append(batch["position_xy"].detach().cpu().numpy())
             valid_chunks.append(batch["valid_steps"].detach().cpu().numpy())
@@ -795,22 +733,7 @@ def evaluate_place_model_online(
         for key, value in metric_sums.items()
     }
     averaged.setdefault("validation.total_loss", averaged.get("validation.total", 0.0))
-    if representation_chunks and action_observation_source:
-        representation_array = np.concatenate(representation_chunks, axis=0)
-        valid_array = np.concatenate(valid_chunks, axis=0)
-        primary_metrics = _source_action_metrics(representation_array, valid_array)
-        label_sources = len(extra_sources) > 0
-        for metric_name, value in primary_metrics.items():
-            averaged[f"validation.{metric_name}"] = value
-            if label_sources:
-                averaged[f"validation.{online_source}.{metric_name}"] = value
-        for source, source_chunks in extra_chunks.items():
-            if not source_chunks or len(source_chunks) != batches:
-                continue
-            source_array = np.concatenate(source_chunks, axis=0)
-            for metric_name, value in _source_action_metrics(source_array, valid_array).items():
-                averaged[f"validation.{source}.{metric_name}"] = value
-    elif representation_chunks:
+    if representation_chunks:
         representation_array = np.concatenate(representation_chunks, axis=0)
         representation_chunks.clear()
         position_array = np.concatenate(position_chunks, axis=0)
@@ -845,65 +768,6 @@ def evaluate_place_model_online(
                 continue
             for metric_name, value in source_metrics.items():
                 averaged[f"validation.{source}.{metric_name}"] = value
-        if collect_grid and grid_chunks and len(grid_chunks) == batches:
-            grid_array = np.concatenate(grid_chunks, axis=0)
-            grid_rate_maps = compute_rate_maps(
-                grid_array,
-                position_array,
-                valid_array,
-                num_bins_x=int(config.analysis.num_bins_x),
-                num_bins_y=int(config.analysis.num_bins_y),
-                smoothing_sigma=float(config.analysis.smoothing_sigma),
-                min_occupancy=float(config.analysis.min_occupancy),
-            )
-            grid_result = evaluate_representations(
-                {grid_source: grid_array},
-                position_array,
-                valid_mask=valid_array,
-                kinematics=kinematics_array,
-                heading=heading_array,
-                train_fraction=float(config.evaluation.decode_train_fraction),
-                ridge_alpha=float(config.evaluation.decode_ridge_alpha),
-                include_shuffle=False,
-                spatial_information_scores={
-                    grid_source: np.asarray(
-                        skaggs_spatial_information(
-                            grid_rate_maps.rate_maps, grid_rate_maps.occupancy
-                        ),
-                        dtype=np.float32,
-                    )
-                },
-                rate_map_results={grid_source: grid_rate_maps},
-                spatial_information_top_k=int(config.evaluation.spatial_info_top_k),
-                rate_map_num_bins_x=int(config.analysis.num_bins_x),
-                rate_map_num_bins_y=int(config.analysis.num_bins_y),
-                rate_map_smoothing_sigma=float(config.analysis.smoothing_sigma),
-                rate_map_min_occupancy=float(config.analysis.min_occupancy),
-                compute_gridness=True,
-                split_half_num_random_splits=int(
-                    config.evaluation.online_split_half_num_random_splits
-                ),
-                place_cell_gate_thresholds=resolve_place_cell_gate_thresholds(config.analysis),
-                place_metric_settings=resolve_place_metric_settings(config.analysis),
-            )[0]
-            for metric_name, value in grid_result.to_metrics().items():
-                averaged[f"validation.{metric_name}"] = float(value)
-        if (
-            collect_grid
-            and grid_target_chunks
-            and len(grid_target_chunks) == batches
-        ):
-            grid_target_rate_maps = compute_rate_maps(
-                np.concatenate(grid_target_chunks, axis=0),
-                position_array,
-                valid_array,
-                num_bins_x=int(config.analysis.num_bins_x),
-                num_bins_y=int(config.analysis.num_bins_y),
-                smoothing_sigma=float(config.analysis.smoothing_sigma),
-                min_occupancy=float(config.analysis.min_occupancy),
-            )
-            for metric_name, value in ring_metrics(grid_target_rate_maps.rate_maps).items():
-                averaged[f"validation.grid.target.{metric_name}"] = float(value)
         dense_array = (
             np.concatenate(dense_chunks, axis=0)
             if dense_chunks and len(dense_chunks) == batches
@@ -980,14 +844,9 @@ def run(
         on_runtime_created(runtime)
     config = runtime.config
     raw_config = runtime.raw_payload
-    policies = resolve_policies(raw_config)
+    policies = config.policies
     stage_log_path = runtime.run_directory.logs_dir / "stage_train_model.log"
-    explicit_reuse_artifact_reference = config.reuse.place_model_artifact_id or str(
-        raw_config.get("train_place_model", {}).get("resume_from_artifact_id")
-        or raw_config.get("runtime", {}).get("resume_from_artifact_id")
-        or raw_config.get("runtime", {}).get("resume_from")
-        or ""
-    )
+    explicit_reuse_artifact_reference = config.reuse.place_model_artifact_id
     explicit_reuse_artifact_id = (
         resolve_artifact_reference_id(
             runtime.artifact_registry, "place_model", explicit_reuse_artifact_reference
@@ -1028,9 +887,7 @@ def run(
         input_artifact_ids = _place_model_input_artifact_ids(
             config, raw_config, resume_artifact_id=explicit_reuse_artifact_id
         )
-        allow_domain_transfer = bool(
-            raw_config.get("train_place_model", {}).get("allow_domain_transfer", False)
-        )
+        allow_domain_transfer = config.reuse.allow_domain_transfer
         fingerprint_payload = _place_model_resume_fingerprint_payload(config, raw_config)
         stage_fingerprint = artifact_match_fingerprint(fingerprint_payload)
         runtime.run_directory.update_run_manifest(
@@ -1156,7 +1013,7 @@ def run(
         ).resolve()
         seed_everything(seeds.training_seed)
 
-        device = resolve_device(str(raw_config.get("train_place_model", {}).get("device", "auto")))
+        device = resolve_device(config.spatial_model.training.device)
         train_loader, validation_loader, dataset_metadata = build_training_dataloaders(
             config,
             artifact_root=runtime.repo_root / config.tracking.artifact_root,
@@ -1184,7 +1041,7 @@ def run(
             config=config.spatial_model,
             build_context=model_build_context,
         )
-        built_objectives = build_objectives_and_heads(model, config.spatial_model)
+        built_objectives = build_objectives(model, config.spatial_model)
         if hasattr(model, "set_auxiliary_heads"):
             model.set_auxiliary_heads(built_objectives.auxiliary_heads)
         online_source = config.evaluation.online_decode_source
@@ -1295,9 +1152,7 @@ def run(
             }
         )
 
-        artifact_id = raw_config.get("train_place_model", {}).get(
-            "output_artifact_id"
-        ) or generate_artifact_id(
+        artifact_id = generate_artifact_id(
             "place_model",
             config.environment.env_id,
             runtime.run_directory.identity.run_id,
@@ -1313,13 +1168,6 @@ def run(
             },
             log_path=stage_log_path,
         )
-        if config.evaluation.expert_probe.enabled:
-            emit_text_block(
-                "expert_probe_config",
-                json.dumps(asdict(config.evaluation.expert_probe), indent=2, sort_keys=True),
-                metadata={"cadence_epochs": int(config.evaluation.eval_every_n_epochs)},
-                log_path=stage_log_path,
-            )
         stage_run.update_config(
             {
                 "stage_inputs": {
@@ -1382,12 +1230,6 @@ def run(
                     device=device,
                     eval_every_n_epochs=int(config.evaluation.eval_every_n_epochs),
                     eval_schedule=str(config.evaluation.eval_schedule),
-                    expert_probe_metric=(
-                        "validation.expert_probe."
-                        f"{config.evaluation.expert_probe.checkpoint_source}.xy_decode_rmse"
-                        if config.evaluation.expert_probe.enabled
-                        else None
-                    ),
                     sequence_length=sequence_length,
                     build_context=model_build_context.to_checkpoint_payload(
                         config.to_dict()["spatial_model"]
@@ -1463,7 +1305,7 @@ def run(
                     "dataset_artifact_id": config.dataset.artifact_id,
                     "split_artifact_id": config.splits.artifact_id,
                     "extra_worlds": _extra_world_records(config) or None,
-                    "vision_encoder_artifact_id": raw_config.get("vision", {}).get("artifact_id")
+                    "vision_encoder_artifact_id": config.vision.artifact_id or None
                     or None,
                     "resume_from_artifact_reference": explicit_reuse_artifact_reference or None,
                     "resume_from_artifact_id": resume_artifact_id or None,
@@ -1493,7 +1335,7 @@ def run(
                     "dataset_artifact_id": config.dataset.artifact_id,
                     "split_artifact_id": config.splits.artifact_id,
                     "extra_worlds": _extra_world_records(config) or None,
-                    "vision_encoder_artifact_id": raw_config.get("vision", {}).get("artifact_id")
+                    "vision_encoder_artifact_id": config.vision.artifact_id or None
                     or None,
                     "observation_source": config.spatial_model.inputs.observation_source,
                     "resume_from_artifact_reference": explicit_reuse_artifact_reference or None,
@@ -1532,12 +1374,6 @@ def run(
                 "results/place_model_checkpoint_best_primary.pt",
                 best_primary_checkpoint,
             )
-        expert_probe_checkpoint = destination / "weights_best_expert_probe.pt"
-        if expert_probe_checkpoint.exists():
-            runtime.run_directory.write_symlink(
-                "results/place_model_checkpoint_best_expert_probe.pt",
-                expert_probe_checkpoint,
-            )
         selected_checkpoint = select_place_model_checkpoint(
             destination,
             selection=config.policies.checkpoint_selection,
@@ -1566,7 +1402,6 @@ def run(
                 destination / "input_routes.json",
                 destination / "parameter_shapes.csv",
                 *([best_primary_checkpoint] if best_primary_checkpoint.exists() else []),
-                *([expert_probe_checkpoint] if expert_probe_checkpoint.exists() else []),
                 *(
                     [selected_checkpoint]
                     if selected_checkpoint != best_primary_checkpoint

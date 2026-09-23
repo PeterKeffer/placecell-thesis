@@ -48,7 +48,7 @@ class EpisodeCoverageGate:
     episodes_skipped_sparse: int
 
 
-def _prepare_episode_bin_statistics(
+def prepare_episode_bin_statistics(
     representation: np.ndarray,
     position_xy: np.ndarray,
     valid_mask: np.ndarray | None,
@@ -230,7 +230,7 @@ def _episode_activity_sums(
     ).astype(np.float32, copy=False)
 
 
-def _iter_episode_activity_sum_chunks(
+def iter_episode_activity_sum_chunks(
     statistics: EpisodeBinStatistics,
     *,
     unit_chunk_size: int,

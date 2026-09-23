@@ -81,7 +81,7 @@ def _safe_slug(value: str) -> str:
     )
 
 
-def _pair_name(first_label: str, second_label: str) -> str:
+def remapping_pair_name(first_label: str, second_label: str) -> str:
     return f"{_safe_slug(first_label)}__{_safe_slug(second_label)}"
 
 
@@ -307,7 +307,7 @@ def _occupancy_similarity(
     return float(correlation[0]), shared_visited_fraction
 
 
-def _pair_diagnostics(
+def pair_diagnostics(
     first_result: RateMapComputation,
     second_result: RateMapComputation,
     *,
@@ -372,7 +372,7 @@ def _pair_diagnostics(
     )
 
 
-def _save_map(
+def save_map(
     path: Path, values: np.ndarray, title: str, colorbar_label: str, bounds: Bounds
 ) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -389,7 +389,7 @@ def _save_map(
     return path
 
 
-def _add_pair_metrics(
+def add_pair_metrics(
     metrics: dict[str, float],
     pair_name: str,
     diagnostics: PairDiagnostics,
@@ -437,7 +437,7 @@ def _add_pair_metrics(
     )
 
 
-def _add_pair_per_unit_metrics(
+def add_pair_per_unit_metrics(
     per_unit_metrics: dict[str, np.ndarray],
     pair_name: str,
     diagnostics: PairDiagnostics,
@@ -456,7 +456,7 @@ def _add_pair_per_unit_metrics(
     )
 
 
-def _write_pair_tables(
+def write_pair_tables(
     module_dir: Path,
     pair_name: str,
     diagnostics: PairDiagnostics,

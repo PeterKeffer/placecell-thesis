@@ -38,10 +38,6 @@ STATS_REQUIRED_PLACE_CODE_SOURCES = frozenset(
 )
 
 
-def place_code_pre_scale(source_name: str) -> PlaceCodePreScale:
-    return PLACE_CODE_SOURCES[source_name].pre_scale
-
-
 def missing_place_code_stats_sources(
     source_names: Iterable[str],
     *,

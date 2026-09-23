@@ -15,7 +15,7 @@ from placecell_research.analysis.reliability_splits import (
 from placecell_research.numerics.bin_maps import MIN_MAP_CORRELATION_OVERLAP_BINS
 from placecell_research.numerics.occupancy import (
     EpisodeBinStatistics,
-    _prepare_episode_bin_statistics,
+    prepare_episode_bin_statistics,
 )
 from placecell_research.numerics.rate_map_kernels import (
     compute_spatial_bin_assignments,
@@ -545,7 +545,7 @@ def test_invalid_gap_splits_a_field_traversal() -> None:
     representation = np.array([[[1.0], [0.0], [1.0]]], dtype=np.float32)
     position_xy = np.full((1, 3, 2), 0.5, dtype=np.float32)
     valid_mask = np.array([[True, False, True]], dtype=bool)
-    statistics = _prepare_episode_bin_statistics(
+    statistics = prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -587,7 +587,7 @@ def _direction_independent_traversal_statistics(
     hits = rng.random((num_episodes, traversals_per_episode, num_units)) < firing_probability
     representation = np.zeros((num_episodes, num_steps, num_units), dtype=np.float32)
     representation[:, 0::2, :] = hits.astype(np.float32)
-    statistics = _prepare_episode_bin_statistics(
+    statistics = prepare_episode_bin_statistics(
         representation,
         position_xy,
         None,

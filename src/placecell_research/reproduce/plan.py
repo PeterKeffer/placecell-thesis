@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from placecell_research.collection.policies import load_raw_config_payload
+from placecell_research.config.loader import load_raw_config_payload
 
 DATA_CHAIN_SECTIONS = ("environment", "collection", "dataset", "splits", "vision")
 NAVIGATION_TOKEN = "navigation"

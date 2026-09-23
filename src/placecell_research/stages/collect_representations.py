@@ -21,7 +21,7 @@ from placecell_research.collection.stage_support import (
 from placecell_research.config.schema import ExperimentConfig
 from placecell_research.datasets.batch_iterator import available_split_names, load_split_indices
 from placecell_research.evaluation.inference import (
-    _configure_open_loop_rollout,
+    configure_open_loop_rollout,
     iter_representation_batches,
     load_model_checkpoint,
 )
@@ -120,7 +120,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     model, _contract = load_model_checkpoint(
         model_artifact.path, device, selection=config.policies.checkpoint_selection
     )
-    _configure_open_loop_rollout(model, tuple(source_names))
+    configure_open_loop_rollout(model, tuple(source_names))
     episode_ids_by_split: dict[str, list[int]] = {}
     artifact_id = generate_artifact_id(
         "representation_set", config.environment.env_id, runtime.run_directory.identity.run_id

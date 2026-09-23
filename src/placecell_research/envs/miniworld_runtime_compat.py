@@ -95,7 +95,6 @@ _TEXTURE_LOADER_PATCHED = False
 _COLOR_PALETTE_PATCHED = False
 _TEXTURE_FALLBACK_PATCHED = False
 _MESH_FALLBACK_PATCHED = False
-_GL_LEGACY_PATCHED = False
 _GL_API_CACHE: dict[str, Any] | None = None
 _GL_MODULES: tuple[Any, ...] | None = None
 _STDERR_FILTER_INSTALLED = False
@@ -179,75 +178,6 @@ LEGACY_GL_TYPES: dict[str, Any] = {
     "GLuint": c_uint,
 }
 
-LEGACY_GL_FUNCTIONS: tuple[str, ...] = (
-    "glBegin",
-    "glBeginQuery",
-    "glBindFramebuffer",
-    "glBindRenderbuffer",
-    "glBindTexture",
-    "glBlitFramebuffer",
-    "glCallList",
-    "glCheckFramebufferStatus",
-    "glClear",
-    "glClearColor",
-    "glClearDepth",
-    "glColor3f",
-    "glColorMaterial",
-    "glDeleteLists",
-    "glDeleteQueries",
-    "glDisable",
-    "glEnable",
-    "glEnd",
-    "glEndList",
-    "glEndQuery",
-    "glFlush",
-    "glFramebufferRenderbuffer",
-    "glFramebufferTexture2D",
-    "glGenFramebuffers",
-    "glGenQueries",
-    "glGenRenderbuffers",
-    "glGenTextures",
-    "glGenerateMipmap",
-    "glGetIntegerv",
-    "glGetQueryObjectuiv",
-    "glHint",
-    "glLightf",
-    "glLightfv",
-    "glLoadIdentity",
-    "glLoadMatrixf",
-    "glMatrixMode",
-    "glNewList",
-    "glNormal3f",
-    "glOrtho",
-    "glPixelStorei",
-    "glPopMatrix",
-    "glPushMatrix",
-    "glReadPixels",
-    "glRenderbufferStorage",
-    "glRenderbufferStorageMultisample",
-    "glRotatef",
-    "glScalef",
-    "glShadeModel",
-    "glTexCoord2f",
-    "glTexImage2D",
-    "glTexImage2DMultisample",
-    "glTexParameteri",
-    "glTranslatef",
-    "glVertex3f",
-    "glViewport",
-    "glEnable",
-    "glDisable",
-    "glLightModelf",
-    "glMaterialf",
-    "glMaterialfv",
-    "glLightModelfv",
-    "glLightModeli",
-    "glLightModeliv",
-    "glLightf",
-    "glLightfv",
-    "glMateriali",
-    "glMaterialiv",
-)
 
 OPTIONAL_NOOPS: dict[str, Any] = {
     "glDeleteLists": lambda *_: None,
@@ -634,37 +564,3 @@ def _ensure_mesh_fallbacks() -> None:
     _MESH_FALLBACK_PATCHED = True
 
 
-def _ensure_gl_legacy_symbols() -> None:
-    global _GL_LEGACY_PATCHED
-    if _GL_LEGACY_PATCHED:
-        return
-
-    try:
-        import miniworld.miniworld as miniworld_core  # type: ignore
-        import miniworld.opengl as miniworld_gl  # type: ignore
-    except ModuleNotFoundError as exc:  # pragma: no cover
-        raise RuntimeError("miniworld must be installed before applying patches.") from exc
-
-    modules = list(_get_gl_modules())
-    modules.extend([miniworld_gl, miniworld_core])
-
-    for name, value in LEGACY_GL_CONSTANTS.items():
-        resolved = _lookup_gl_symbol(name) or value
-        for module in modules:
-            if not hasattr(module, name):
-                setattr(module, name, resolved)
-
-    for name in LEGACY_GL_FUNCTIONS:
-        resolved = OPTIONAL_NOOPS.get(name) or _lookup_gl_symbol(name)
-        if resolved is None:
-            continue
-        for module in modules:
-            setattr(module, name, resolved)
-
-    for name, value in LEGACY_GL_TYPES.items():
-        resolved = _lookup_gl_symbol(name) or value
-        for module in modules:
-            if not hasattr(module, name):
-                setattr(module, name, resolved)
-
-    _GL_LEGACY_PATCHED = True

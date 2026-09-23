@@ -15,7 +15,6 @@ cpus_per_task: 16
 env_setup: ""
 site_env_script: site/hpc3.sh
 exports: {}
-stream_logs: true
 threading_safety:
   omp_num_threads: 1
   mkl_num_threads: 1

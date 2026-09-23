@@ -463,7 +463,7 @@ def linear_decode_position_transfer(
     )
 
 
-def _subsample_indices(indices: np.ndarray, max_samples: int, seed: int) -> np.ndarray:
+def subsample_index_array(indices: np.ndarray, max_samples: int, seed: int) -> np.ndarray:
     if max_samples <= 0 or len(indices) <= max_samples:
         return indices
     rng = np.random.default_rng(seed)
@@ -502,8 +502,8 @@ def nonlinear_decode_position(
         train_fraction,
         episode_ids=episode_ids,
     )
-    train_indices = _subsample_indices(train_indices, max_train_samples, random_seed)
-    validation_indices = _subsample_indices(
+    train_indices = subsample_index_array(train_indices, max_train_samples, random_seed)
+    validation_indices = subsample_index_array(
         validation_indices,
         max_validation_samples,
         random_seed + 1,

@@ -13,7 +13,6 @@ from .synthetic_place_cells import resolve_environment_xz_bounds
 if TYPE_CHECKING:
     from placecell_research.config.downstream_schema import SyntheticGridCellsConfig
 
-_DEFAULT_PERIOD_RATIO = 1.42
 _PLANE_WAVE_OFFSETS_DEG = (0.0, 60.0, 120.0)
 
 
@@ -126,9 +125,7 @@ class GridCodeEncoder:
     wave_vectors: np.ndarray
     phases: np.ndarray
     normalization: str = "l2"
-    distance_metric: str = "l2"
     normalize_codes: bool = True
-    success_threshold: float = 0.35
 
     @property
     def feature_dim(self) -> int:

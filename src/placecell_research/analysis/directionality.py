@@ -387,7 +387,7 @@ def _null_modulation_matrix(
     return null_matrix
 
 
-def _directional_modulation_per_unit(
+def directional_modulation_per_unit(
     *,
     representation: np.ndarray,
     position_xy: np.ndarray,

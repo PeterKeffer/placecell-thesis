@@ -10,10 +10,9 @@ import yaml
 
 from placecell_research.artifacts.ids import config_fingerprint
 from placecell_research.artifacts.registry import ArtifactRegistry
-from placecell_research.collection.policies import load_raw_config_payload
 from placecell_research.config import load_experiment_config, validate_experiment_config
 from placecell_research.config.diff import build_comparison_card, compute_salient_diff
-from placecell_research.config.loader import _load_yaml, _resolve_defaults
+from placecell_research.config.loader import _load_yaml, _resolve_defaults, load_raw_config_payload
 from placecell_research.config.schema import ExperimentConfig
 from placecell_research.tracking import (
     RunDirectory,

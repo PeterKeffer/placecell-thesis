@@ -19,8 +19,8 @@ from placecell_research.evaluation.decode import (
 from placecell_research.evaluation.metrics import place_code_quality
 from placecell_research.evaluation.online import evaluate_representations
 from placecell_research.numerics.occupancy import (
-    _iter_episode_activity_sum_chunks,
-    _prepare_episode_bin_statistics,
+    iter_episode_activity_sum_chunks,
+    prepare_episode_bin_statistics,
 )
 from placecell_research.numerics.place_cell_quality import (
     DEFAULT_GATE_MAXIMUM_CONFOUND,
@@ -385,7 +385,7 @@ def test_compute_rate_maps_from_episode_statistics_matches_canonical_path() -> N
     representation = rng.normal(size=(4, 5, 3)).astype(np.float32)
     position_xy = rng.uniform(-1.0, 1.0, size=(4, 5, 2)).astype(np.float32)
     valid_mask = rng.random(size=(4, 5)) > 0.2
-    statistics = _prepare_episode_bin_statistics(
+    statistics = prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,
@@ -432,7 +432,7 @@ def test_episode_activity_sum_chunks_use_one_bincount_per_chunk(monkeypatch) -> 
         ],
         dtype=np.float32,
     )
-    statistics = _prepare_episode_bin_statistics(
+    statistics = prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask=np.ones((2, 3), dtype=bool),
@@ -451,7 +451,7 @@ def test_episode_activity_sum_chunks_use_one_bincount_per_chunk(monkeypatch) -> 
 
     monkeypatch.setattr(helpers.np, "bincount", counted_bincount)
 
-    chunks = list(_iter_episode_activity_sum_chunks(statistics, unit_chunk_size=16))
+    chunks = list(iter_episode_activity_sum_chunks(statistics, unit_chunk_size=16))
 
     assert len(chunks) == 1
     assert chunks[0][2].shape == (2, 2, 6)
@@ -787,7 +787,7 @@ def test_reliability_lift_zeroes_dense_units_and_keeps_fields() -> None:
 
 
 def test_map_correlation_below_min_overlap_is_nan() -> None:
-    from placecell_research.numerics.bin_maps import _batched_masked_map_correlation
+    from placecell_research.numerics.bin_maps import batched_masked_map_correlation
 
     sparse_first = np.full((1, 6, 6), np.nan, dtype=np.float32)
     sparse_second = np.full((1, 6, 6), np.nan, dtype=np.float32)
@@ -799,9 +799,9 @@ def test_map_correlation_below_min_overlap_is_nan() -> None:
     dense_first[0, :2, :] = np.arange(12, dtype=np.float32).reshape(2, 6)
     dense_second[0, :2, :] = np.arange(12, dtype=np.float32).reshape(2, 6)
 
-    assert np.isnan(_batched_masked_map_correlation(sparse_first, sparse_second)[0])
+    assert np.isnan(batched_masked_map_correlation(sparse_first, sparse_second)[0])
     np.testing.assert_allclose(
-        _batched_masked_map_correlation(dense_first, dense_second)[0], 1.0, atol=1e-6
+        batched_masked_map_correlation(dense_first, dense_second)[0], 1.0, atol=1e-6
     )
 
 

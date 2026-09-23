@@ -350,13 +350,6 @@ def _reconstruction_metric_values(squared_error_sum: float, pixel_count: int) ->
     }
 
 
-def _reconstruction_metrics(inputs: torch.Tensor, reconstruction: torch.Tensor) -> dict[str, float]:
-    return _reconstruction_metric_values(
-        float(_squared_error_sum(inputs, reconstruction)),
-        int(inputs.numel()),
-    )
-
-
 def _prefix_reconstruction_metrics(prefix: str, metrics: dict[str, float]) -> dict[str, float]:
     return {f"{prefix}/{key}": value for key, value in metrics.items()}
 
@@ -611,7 +604,7 @@ def train_vision_model(
     model = model.to(device)
     if resume_checkpoint is not None:
         state = torch.load(resume_checkpoint, map_location="cpu")
-        model.load_state_dict(state["model_state_dict"], strict=False)
+        model.load_state_dict(state["model_state_dict"])
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     data_loader_num_workers = int(config.data_loader_num_workers)
     data_loader_pin_memory = bool(config.data_loader_pin_memory and device.type == "cuda")

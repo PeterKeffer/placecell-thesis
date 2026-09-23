@@ -164,14 +164,6 @@ def build_objectives(model: PlaceModel, model_config: SpatialModelConfig) -> Bui
     return BuiltObjectives(objectives=objectives, auxiliary_heads=nn.ModuleDict(auxiliary_heads))
 
 
-def build_objectives_and_heads(
-    model: PlaceModel,
-    model_config: SpatialModelConfig,
-) -> BuiltObjectives:
-    """Final-spec name for the combined objective and auxiliary-head registry."""
-    return build_objectives(model, model_config)
-
-
 def _assert_all_finite(loss_terms: list[tuple[str, Tensor]]) -> None:
     """Single host sync over all loss terms; on failure, name the first non-finite one."""
     if not loss_terms:
@@ -248,16 +240,7 @@ def compute_total_loss(
     for module_name, module_outputs in bundle.modules.items():
         for auxiliary_name, value in module_outputs.auxiliary.items():
             if (
-                auxiliary_name.startswith(
-                    (
-                        "kwinners.",
-                        "grouped_kwinners.",
-                        "chart.",
-                        "chart_code.",
-                        "chart_sensory.",
-                        "chart_transition.",
-                    )
-                )
+                auxiliary_name.startswith(("kwinners.", "grouped_kwinners."))
                 and value.numel() == 1
             ):
                 _queue_tensor_metric(f"{module_name}/{auxiliary_name}", value)

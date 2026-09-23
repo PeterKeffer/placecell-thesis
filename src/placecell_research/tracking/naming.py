@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import secrets
@@ -178,36 +177,11 @@ def generate_signature(resolved_config: dict) -> str:
         sparsifier_type = slugify(str(sparsifier_config.get("type", "none")))
         return f"{sparsifier_type}_{sparsifier_config.get('temperature', 'na')}"
 
-    def emergent_grid_arm_signature() -> str | None:
-        path_arm = spatial_model.get("path_coloring_arm", {})
-        if isinstance(path_arm, dict) and path_arm.get("enabled", False):
-            return (
-                f"gridarm_path_h{path_arm.get('hidden_dim', 'na')}"
-                f"_k{path_arm.get('active_cells', 'na')}"
-                f"_r{path_arm.get('transport_rank', 'na')}"
-            )
-        fusion_arm = spatial_model.get("path_coloring_fusion_arm", {})
-        if isinstance(fusion_arm, dict) and fusion_arm.get("enabled", False):
-            return (
-                f"gridarm_fusion_h{fusion_arm.get('hidden_dim', 'na')}"
-                f"_k{fusion_arm.get('active_cells', 'na')}"
-                f"_r{fusion_arm.get('transport_rank', 'na')}"
-            )
-        wang_arm = spatial_model.get("wang_grid_arm", {})
-        if isinstance(wang_arm, dict) and wang_arm.get("enabled", False):
-            return (
-                f"gridarm_wang_d{wang_arm.get('input_driven_dim', 'na')}"
-                f"_r{wang_arm.get('recurrent_only_dim', 'na')}"
-            )
-        return None
-
-    grid_arm_part = emergent_grid_arm_signature()
     parts = [
         slugify(environment_id),
         f"enc_{temporal_signature(encoder)}",
         f"pred_{temporal_signature(predictor)}",
         block_signature(code_blocks) or sparsifier_signature(sparsifier),
-        *([grid_arm_part] if grid_arm_part is not None else []),
         f"seed{seed}",
         short_fingerprint(*sorted(objectives.keys())) if objectives else "noobj",
     ]
@@ -231,7 +205,3 @@ def generate_variant_slug(resolved_config: dict, *, fallback_name: str = "baseli
     return slugify(fallback_name)
 
 
-def write_git_state(path: Path, repo_root: Path) -> None:
-    """Write git metadata to a run manifest file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(capture_git_state(repo_root), indent=2, sort_keys=True) + "\n")

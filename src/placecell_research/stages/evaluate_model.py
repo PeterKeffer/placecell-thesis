@@ -14,7 +14,6 @@ from placecell_research.artifacts.compatibility import (
     resolve_place_model_observation_source,
     validate_artifact_compatibility,
 )
-from placecell_research.collection.policies import resolve_policies
 from placecell_research.collection.stage_support import (
     augment_stage_result,
     initialize_stage_runtime,
@@ -57,7 +56,6 @@ from placecell_research.tracking import (
     managed_stage_run,
     stage_tags,
 )
-from placecell_research.tracking.campaign_index import index_published_report
 from placecell_research.training.loop import apply_tf32_policy
 from placecell_research.utils.source_fingerprint import package_source_fingerprint
 
@@ -163,7 +161,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     runtime = initialize_stage_runtime(config_path, overrides, "evaluate_model")
     config = runtime.config
     raw_config = runtime.raw_payload
-    policies = resolve_policies(raw_config)
+    policies = config.policies
     registry = runtime.artifact_registry
     run_directory = runtime.run_directory
     apply_tf32_policy(config.spatial_model.training.allow_tf32)
@@ -318,13 +316,6 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 }
             )
             run_directory.write_symlink("results/evaluation_report", matching_report.path)
-            index_published_report(
-                artifact_root=registry.root,
-                raw_config=raw_config,
-                run_directory=run_directory,
-                artifact_type="evaluation_report",
-                report_path=matching_report.path,
-            )
             if flattened_metrics:
                 stage_run.log(flattened_metrics)
                 emit_metrics_block(
@@ -363,7 +354,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 model_artifact.path, device, selection=config.policies.checkpoint_selection,
             )
         flattened_metrics: dict[str, float] = {}
-        batch_size = int(evaluation_config.get("batch_size", 16))
+        batch_size = config.evaluation.batch_size
 
         transfer_decoders: dict[str, RidgeDecoderState] = {}
         matched_decoders = {}

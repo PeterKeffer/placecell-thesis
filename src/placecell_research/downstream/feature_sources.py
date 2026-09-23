@@ -295,7 +295,7 @@ class AELatentFeatureSource:
             raise RuntimeError("Vision encoder could not be initialized.")
         input_shape = tuple(int(value) for value in rgb_tensor.shape[-3:])
         model = build_vision_model(self._lazy_config, input_shape)
-        model.load_state_dict(self._lazy_state_dict, strict=False)
+        model.load_state_dict(self._lazy_state_dict)
         model = model.to(self.device)
         model.eval()
         for parameter in model.parameters():

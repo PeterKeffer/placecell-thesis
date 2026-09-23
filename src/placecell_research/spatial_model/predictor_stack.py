@@ -25,7 +25,6 @@ class PredictorStack(Protocol):
     predictor_head: nn.Module
     predictor_sparsifier: nn.Module
     action_embedding: nn.Module | None
-    predictor_transition_binder: nn.Module | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,7 +36,6 @@ class PredictorModules:
     predictor_head: nn.Module
     predictor_sparsifier: nn.Module
     action_embedding: nn.Module | None = None
-    predictor_transition_binder: nn.Module | None = None
 
     @staticmethod
     def module_names() -> tuple[str, ...]:
@@ -59,7 +57,6 @@ class PredictorModules:
             predictor_head=self.predictor_head,
             predictor_sparsifier=self.predictor_sparsifier,
             action_embedding=self.action_embedding,
-            predictor_transition_binder=self.predictor_transition_binder,
         )
 
 
@@ -73,5 +70,4 @@ class DetachedPredictorStack:
     predictor_head: nn.Module
     predictor_sparsifier: nn.Module
     action_embedding: nn.Module | None
-    predictor_transition_binder: nn.Module | None
     training_regularizer: None = None

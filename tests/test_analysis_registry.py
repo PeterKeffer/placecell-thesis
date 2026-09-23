@@ -342,7 +342,7 @@ def test_flatten_helpers_keep_all_valid_views() -> None:
     )
     flattened_only_positions = rate_map_kernels.flatten_positions(position_xy, valid_mask)
     flattened_vector_field = rate_map_kernels.flatten_vector_field(vector_field, valid_mask)
-    episode_statistics = occupancy._prepare_episode_bin_statistics(
+    episode_statistics = occupancy.prepare_episode_bin_statistics(
         representation,
         position_xy,
         valid_mask,

@@ -15,26 +15,26 @@ from .base import AnalysisInput, AnalysisResult
 from .rate_map_computation import (
     _METRIC_KEYS_BY_GROUP,
     _PER_UNIT_KEYS_BY_GROUP,
-    _GridOutcome,
-    _normalize_panel_reliability_metric,
-    _panel_metric_family,
-    _PanelFamilyOutcome,
+    GridOutcome,
+    PanelFamilyOutcome,
     _PanelSettings,
-    _per_unit_metrics,
-    _population_metrics,
     _RankedUnits,
-    _resolve_rate_map_colormap_mode,
-    _select_high_activation_positions,
-    _select_ranked_units,
-    _use_shared_rate_map_color_scale,
+    normalize_panel_reliability_metric,
+    panel_metric_family,
+    rate_map_per_unit_metrics,
+    rate_map_population_metrics,
+    resolve_rate_map_colormap_mode,
+    select_high_activation_positions,
+    select_ranked_units,
+    use_shared_rate_map_color_scale,
 )
 from .rate_map_export import (
-    _export_per_unit_rate_maps,
     _rate_map_page_ranges,
-    _render_grid_pages,
-    _render_panel_family,
-    _render_support_map,
-    _write_rate_map_metrics_table,
+    export_per_unit_rate_maps,
+    render_grid_pages,
+    render_panel_family,
+    render_support_map,
+    write_rate_map_metrics_table,
 )
 from .rate_map_metrics import (
     RateMapMetricBundle,
@@ -74,7 +74,7 @@ class _RateMapModuleBase:
         return set()
 
     def _resolve_panel_settings(self, config: dict) -> _PanelSettings:
-        panel_metric_name = _normalize_panel_reliability_metric(
+        panel_metric_name = normalize_panel_reliability_metric(
             config.get("rate_map_panel_reliability_metric", "quantile_thresholded_reliability")
         )
         return _PanelSettings(
@@ -91,8 +91,8 @@ class _RateMapModuleBase:
             use_absolute_activations=bool(
                 config.get("reliability_use_absolute_activations", False)
             ),
-            shared_color_scale=_use_shared_rate_map_color_scale(config),
-            colormap_mode=_resolve_rate_map_colormap_mode(config),
+            shared_color_scale=use_shared_rate_map_color_scale(config),
+            colormap_mode=resolve_rate_map_colormap_mode(config),
             emit_thresholded_reliability_panel=self.emit_extra_reliability_panels
             and bool(config.get("rate_map_panel_emit_thresholded_reliability_figure", True)),
             emit_quantile_thresholded_reliability_panel=self.emit_extra_reliability_panels
@@ -138,7 +138,7 @@ class _RateMapModuleBase:
         figures: dict[str, Path],
         world_overlay: WorldOverlay | None,
         timing_seconds: dict[str, float],
-    ) -> dict[str, _PanelFamilyOutcome]:
+    ) -> dict[str, PanelFamilyOutcome]:
         """Draw the primary panel family, the support map, and any extra reliability families."""
         summary_indices = ranked_units.summary_indices
         page_ranges = (
@@ -156,7 +156,7 @@ class _RateMapModuleBase:
 
         section_started_at = perf_counter()
         spike_positions_by_unit = (
-            _select_high_activation_positions(
+            select_high_activation_positions(
                 analysis_input,
                 summary_indices,
                 threshold_fraction=settings.threshold_fraction,
@@ -174,12 +174,12 @@ class _RateMapModuleBase:
             base_stem: str,
             metric_name: str,
             title_prefix_root: str,
-        ) -> _PanelFamilyOutcome:
-            metric_maps, inside_fields, supported_fraction = _panel_metric_family(
+        ) -> PanelFamilyOutcome:
+            metric_maps, inside_fields, supported_fraction = panel_metric_family(
                 bundle, metric_name
             )
             suffix = f"__{analysis_input.source_name}__{analysis_input.split_name}.png"
-            return _render_panel_family(
+            return render_panel_family(
                 analysis_input=analysis_input,
                 bundle=bundle,
                 settings=settings,
@@ -199,7 +199,7 @@ class _RateMapModuleBase:
             )
 
         section_started_at = perf_counter()
-        primary = _PanelFamilyOutcome()
+        primary = PanelFamilyOutcome()
         if self.emit_panel:
             primary = render_family(
                 figure_key_prefix="rate_map_panel",
@@ -222,7 +222,7 @@ class _RateMapModuleBase:
                     bundle.reliability.split_half_agreement_support_counts
                 ),
             }.get(settings.panel_metric_name, bundle.reliability.bin_consistency_visit_counts)
-            figures["support_map"] = _render_support_map(
+            figures["support_map"] = render_support_map(
                 module_dir
                 / f"support_map__{analysis_input.source_name}__{analysis_input.split_name}.png",
                 bounds=bundle.rate_map_result.bounds,
@@ -246,7 +246,7 @@ class _RateMapModuleBase:
             ),
         ):
             if self.emit_panel and settings.panel_metric_name == metric_name:
-                families[metric_name] = _PanelFamilyOutcome(
+                families[metric_name] = PanelFamilyOutcome(
                     first_path=primary.first_path,
                     first_clean_path=primary.first_clean_path,
                     page_paths=list(primary.page_paths),
@@ -254,7 +254,7 @@ class _RateMapModuleBase:
                 )
                 continue
             if not self._renders_extra_family(settings, metric_name):
-                families[metric_name] = _PanelFamilyOutcome()
+                families[metric_name] = PanelFamilyOutcome()
                 continue
             section_started_at = perf_counter()
             families[metric_name] = render_family(
@@ -299,7 +299,7 @@ class _RateMapModuleBase:
             timing_seconds[f"metric_bundle.{section_name}"] = elapsed_seconds
 
         module_dir = output_dir / self.name
-        ranked_units = _select_ranked_units(bundle, settings, config)
+        ranked_units = select_ranked_units(bundle, settings, config)
         figures: dict[str, Path] = {}
         figure_destinations: dict[str, Path] = {}
         panel_families = self._render_all_panels(
@@ -320,7 +320,7 @@ class _RateMapModuleBase:
                 per_unit_figures,
                 per_unit_destinations,
                 per_unit_table_path,
-            ) = _export_per_unit_rate_maps(
+            ) = export_per_unit_rate_maps(
                 module_dir,
                 source_name=analysis_input.source_name,
                 split_name=analysis_input.split_name,
@@ -337,12 +337,12 @@ class _RateMapModuleBase:
             figure_destinations.update(per_unit_destinations)
             record_timing(timing_seconds, "export_per_unit_maps", section_started_at)
 
-        _, panel_metric_inside_fields, _ = _panel_metric_family(
+        _, panel_metric_inside_fields, _ = panel_metric_family(
             bundle, settings.panel_metric_name
         )
         section_started_at = perf_counter()
         grid = (
-            _render_grid_pages(
+            render_grid_pages(
                 analysis_input=analysis_input,
                 bundle=bundle,
                 settings=settings,
@@ -354,7 +354,7 @@ class _RateMapModuleBase:
                 world_overlay=world_overlay,
             )
             if self.emit_grid
-            else _GridOutcome()
+            else GridOutcome()
         )
         record_timing(timing_seconds, "render_primary_grid", section_started_at)
 
@@ -389,7 +389,7 @@ class _RateMapModuleBase:
         section_started_at = perf_counter()
         metrics_table_path: Path | None = None
         if self.emit_metrics and self.emit_metrics_table:
-            metrics_table_path = _write_rate_map_metrics_table(
+            metrics_table_path = write_rate_map_metrics_table(
                 module_dir
                 / (
                     "rate_map_panel_metrics"
@@ -432,12 +432,12 @@ class _RateMapModuleBase:
         )
         filtered_metrics = {
             key: value
-            for key, value in _population_metrics(bundle).items()
+            for key, value in rate_map_population_metrics(bundle).items()
             if key in selected_metric_keys
         }
         filtered_per_unit_metrics = {
             key: value
-            for key, value in _per_unit_metrics(bundle).items()
+            for key, value in rate_map_per_unit_metrics(bundle).items()
             if key in selected_per_unit_keys
         }
         tables: dict[str, Path] = {}
@@ -470,8 +470,8 @@ class _RateMapModuleBase:
         settings: _PanelSettings,
         ranked_units: _RankedUnits,
         *,
-        panel_families: dict[str, _PanelFamilyOutcome],
-        grid: _GridOutcome,
+        panel_families: dict[str, PanelFamilyOutcome],
+        grid: GridOutcome,
         world_overlay: WorldOverlay | None,
         timing_seconds: dict[str, float],
     ) -> dict[str, object]:

@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from placecell_research.artifacts.ids import slugify
-from placecell_research.collection.policies import load_raw_config_payload
-from placecell_research.config.loader import _load_yaml, _resolve_defaults
+from placecell_research.config.loader import _load_yaml, _resolve_defaults, load_raw_config_payload
 from placecell_research.tracking.naming import RunIdentity, capture_git_state, make_run_id
 from placecell_research.tracking.run_directory import RunDirectory
 from placecell_research.utils.environment_info import capture_environment_info

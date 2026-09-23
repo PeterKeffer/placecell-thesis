@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from placecell_research.analysis.helpers import write_csv
+from placecell_research.tracking._run_paths import link_if_absent
 
 
 def _first_non_empty(row: dict[str, object], *keys: str) -> str:
@@ -119,14 +120,6 @@ def _slug(value: str) -> str:
     return normalized.strip("_") or "unnamed"
 
 
-def _write_relative_symlink(link_path: Path, target_path: Path) -> None:
-    if not target_path.exists():
-        return
-    link_path.parent.mkdir(parents=True, exist_ok=True)
-    if link_path.exists() or link_path.is_symlink():
-        return
-    relative_target = Path(os.path.relpath(target_path.resolve(), start=link_path.parent.resolve()))
-    link_path.symlink_to(relative_target, target_is_directory=target_path.is_dir())
 
 
 def _replace_relative_symlink(link_path: Path, target_path: Path) -> None:
@@ -214,7 +207,7 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
             artifact_id = _slug(
                 _first_non_empty(row, "dataset_artifact_id", "dataset.artifact_id")
             )
-            _write_relative_symlink(
+            link_if_absent(
                 output_dir / "by_source" / f"{source}__raw_dataset__{artifact_id}",
                 target_path,
             )
@@ -222,14 +215,14 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
         elif row_type == "encoded_dataset":
             dataset_alias = _slug(_first_non_empty(row, "dataset_alias", "dataset"))
             artifact_id = _slug(_first_non_empty(row, "dataset_artifact_id", "dataset.artifact_id"))
-            _write_relative_symlink(
+            link_if_absent(
                 output_dir / "by_source" / f"{dataset_alias}__encoded_dataset__{artifact_id}",
                 target_path,
             )
             written_roots.add(output_dir / "by_source")
         elif row_type == "vision_encoder":
             artifact_id = _slug(_first_non_empty(row, "vision_artifact_id", "vision.artifact_id"))
-            _write_relative_symlink(
+            link_if_absent(
                 output_dir / "shared" / f"vision_encoder__{artifact_id}",
                 target_path,
             )
@@ -237,7 +230,7 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
         elif row_type == "phase_train":
             phase = _slug(_first_non_empty(row, "phase"))
             dataset_alias = _slug(_first_non_empty(row, "dataset", "dataset_alias"))
-            _write_relative_symlink(
+            link_if_absent(
                 output_dir / "by_phase" / f"{phase}__train_on__{dataset_alias}",
                 target_path,
             )
@@ -246,7 +239,7 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
             phase = _slug(_first_non_empty(row, "phase"))
             dataset_alias = _slug(_first_non_empty(row, "dataset", "dataset_alias"))
             report_id = _slug(_first_non_empty(row, "analysis_report_id"))
-            _write_relative_symlink(
+            link_if_absent(
                 output_dir / "by_phase" / f"{phase}__analysis_on__{dataset_alias}__{report_id}",
                 target_path,
             )
@@ -255,7 +248,7 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
             phase = _slug(_first_non_empty(row, "phase"))
             module = _slug(_first_non_empty(row, "module"))
             report_id = _slug(_first_non_empty(row, "analysis_report_id"))
-            _write_relative_symlink(
+            link_if_absent(
                 output_dir / "by_phase" / f"{phase}__comparative__{module}__{report_id}",
                 target_path,
             )
@@ -263,7 +256,7 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
         elif row_type == "final_comparative_analysis":
             module = _slug(_first_non_empty(row, "module"))
             report_id = _slug(_first_non_empty(row, "analysis_report_id"))
-            _write_relative_symlink(output_dir / "final" / f"{module}__{report_id}", target_path)
+            link_if_absent(output_dir / "final" / f"{module}__{report_id}", target_path)
             written_roots.add(output_dir / "final")
     return written_roots
 

@@ -1,6 +1,7 @@
 """Typed config system."""
 
 from .downstream_schema import DownstreamRunConfig
+from .downstream_validation import validate_downstream_run_config
 from .loader import (
     load_downstream_run_config,
     load_experiment_config,
@@ -15,11 +16,7 @@ from .reuse import (
     summarize_reuse,
 )
 from .schema import ExperimentConfig, StudyConfig
-from .validator import (
-    validate_downstream_run_config,
-    validate_experiment_config,
-    validate_study_config,
-)
+from .validator import validate_experiment_config, validate_study_config
 
 __all__ = [
     "DownstreamRunConfig",

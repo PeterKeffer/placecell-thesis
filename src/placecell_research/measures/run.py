@@ -9,12 +9,9 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
-from pydantic import Field, TypeAdapter
-from pydantic.dataclasses import dataclass
 
 from placecell_research.analysis.world_overlay import overlay_bounds, resolve_world_overlay
 from placecell_research.artifacts.registry import ArtifactRegistry
-from placecell_research.collection.policies import load_raw_config_payload
 from placecell_research.config import load_experiment_config
 from placecell_research.evaluation.frozen_controls import fixed_topk
 from placecell_research.evaluation.inference import collect_representations, load_model_checkpoint
@@ -37,21 +34,6 @@ from .table import full_analysis_row, single_unit_row, write_rows
 from .traversal import traversal_measures, traversal_summary
 
 INPUT_FEATURES = {"visual_latent": 1, "latent_stack_16": 16}
-
-
-@dataclass
-class MeasuresSettings:
-    """The `measures:` block of an experiment config."""
-
-    null_shuffles: int = Field(default=999, ge=1)
-    traversal_shifts: int = Field(default=999, ge=0)
-    read_time_top_k: int = Field(default=0, ge=0)
-    output_dir: str = "measures"
-
-
-def load_settings(config_path: Path, overrides: list[str]) -> MeasuresSettings:
-    payload = load_raw_config_payload(config_path, overrides).get("measures", {})
-    return TypeAdapter(MeasuresSettings).validate_python(payload)
 
 
 def _decode_split_features(directory: Path, source: str | None, frames: int, top_k: int):
@@ -100,7 +82,7 @@ def full_test_codes(registry: ArtifactRegistry, directory: Path, checkpoint: str
 def measure_model(config_path: Path, overrides: list[str], *, include_inputs: bool = False) -> Path:
     """Write <output_dir>/<condition>__seed<seed>__<model>.csv and a per-unit table beside it."""
     config = load_experiment_config(config_path, overrides)
-    settings = load_settings(config_path, overrides)
+    settings = config.measures
     repo_root = find_repo_root(config_path.resolve())
     registry = ArtifactRegistry(repo_root / config.tracking.artifact_root)
     reference = config.reuse.place_model_artifact_id.strip()

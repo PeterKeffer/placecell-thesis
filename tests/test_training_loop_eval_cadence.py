@@ -118,46 +118,6 @@ def test_training_loop_runs_evaluation_on_first_interval_and_final_epoch(tmp_pat
     assert result.best_primary_path is not None and result.best_primary_path.exists()
 
 
-def test_training_loop_saves_independent_best_expert_probe_checkpoint(tmp_path: Path) -> None:
-    dataset = _SyntheticSequenceDataset()
-    loader = DataLoader(dataset, batch_size=2, collate_fn=_collate)
-    config, model, built_objectives = _make_model_and_objectives(len(loader))
-    expert_values = iter((3.0, 2.0, 4.0))
-    logged_epochs: list[dict[str, float]] = []
-    expert_metric = "validation.expert_probe.experts.place_codes.xy_decode_rmse"
-
-    def _evaluate_fn(*_args) -> dict[str, float]:
-        return {
-            "validation.total_loss": 1.0,
-            "validation.xy_decode_rmse": 1.0,
-            expert_metric: next(expert_values),
-        }
-
-    result = train_model(
-        model=model,
-        built_objectives=built_objectives,
-        model_config=config,
-        train_loader=loader,
-        validation_loader=loader,
-        loop_config=TrainLoopConfig(
-            training=config.training,
-            checkpoint_dir=tmp_path,
-            device=torch.device("cpu"),
-            eval_every_n_epochs=8,
-            expert_probe_metric=expert_metric,
-            epoch_metrics_callback=lambda metrics, _step: logged_epochs.append(dict(metrics)),
-        ),
-        evaluate_fn=_evaluate_fn,
-    )
-
-    assert result.best_expert_probe_path is not None
-    payload = torch.load(result.best_expert_probe_path, weights_only=False)
-    assert payload["epoch"] == 7
-    assert logged_epochs[0]["checkpoint/expert_probe_saved"] == 1.0
-    assert logged_epochs[7]["checkpoint/expert_probe_saved"] == 1.0
-    assert logged_epochs[9]["checkpoint/expert_probe_saved"] == 0.0
-
-
 def test_place_model_online_evaluator_has_explicit_empty_loader_contract() -> None:
     config = ExperimentConfig()
     model_config, model, built_objectives = _make_model_and_objectives(loader_length=1)

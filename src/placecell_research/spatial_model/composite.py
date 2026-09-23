@@ -10,7 +10,6 @@ from placecell_research.config.schema import SpatialModelConfig
 
 from .components.teacher import EncoderStack, TeacherStudentController
 from .forward import PlaceModelChunkState, forward_chunk, forward_sequence
-from .predictor_runtime import predictor_runtime_contract
 from .protocol import PlaceModel
 from .representation_contract import (
     auxiliary_representation_names,
@@ -24,10 +23,6 @@ from .representation_contract import (
 )
 from .types import RepresentationBundle
 
-BASE_MODULE_SELECTORS: frozenset[str] = frozenset(
-    {"encoder", "predictor", "sparsifier", "embeddings"}
-)
-
 
 @dataclass
 class PlaceModelComponents:
@@ -37,19 +32,16 @@ class PlaceModelComponents:
     predictor_temporal: nn.Module
     predictor_head: nn.Module
     predictor_sparsifier: nn.Module
-    masked_predictor: nn.Module | None
     teacher_controller: TeacherStudentController | None
     action_embedding: nn.Embedding | None
     inverse_dynamics_head: nn.Module | None
     input_corruption_blackout_token: nn.Parameter | None
     training_regularizer: nn.Module | None
     slow_operator_projection: nn.Module | None
-    attractor_binding: nn.Module | None
     config: SpatialModelConfig
     num_actions: int
     observation_dim: int
     kinematics_dim: int
-    predictor_transition_binder: nn.Module | None = None
 
 
 class CompositePlaceModel(nn.Module, PlaceModel):
@@ -63,14 +55,11 @@ class CompositePlaceModel(nn.Module, PlaceModel):
         self.predictor_temporal = components.predictor_temporal
         self.predictor_head = components.predictor_head
         self.predictor_sparsifier = components.predictor_sparsifier
-        self.predictor_transition_binder = components.predictor_transition_binder
-        self.masked_predictor = components.masked_predictor
         self.action_embedding = components.action_embedding
         self.inverse_dynamics_head = components.inverse_dynamics_head
         self.input_corruption_blackout_token = components.input_corruption_blackout_token
         self.training_regularizer = components.training_regularizer
         self.slow_operator_projection = components.slow_operator_projection
-        self.attractor_binding = components.attractor_binding
         self.teacher_controller = components.teacher_controller
         self.auxiliary_heads = nn.ModuleDict()
         self.representation_heads = nn.ModuleDict()
@@ -113,22 +102,8 @@ class CompositePlaceModel(nn.Module, PlaceModel):
             ):
                 post_step()
 
-    def _grid_head(self) -> nn.Module | None:
-        return self.representation_heads["grid"] if "grid" in self.representation_heads else None
-
-    @property
-    def grid_stream(self) -> nn.Module | None:
-        """The relocated GridStream, sourced from the grid representation head (or None)."""
-        grid_head = self._grid_head()
-        return grid_head.grid_stream if grid_head is not None else None
-
     def parameters_by_group(self) -> dict[str, list[nn.Parameter]]:
         binding_parameters = list(self.encoder_stack.encoder_head.parameters())
-        if self.encoder_stack.expert_heads is not None:
-            binding_parameters.extend(self.encoder_stack.expert_heads.parameters())
-        attractor_binding_parameters: list[nn.Parameter] = []
-        if self.attractor_binding is not None:
-            attractor_binding_parameters = list(self.attractor_binding.parameters())
         binding_parameter_ids = {id(parameter) for parameter in binding_parameters}
         encoder_parameters = [
             parameter
@@ -142,42 +117,17 @@ class CompositePlaceModel(nn.Module, PlaceModel):
         embedding_parameters = list(self.predictor_input_assembler.parameters())
         if self.action_embedding is not None:
             embedding_parameters.extend(self.action_embedding.parameters())
-        grid_recurrent: list[nn.Parameter] = []
-        grid_other: list[nn.Parameter] = []
-        if self.grid_stream is not None:
-            for parameter_name, parameter in self.grid_stream.named_parameters():
-                target = grid_recurrent if parameter_name == "recurrent_weight" else grid_other
-                target.append(parameter)
-        motion_regularized = []
-        if "motion" in self.representation_heads:
-            motion = self.representation_heads["motion"]
-            if motion.config.dynamics != "gated_sigmoid":
-                motion_regularized = motion.population.regularized_parameters()
-        motion_regularized_ids = {id(parameter) for parameter in motion_regularized}
-        non_grid_head_parameters = [
+        head_parameters = [
             parameter
-            for namespace, head in self.representation_heads.items()
-            if namespace != "grid"
+            for head in self.representation_heads.values()
             for parameter in head.parameters()
-            if id(parameter) not in motion_regularized_ids
         ]
         groups = {
             "encoder": encoder_parameters,
             "encoder_binding": binding_parameters,
-            "attractor_binding": attractor_binding_parameters,
             "predictor": (
                 list(self.predictor_temporal.parameters())
                 + list(self.predictor_head.parameters())
-                + (
-                    list(self.masked_predictor.parameters())
-                    if self.masked_predictor is not None
-                    else []
-                )
-                + (
-                    list(self.predictor_transition_binder.parameters())
-                    if self.predictor_transition_binder is not None
-                    else []
-                )
             ),
             "sparsifier": list(self.predictor_sparsifier.parameters()),
             "embeddings": embedding_parameters,
@@ -186,44 +136,22 @@ class CompositePlaceModel(nn.Module, PlaceModel):
                 list(self.inverse_dynamics_head.parameters())
                 if self.inverse_dynamics_head is not None
                 else []
-            )
-            + grid_other,
+            ),
         }
-        if grid_recurrent:
-            groups["grid_recurrent"] = grid_recurrent
-        if non_grid_head_parameters:
-            groups["representation_heads"] = non_grid_head_parameters
-        if motion_regularized:
-            groups["motion_regularized"] = motion_regularized
+        if head_parameters:
+            groups["representation_heads"] = head_parameters
         return groups
-
-    def weight_decay_overrides(self) -> dict[str, float]:
-        """Per-group weight-decay overrides for build_optimizer."""
-        overrides = {}
-        if self.grid_stream is not None and self.grid_stream.recurrent_weight_decay > 0.0:
-            overrides["grid_recurrent"] = float(self.grid_stream.recurrent_weight_decay)
-        if "motion" in self.representation_heads:
-            motion = self.representation_heads["motion"]
-            if motion.config.weight_decay > 0:
-                overrides["motion_regularized"] = motion.config.weight_decay
-        return overrides
 
     def _selector_module_parameters(self) -> dict[str, list[nn.Parameter]]:
         """Map each phase-schedule MODULE selector to its parameters."""
         predictor_parameters = list(self.predictor_temporal.parameters()) + list(
             self.predictor_head.parameters()
         )
-        if self.masked_predictor is not None:
-            predictor_parameters.extend(self.masked_predictor.parameters())
-        if self.predictor_transition_binder is not None:
-            predictor_parameters.extend(self.predictor_transition_binder.parameters())
         encoder_parameters = list(self.encoder_stack.parameters())
         if self.input_corruption_blackout_token is not None:
             encoder_parameters.append(self.input_corruption_blackout_token)
         if self.slow_operator_projection is not None:
             encoder_parameters.extend(self.slow_operator_projection.parameters())
-        if self.attractor_binding is not None:
-            encoder_parameters.extend(self.attractor_binding.parameters())
         selectors: dict[str, list[nn.Parameter]] = {
             "encoder": encoder_parameters,
             "encoder_head": list(self.encoder_stack.encoder_head.parameters()),
@@ -300,11 +228,6 @@ class CompositePlaceModel(nn.Module, PlaceModel):
             for parameter in head.parameters():
                 parameter.requires_grad_(train_head)
 
-    def set_grid_training_phase(self, *, train_grid: bool) -> None:
-        if self.grid_stream is None:
-            return
-        self.set_trainable({"grid"} if train_grid else set(BASE_MODULE_SELECTORS))
-
     def update_teacher(self, current_step: int | None = None) -> None:
         if self.teacher_controller is not None:
             self.teacher_controller.update(current_step)
@@ -321,9 +244,6 @@ class CompositePlaceModel(nn.Module, PlaceModel):
         if "observation.backbone_output" not in available_representations:
             available_representations.append("observation.backbone_output")
         tensor_shapes["observation.backbone_output"] = ["B", "T", self.components.observation_dim]
-        if config.motion.enabled and config.motion.target_source == "observation.backbone_output":
-            for name in ("pred", "posterior_pred", "target"):
-                tensor_shapes[f"motion.{name}"] = ["B", "T", self.components.observation_dim]
         tensor_shapes.update(
             auxiliary_representation_shapes(
                 self.auxiliary_heads.values(),
@@ -370,7 +290,5 @@ class CompositePlaceModel(nn.Module, PlaceModel):
             "predictor_adaptive_state_gate_initial_open_probability": (
                 config.predictor.adaptive_state_gate_initial_open_probability
             ),
-            "predictor_runtime_contract": predictor_runtime_contract(self),
-            "masked_predictor_enabled": config.masked_predictor.enabled,
             "active_auxiliary_heads": active_auxiliary_heads,
         }

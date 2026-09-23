@@ -330,9 +330,6 @@ def train_downstream_agent(
                     "observation": asdict(config.observation),
                     "training": asdict(config.training),
                     "curriculum": None if config.curriculum is None else asdict(config.curriculum),
-                    "goal_teacher": (
-                        None if config.goal_teacher is None else asdict(config.goal_teacher)
-                    ),
                     "preview": asdict(config.preview),
                 },
                 sort_keys=False,
@@ -461,38 +458,6 @@ def train_downstream_agent(
                         final_goal_distance = float(info["goal_distance"])
                         training_episode_row["final_goal_distance"] = final_goal_distance
                         metric_payload["train_episode/final_goal_distance"] = final_goal_distance
-                    for diagnostic_name in (
-                        "episode_code_success",
-                        "episode_physical_success",
-                        "first_code_success_step",
-                        "first_success_step",
-                        "goal_teacher_reward",
-                        "goal_teacher_goal_index",
-                        "goal_teacher_next_goal_index",
-                        "goal_teacher_level_before",
-                        "goal_teacher_level_after",
-                        "goal_teacher_max_spawn_distance_before",
-                        "goal_teacher_max_spawn_distance_after",
-                        "goal_teacher_level_changed",
-                        "goal_teacher_minimum_challenge_steps_before",
-                        "goal_teacher_minimum_challenge_steps_after",
-                        "goal_teacher_challenge_target_changed",
-                        "goal_teacher_frontier_success_streak",
-                        "goal_teacher_window_too_easy_rate",
-                        "goal_teacher_window_too_hard_rate",
-                    ):
-                        diagnostic_value = info.get(diagnostic_name)
-                        if diagnostic_value is None:
-                            continue
-                        numeric_value = float(diagnostic_value)
-                        training_episode_row[diagnostic_name] = numeric_value
-                        metric_payload[f"train_episode/{diagnostic_name}"] = numeric_value
-                    teacher_outcome = info.get("goal_teacher_outcome")
-                    if teacher_outcome is not None:
-                        training_episode_row["goal_teacher_outcome"] = str(teacher_outcome)
-                        metric_payload["train_episode/goal_teacher_outcome"] = str(
-                            teacher_outcome
-                        )
                     if next_start_position_xy is not None:
                         training_episode_row["next_start_position_xy"] = next_start_position_xy
                         self._start_positions_by_env[env_index] = next_start_position_xy

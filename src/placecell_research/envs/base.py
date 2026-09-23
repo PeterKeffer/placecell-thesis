@@ -105,14 +105,6 @@ class EnvironmentCapabilities:
         return [name for name in required if name not in available]
 
 
-@dataclass(frozen=True, slots=True)
-class NavigationConvention:
-    """How an adapter's heading maps to motion, for scripted-waypoint path following."""
-
-    forward_y_sign: float = -1.0
-    turn_left_increases_heading: bool = True
-
-
 class EnvironmentAdapter(Protocol):
     """Stable adapter interface used by collection."""
 

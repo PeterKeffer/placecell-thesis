@@ -6,11 +6,11 @@ from pathlib import Path
 
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
 from placecell_research.artifacts.registry import ArtifactRegistry
-from placecell_research.collection.policies import load_raw_config_payload
 from placecell_research.config import (
     artifact_match_fingerprint,
     load_experiment_config,
 )
+from placecell_research.config.loader import load_raw_config_payload
 from placecell_research.stages import pipeline
 from placecell_research.stages.create_split import split_stage_fingerprint
 from placecell_research.stages.encode_dataset import encoded_dataset_stage_fingerprint

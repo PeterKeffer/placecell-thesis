@@ -12,7 +12,7 @@ from torch import nn
 
 from placecell_research.config import materialize_dataclass
 from placecell_research.config.schema import SpatialModelConfig
-from placecell_research.objectives.registry import build_objectives_and_heads
+from placecell_research.objectives.registry import build_objectives
 
 from .builder import ModelBuildContext, build_place_model
 
@@ -105,7 +105,7 @@ def load_model_from_checkpoint(
         config=spatial_model_config,
         build_context=model_build_context,
     )
-    built = build_objectives_and_heads(model, spatial_model_config)
+    built = build_objectives(model, spatial_model_config)
     if hasattr(model, "set_auxiliary_heads"):
         model.set_auxiliary_heads(built.auxiliary_heads)
     model.load_state_dict(payload["model_state_dict"])

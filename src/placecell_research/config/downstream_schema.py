@@ -42,12 +42,9 @@ VectorFeatureSource = Literal[
 DownstreamAlgorithm = Literal["ppo", "dqn"]
 DownstreamTrainFreqUnit = Literal["step", "episode"]
 DownstreamGradientSteps = int | Literal["auto_default_utd"]
-DownstreamHerGoalSelectionStrategy = Literal["future", "final", "episode"]
-DownstreamGoalCodeDistanceMetric = Literal["l2", "cosine"]
-DownstreamHerGoalRepresentation = Literal["goal_xy", "goal_place_code", "goal_grid_code"]
 DownstreamFeatureExtractor = Literal["concat_mlp", "split_position_goal", "paired_grid_code"]
 DownstreamReplayBufferType = Literal["uniform", "nstep"]
-DownstreamGoalSchedule = Literal["fixed", "cycle", "random", "uniform_random", "codebook"]
+DownstreamGoalSchedule = Literal["fixed", "cycle", "random", "uniform_random"]
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -55,11 +52,9 @@ class DownstreamModelConfig:
     place_model_artifact_id: str = ""
     place_model_checkpoint: Literal["best_primary", "last"] | None = None
     vision_encoder_artifact_id: str = ""
-    online_pcdt_checkpoint_path: str = ""
     place_representation_source: str = "encoder.place_codes"
     place_code_stats_path: str = ""
     ae_latent_projection_path: str = ""
-    goal_codebook_path: str = ""
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -75,8 +70,6 @@ class DownstreamGoalTaskConfig:
 class DownstreamGoalCodeConfig:
     snapshot_heading_degrees: float = 0.0
     normalize_codes: bool = True
-    distance_metric: DownstreamGoalCodeDistanceMetric = "l2"
-    success_threshold: float = Field(default=0.35, gt=0.0)
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -121,82 +114,8 @@ class DownstreamObservationConfig:
 
 
 @dataclass(config=PYDANTIC_CONFIG)
-class OnlinePCDTConfig:
-    """Sequence, predictive, and IQL settings used only by online_pcdt."""
-
-    context_length: int = Field(default=8, ge=1)
-    prediction_horizon: int = Field(default=16, ge=1)
-    action_repeat: int = Field(default=1, ge=1)
-    mask_stalled_forward: bool = False
-    exclude_stalled_forward_control_anchors: bool = False
-    stalled_forward_min_displacement: float = Field(default=0.01, gt=0.0)
-    stalled_forward_turn_steps: int = Field(default=1, ge=1)
-    normalize_position_inputs: bool = False
-    position_bounds_low: list[float] = field(default_factory=list)
-    position_bounds_high: list[float] = field(default_factory=list)
-    hidden_dim: int = Field(default=128, ge=8)
-    encoder_layers: int = Field(default=2, ge=1)
-    policy_layers: int = Field(default=2, ge=1)
-    critic_layers: int = Field(default=2, ge=1)
-    attention_heads: int = Field(default=4, ge=1)
-    dropout: float = Field(default=0.1, ge=0.0, lt=1.0)
-    mask_probability: float = Field(default=0.3, ge=0.0, lt=1.0)
-    reconstruction_weight: float = Field(default=1.0, ge=0.0)
-    lean_masked_reconstruction: bool = False
-    future_prediction_weight: float = Field(default=1.0, ge=0.0)
-    goal_prediction_weight: float = Field(default=1.0, gt=0.0)
-    predictive_learning_rate: float = Field(default=1e-4, gt=0.0)
-    expectile: float = Field(default=0.7, gt=0.0, lt=1.0)
-    advantage_inverse_temperature: float = Field(default=3.0, ge=0.0)
-    max_advantage_weight: float = Field(default=100.0, ge=1.0)
-    control_objective: Literal["iql", "gcsl", "lean_gcsl"] = "iql"
-    direct_goal_conditioning: bool = False
-    hindsight_ratio: float = Field(default=0.8, ge=0.0, le=1.0)
-    hindsight_near_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
-    hindsight_near_horizon: int = Field(default=20, ge=1)
-    encoder_hindsight_near_fraction: float | None = Field(
-        default=None, ge=0.0, le=1.0
-    )
-    hindsight_min_goal_distance: float = Field(default=0.0, ge=0.0)
-    hindsight_control_segment_length: int = Field(default=1, ge=1)
-    segment_goal_contrast_weight: float = Field(default=0.0, ge=0.0)
-    segment_goal_contrast_margin: float = Field(default=1.0, ge=0.0)
-    hindsight_same_goal_segment: bool = False
-    hindsight_near_same_goal_segment: bool = False
-    stationary_hindsight_ablation: bool = False
-    spatially_balanced_replay: bool = False
-    spatial_replay_bin_size: float = Field(default=1.0, gt=0.0)
-    route_stitching: bool = False
-    route_stitching_min_transitions: int = Field(default=1024, ge=1)
-    route_stitching_waypoint_distance: float = Field(default=2.0, gt=0.0)
-    practice_goal_relabeling: bool = False
-    practice_goal_strategy: Literal[
-        "annulus", "progress", "route_progress", "route_frontier"
-    ] = "annulus"
-    practice_goal_min_transitions: int = Field(default=1024, ge=1)
-    practice_goal_probability: float = Field(default=0.5, ge=0.0, le=1.0)
-    practice_goal_min_distance: float = Field(default=2.0, gt=0.0)
-    practice_goal_max_distance: float = Field(default=8.0, gt=0.0)
-    practice_goal_min_progress: float = Field(default=0.5, ge=0.0)
-    plan_kl_weight: float = Field(default=1e-3, ge=0.0)
-    plan_commit_steps: int = Field(default=10, ge=1)
-    target_entropy: float = Field(default=0.3, ge=0.0)
-    entropy_dual_learning_rate: float = Field(default=3e-3, gt=0.0)
-    initial_entropy_coefficient: float = Field(default=0.05, gt=0.0)
-    target_tau: float = Field(default=0.005, gt=0.0, le=1.0)
-    encoder_target_tau: float | None = Field(default=None, gt=0.0, le=1.0)
-    use_evaluation_actor: bool = False
-    evaluation_actor_tau: float = Field(default=0.005, gt=0.0, le=1.0)
-    goal_chain_on_success: bool = False
-    reward_scale: float = Field(default=1.0, gt=0.0)
-    checkpoint_include_replay: bool = True
-    resume_checkpoint_path: str = ""
-
-
-@dataclass(config=PYDANTIC_CONFIG)
 class DownstreamTrainingConfig:
     algorithm: DownstreamAlgorithm = "ppo"
-    her_goal_representation: DownstreamHerGoalRepresentation = "goal_xy"
     total_timesteps: int = Field(default=100_000, ge=1)
     learning_rate: float = Field(default=3e-4, gt=0.0)
     n_steps: int = Field(default=1024, ge=1)
@@ -223,15 +142,6 @@ class DownstreamTrainingConfig:
     exploration_fraction: float = Field(default=0.1, ge=0.0)
     exploration_initial_eps: float = Field(default=1.0, ge=0.0, le=1.0)
     exploration_final_eps: float = Field(default=0.05, ge=0.0, le=1.0)
-    bootstrap_heads: int = Field(default=10, ge=2)
-    bootstrap_prior_scale: float = Field(default=1.0, gt=0.0)
-    bootstrap_mask_probability: float = Field(default=0.5, gt=0.0, le=1.0)
-    success_replay_capacity_per_goal: int = Field(default=32, ge=1)
-    success_replay_batch_size: int = Field(default=128, ge=1)
-    success_replay_loss_coefficient: float = Field(default=1.0, gt=0.0)
-    success_replay_greedy_epsilon: float = Field(default=0.02, ge=0.0, le=1.0)
-    her_n_sampled_goal: int = Field(default=4, ge=1)
-    her_goal_selection_strategy: DownstreamHerGoalSelectionStrategy = "future"
     n_envs: int = Field(default=1, ge=1)
     device: str = "auto"
     log_interval: int = Field(default=20, ge=1)
@@ -245,7 +155,6 @@ class DownstreamTrainingConfig:
     final_eval_stochastic: bool = True
     final_eval_diagnostics: bool = True
     memory_watchdog_limit_mb: int = Field(default=0, ge=0)
-    online_pcdt: OnlinePCDTConfig | None = None
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -264,23 +173,6 @@ class DownstreamSpawnCurriculumPhaseConfig:
 @dataclass(config=PYDANTIC_CONFIG)
 class DownstreamCurriculumConfig:
     spawn_schedule: list[DownstreamSpawnCurriculumPhaseConfig] = field(default_factory=list)
-
-
-@dataclass(config=PYDANTIC_CONFIG)
-class DownstreamGoalTeacherConfig:
-    """Adaptive frontier teacher for goal-conditioned downstream training."""
-
-    kind: Literal["amigo_frontier"] = "amigo_frontier"
-    max_spawn_distance_levels: list[float] = field(
-        default_factory=lambda: [5.0, 8.0, 12.0, 18.0, 26.0, 36.0, 50.0]
-    )
-    initial_level: int = Field(default=0, ge=0)
-    window_episodes: int = Field(default=20, ge=1)
-    minimum_challenge_steps: int = Field(default=7, ge=1)
-    maximum_challenge_steps: int = Field(default=256, ge=1)
-    frontier_successes_to_raise_target: int = Field(default=10, ge=1)
-    promote_too_easy_rate: float = Field(default=0.6, ge=0.0, le=1.0)
-    demote_too_hard_rate: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -316,7 +208,6 @@ class DownstreamRunConfig:
     observation: DownstreamObservationConfig = field(default_factory=DownstreamObservationConfig)
     training: DownstreamTrainingConfig = field(default_factory=DownstreamTrainingConfig)
     curriculum: DownstreamCurriculumConfig | None = None
-    goal_teacher: DownstreamGoalTeacherConfig | None = None
     preview: DownstreamPreviewConfig = field(default_factory=DownstreamPreviewConfig)
     rollout: DownstreamRolloutConfig = field(default_factory=DownstreamRolloutConfig)
     tracking: TrackingConfig = field(default_factory=TrackingConfig)

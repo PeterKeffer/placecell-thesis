@@ -181,8 +181,6 @@ class EncoderStackState(NamedTuple):
     """Carry for an encoder stack that owns state OUTSIDE its temporal core."""
 
     temporal_state: Any
-    chart_code_state: Tensor | None
-    sensory_state: Tensor | None = None
     slow_leak_state: Tensor | None = None
     slow_leak_initialized: Tensor | None = None
 
@@ -207,37 +205,17 @@ class EncoderStack(nn.Module):
         action_embedding: nn.Embedding | None = None,
         encoder_code_norm: nn.Module | None = None,
         encoder_post_head_norm: nn.Module | None = None,
-        expert_heads: nn.ModuleList | None = None,
-        gated_mixture: nn.Module | None = None,
-        precision_heads: nn.ModuleList | None = None,
-        stream_temporals: nn.ModuleList | None = None,
-        stream_heads: nn.ModuleList | None = None,
-        stream_names: list[str] | None = None,
-        environment_conditioner: nn.Module | None = None,
         readout_mode: str = "mixed",
         export_state_readout: bool = False,
-        require_explicit_state_readout: bool = False,
-        chart_code_binder: nn.Module | None = None,
-        sensory_binder: nn.Module | None = None,
     ) -> None:
         super().__init__()
         self.observation_encoder = observation_encoder
-        self.sensory_binder = sensory_binder
         self.encoder_temporal = encoder_temporal
         self.encoder_code_norm = encoder_code_norm or nn.Identity()
         self.encoder_post_head_norm = encoder_post_head_norm or nn.Identity()
         self.encoder_head = encoder_head
-        self.expert_heads = expert_heads
-        self.gated_mixture = gated_mixture
-        self.precision_heads = precision_heads
-        self.stream_temporals = stream_temporals
-        self.stream_heads = stream_heads
-        self.stream_names = list(stream_names or [])
-        self.environment_conditioner = environment_conditioner
         self.readout_mode = str(readout_mode)
         self.export_state_readout = bool(export_state_readout)
-        self.require_explicit_state_readout = bool(require_explicit_state_readout)
-        self.chart_code_binder = chart_code_binder
         self.sparsifier = sparsifier
         self.gradient_checkpointing = bool(gradient_checkpointing)
         if isinstance(slow_leak_alpha, Tensor):
@@ -257,15 +235,10 @@ class EncoderStack(nn.Module):
         features: Tensor,
         actions: Tensor | None,
         kinematics: Tensor | None,
-        external_context: Tensor | None = None,
     ) -> Tensor:
-        if not self.context_channels and external_context is None:
+        if not self.context_channels:
             return features
         context_tensors: list[Tensor] = [features]
-        if external_context is not None:
-            context_tensors.append(
-                external_context.to(device=features.device, dtype=features.dtype)
-            )
         if uses_action_context(self.context_channels):
             if self.action_embedding is None:
                 raise ValueError(
@@ -291,15 +264,11 @@ class EncoderStack(nn.Module):
     @property
     def owns_stack_state(self) -> bool:
         """True when this stack carries state the temporal core does not own."""
-        return (
-            self.chart_code_binder is not None
-            or self.sensory_binder is not None
-            or self.slow_leak_active
-        )
+        return self.slow_leak_active
 
     def initial_state(self) -> EncoderStackState | None:
         """The cold carry to hand forward_stateful at the start of an episode."""
-        return EncoderStackState(None, None) if self.owns_stack_state else None
+        return EncoderStackState(None) if self.owns_stack_state else None
 
     def apply_slow_leak(
         self,
@@ -334,100 +303,6 @@ class EncoderStack(nn.Module):
         )
         return outputs
 
-    def _sensory_chart_block(
-        self,
-        features: Tensor,
-        scan: Any,
-        start: int,
-        stop: int,
-        temporal_state: Any,
-        memory: Tensor | None,
-        valid_steps: Tensor | None,
-    ) -> tuple[Tensor, Tensor | None, Any, list[dict[str, Tensor]], Tensor | None, Tensor]:
-        """stop - start steps of the canonical scan: read, trunk step, write."""
-        hidden_pieces: list[Tensor] = []
-        readout_pieces: list[Tensor] = []
-        layer_pieces: list[dict[str, Tensor]] = []
-        read_pieces: list[Tensor] = []
-        for step in range(start, stop):
-            if step == scan.reset_before_step:
-                memory = None
-            recall, read = self.sensory_binder.read(scan, step, memory)
-            step_hidden, step_readout, temporal_state, step_layers = (
-                _forward_temporal_with_hidden_layers(
-                    self.encoder_temporal,
-                    features[:, step : step + 1] + recall.unsqueeze(1),
-                    initial_state=temporal_state,
-                    valid_steps=None if valid_steps is None else valid_steps[:, step : step + 1],
-                    export_state_readout=self.export_state_readout,
-                    require_explicit_state_readout=self.require_explicit_state_readout,
-                )
-            )
-            memory = self.sensory_binder.write(scan, step, step_hidden[:, -1], memory)
-            hidden_pieces.append(step_hidden)
-            if step_readout is not None:
-                readout_pieces.append(step_readout)
-            layer_pieces.append(step_layers)
-            read_pieces.append(read.detach())
-        return (
-            torch.cat(hidden_pieces, dim=1),
-            torch.cat(readout_pieces, dim=1) if readout_pieces else None,
-            temporal_state,
-            layer_pieces,
-            memory,
-            torch.stack(read_pieces, dim=1),
-        )
-
-    def _forward_temporal_with_sensory_chart(
-        self,
-        observation_features: Tensor,
-        features: Tensor,
-        temporal_initial_state: Any,
-        memory: Tensor | None,
-        valid_steps: Tensor | None,
-    ) -> tuple[Tensor, Tensor | None, Any, dict[str, Tensor], Tensor]:
-        scan = self.sensory_binder.prepare(observation_features, valid_steps)
-        block_size = self.sensory_binder.checkpoint_chunk or features.shape[1]
-        hidden_blocks: list[Tensor] = []
-        readout_blocks: list[Tensor] = []
-        layer_pieces: list[dict[str, Tensor]] = []
-        read_blocks: list[Tensor] = []
-        for start in range(0, features.shape[1], block_size):
-            stop = min(start + block_size, features.shape[1])
-            arguments = (features, scan, start, stop, temporal_initial_state, memory, valid_steps)
-            checkpointed = (
-                self.sensory_binder.checkpoint_chunk > 0
-                and torch.is_grad_enabled()
-                and stop - start > 1
-            )
-            (
-                hidden,
-                readout,
-                temporal_initial_state,
-                block_layers,
-                memory,
-                reads,
-            ) = (
-                checkpoint(self._sensory_chart_block, *arguments, use_reentrant=False)
-                if checkpointed
-                else self._sensory_chart_block(*arguments)
-            )
-            hidden_blocks.append(hidden)
-            if readout is not None:
-                readout_blocks.append(readout)
-            layer_pieces.extend(block_layers)
-            read_blocks.append(reads)
-        hidden_states = torch.cat(hidden_blocks, dim=1)
-        reads = torch.cat(read_blocks, dim=1)
-        self.sensory_binder.publish(scan, reads, memory)
-        return (
-            hidden_states,
-            torch.cat(readout_blocks, dim=1) if readout_blocks else None,
-            temporal_initial_state,
-            _merge_stepped_layer_outputs(layer_pieces),
-            memory,
-        )
-
     def forward_stateful(
         self,
         observations: Tensor,
@@ -436,7 +311,6 @@ class EncoderStack(nn.Module):
         valid_steps: Tensor | None = None,
         training_regularizer: SequenceRegularizer | None = None,
         initial_state: Any = None,
-        external_context: Tensor | None = None,
     ) -> tuple[ModuleOutputs, Any]:
         """Run the encoder over a chunk of steps and return its outputs and its next carry."""
         if self.gradient_checkpointing and self.training and torch.is_grad_enabled():
@@ -447,12 +321,8 @@ class EncoderStack(nn.Module):
             observation_features = self.observation_encoder(observations)
         if training_regularizer is not None:
             observation_features = training_regularizer.apply("vision.output", observation_features)
-        features = self.append_context(
-            observation_features, actions, kinematics, external_context=external_context
-        )
+        features = self.append_context(observation_features, actions, kinematics)
         temporal_initial_state = initial_state
-        chart_code_state: Tensor | None = None
-        sensory_state: Tensor | None = None
         slow_leak_state: Tensor | None = None
         slow_leak_initialized: Tensor | None = None
         owns_outer_state = self.owns_stack_state
@@ -461,163 +331,47 @@ class EncoderStack(nn.Module):
                 temporal_initial_state = None
             else:
                 temporal_initial_state = initial_state.temporal_state
-                chart_code_state = initial_state.chart_code_state
-                sensory_state = initial_state.sensory_state
                 slow_leak_state = initial_state.slow_leak_state
                 slow_leak_initialized = initial_state.slow_leak_initialized
-        if self.sensory_binder is not None:
-            (
-                backbone_output,
-                state_readout,
-                next_state,
-                hidden_state_layers,
-                sensory_state,
-            ) = self._forward_temporal_with_sensory_chart(
-                observation_features,
-                features,
-                temporal_initial_state,
-                sensory_state,
-                valid_steps,
-            )
-        else:
-            (
-                backbone_output,
-                state_readout,
-                next_state,
-                hidden_state_layers,
-            ) = _forward_temporal_with_hidden_layers(
-                self.encoder_temporal,
-                features,
-                initial_state=temporal_initial_state,
-                valid_steps=valid_steps,
-                export_state_readout=self.export_state_readout,
-                require_explicit_state_readout=self.require_explicit_state_readout,
-            )
+        (
+            backbone_output,
+            state_readout,
+            next_state,
+            hidden_state_layers,
+        ) = _forward_temporal_with_hidden_layers(
+            self.encoder_temporal,
+            features,
+            initial_state=temporal_initial_state,
+            export_state_readout=self.export_state_readout,
+        )
         hidden_states = state_readout if self.readout_mode == "state" else backbone_output
         if hidden_states is None:
             raise RuntimeError("encoder_readout='state' requires an exported state readout.")
         if training_regularizer is not None:
             hidden_states = training_regularizer.apply("encoder.hidden", hidden_states)
-        environment_code: Tensor | None = None
-        if self.environment_conditioner is not None:
-            hidden_states, environment_code = self.environment_conditioner(
-                hidden_states,
-                valid_steps=valid_steps,
+        logits = self.encoder_code_norm(self.encoder_head.project(hidden_states))
+        if training_regularizer is not None:
+            logits = training_regularizer.apply("encoder.logits", logits)
+        pre_sparsifier = self.encoder_head.activate(logits)
+        pre_sparsifier, slow_leak_state = self.apply_slow_leak(
+            pre_sparsifier,
+            initial_state=slow_leak_state,
+            initial_state_mask=slow_leak_initialized,
+        )
+        if slow_leak_state is not None:
+            slow_leak_initialized = torch.ones(
+                slow_leak_state.shape[0], dtype=torch.bool, device=slow_leak_state.device
             )
-        base_logits = self.encoder_code_norm(self.encoder_head.project(hidden_states))
-        if self.chart_code_binder is not None:
-            read_contribution, chart_code_state = self.chart_code_binder.forward_sequence(
-                hidden_states,
-                base_logits,
-                chart_code_state,
-            )
-            base_logits = base_logits + read_contribution
-        if self.stream_temporals is not None:
-            per_expert_logits = [base_logits]
-            for stream_name, stream_temporal, stream_head in zip(
-                self.stream_names, self.stream_temporals, self.stream_heads, strict=False
-            ):
-                if stream_name == "kinematics":
-                    if kinematics is None:
-                        raise ValueError("a 'kinematics' stream expert requires batch kinematics.")
-                    stream_input = kinematics
-                else:
-                    stream_input = observation_features
-                (
-                    stream_backbone_output,
-                    stream_state_readout,
-                    _stream_state,
-                    _stream_layers,
-                ) = _forward_temporal_with_hidden_layers(
-                    stream_temporal,
-                    stream_input,
-                    valid_steps=valid_steps,
-                    export_state_readout=self.export_state_readout,
-                    require_explicit_state_readout=self.require_explicit_state_readout,
-                )
-                stream_hidden = (
-                    stream_state_readout if self.readout_mode == "state" else stream_backbone_output
-                )
-                if stream_hidden is None:
-                    raise RuntimeError(
-                        "A stream temporal did not export its required state readout."
-                    )
-                per_expert_logits.append(self.encoder_code_norm(stream_head.project(stream_hidden)))
-        elif self.expert_heads:
-            per_expert_logits = [base_logits] + [
-                self.encoder_code_norm(head.project(hidden_states)) for head in self.expert_heads
-            ]
-        else:
-            per_expert_logits = None
-        gate_responsibilities: Tensor | None = None
-        if per_expert_logits is None:
-            logits = base_logits
-        elif self.precision_heads is not None:
-            precisions = [
-                torch.nn.functional.softplus(head(expert_logits))
-                for head, expert_logits in zip(
-                    self.precision_heads, per_expert_logits, strict=False
-                )
-            ]
-            logits = sum(
-                precision * expert_logits
-                for precision, expert_logits in zip(precisions, per_expert_logits, strict=False)
-            )
-        else:
-            logits = torch.stack(per_expert_logits, dim=0).sum(dim=0)
-        if self.gated_mixture is not None:
-            expert_codes = []
-            for expert_logits in per_expert_logits:
-                activated_expert = self.encoder_head.activate(expert_logits)
-                activated_expert, _ = self.apply_slow_leak(activated_expert)
-                activated_expert = self.encoder_post_head_norm(activated_expert)
-                expert_codes.append(self.sparsifier(activated_expert))
-            place_codes, gate_responsibilities = self.gated_mixture(hidden_states, expert_codes)
-            pre_sparsifier = None
-            if training_regularizer is not None:
-                place_codes = training_regularizer.apply("encoder.output", place_codes)
-        else:
-            if training_regularizer is not None:
-                logits = training_regularizer.apply("encoder.logits", logits)
-            pre_sparsifier = self.encoder_head.activate(logits)
-            pre_sparsifier, slow_leak_state = self.apply_slow_leak(
-                pre_sparsifier,
-                initial_state=slow_leak_state,
-                initial_state_mask=slow_leak_initialized,
-            )
-            if slow_leak_state is not None:
-                slow_leak_initialized = torch.ones(
-                    slow_leak_state.shape[0], dtype=torch.bool, device=slow_leak_state.device
-                )
-            if training_regularizer is not None:
-                pre_sparsifier = training_regularizer.apply(
-                    "encoder.pre_sparsifier", pre_sparsifier
-                )
-            pre_sparsifier = self.encoder_post_head_norm(pre_sparsifier)
-            place_codes = self.sparsifier(pre_sparsifier)
-            if training_regularizer is not None:
-                place_codes = training_regularizer.apply("encoder.output", place_codes)
+        if training_regularizer is not None:
+            pre_sparsifier = training_regularizer.apply("encoder.pre_sparsifier", pre_sparsifier)
+        pre_sparsifier = self.encoder_post_head_norm(pre_sparsifier)
+        place_codes = self.sparsifier(pre_sparsifier)
+        if training_regularizer is not None:
+            place_codes = training_regularizer.apply("encoder.output", place_codes)
         auxiliary = dict(hidden_state_layers)
-        if per_expert_logits is not None:
-            for expert_index, expert_logits in enumerate(per_expert_logits):
-                auxiliary[f"expert_logits_{expert_index}"] = expert_logits
-        if gate_responsibilities is not None:
-            auxiliary["gate_responsibilities"] = gate_responsibilities
-        if environment_code is not None:
-            auxiliary["environment_code"] = environment_code
         auxiliary.update(getattr(self.sparsifier, "last_auxiliary_outputs", {}))
-        if self.chart_code_binder is not None:
-            auxiliary.update(self.chart_code_binder.last_auxiliary_outputs)
-        if self.sensory_binder is not None:
-            auxiliary.update(self.sensory_binder.last_auxiliary_outputs)
         if owns_outer_state:
-            next_state = EncoderStackState(
-                next_state,
-                chart_code_state,
-                sensory_state,
-                slow_leak_state,
-                slow_leak_initialized,
-            )
+            next_state = EncoderStackState(next_state, slow_leak_state, slow_leak_initialized)
         return (
             ModuleOutputs(
                 place_codes=place_codes,
@@ -632,23 +386,12 @@ class EncoderStack(nn.Module):
         )
 
 
-def _merge_stepped_layer_outputs(pieces: list[dict[str, Tensor]]) -> dict[str, Tensor]:
-    """Rejoin what a stepped scan returned one step at a time."""
-    merged = dict(pieces[-1])
-    for key in merged:
-        if key.startswith("hidden_state_layer_"):
-            merged[key] = torch.cat([piece[key] for piece in pieces], dim=1)
-    return merged
-
-
 def _forward_temporal_with_hidden_layers(
     temporal_module: nn.Module,
     features: Tensor,
     *,
     initial_state: Any = None,
-    valid_steps: Tensor | None = None,
     export_state_readout: bool = False,
-    require_explicit_state_readout: bool = False,
 ) -> tuple[Tensor, Tensor | None, Any, dict[str, Tensor]]:
     state_readout: Tensor | None = None
     if export_state_readout and hasattr(
@@ -670,11 +413,6 @@ def _forward_temporal_with_hidden_layers(
             initial_state,
         )
         layer_outputs = []
-    elif export_state_readout and require_explicit_state_readout:
-        raise TypeError(
-            f"{type(temporal_module).__name__} must implement "
-            "forward_sequence_with_state_readout() for encoder_readout='state'."
-        )
     elif hasattr(temporal_module, "forward_sequence_with_layer_outputs"):
         outputs, next_state, layer_outputs = temporal_module.forward_sequence_with_layer_outputs(
             features,
@@ -775,11 +513,6 @@ class TeacherStudentController(nn.Module):
             predictor_temporal=modules["predictor_temporal"],
             predictor_head=modules["predictor_head"],
             predictor_sparsifier=modules["predictor_sparsifier"],
-            predictor_transition_binder=(
-                modules["predictor_transition_binder"]
-                if "predictor_transition_binder" in modules
-                else None
-            ),
             action_embedding=(
                 modules["action_embedding"] if "action_embedding" in modules else None
             ),
@@ -966,7 +699,6 @@ class TeacherStudentController(nn.Module):
         kinematics: Tensor | None = None,
         valid_steps: Tensor | None = None,
         initial_state: Any = None,
-        external_context: Tensor | None = None,
     ) -> tuple[ModuleOutputs | None, Any]:
         if self.teacher_encoder_stack is None:
             return None, None
@@ -978,5 +710,4 @@ class TeacherStudentController(nn.Module):
                 kinematics=kinematics,
                 valid_steps=valid_steps,
                 initial_state=initial_state,
-                external_context=external_context,
             )

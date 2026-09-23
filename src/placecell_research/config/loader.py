@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -9,12 +10,7 @@ import yaml
 from pydantic import TypeAdapter
 
 from .downstream_schema import DownstreamRunConfig
-from .schema import (
-    L1_OBJECTIVE_TYPES,
-    L1_SEMANTICS_VERSION,
-    ExperimentConfig,
-    StudyConfig,
-)
+from .schema import ExperimentConfig, StudyConfig
 
 ConfigT = TypeVar("ConfigT")
 
@@ -172,78 +168,22 @@ def _materialize_dataclass(cls: type[ConfigT], payload: Any) -> ConfigT:
     return TypeAdapter(cls).validate_python(payload)
 
 
+def revalidate_config(config: ConfigT) -> ConfigT:
+    """Validate a config object again, so assignments made after loading are checked."""
+    adapter = TypeAdapter(type(config))
+    payload = asdict(config) if is_dataclass(config) else adapter.dump_python(config, mode="python")
+    return adapter.validate_python(payload)
+
+
 def materialize_dataclass(cls: type[ConfigT], payload: Any) -> ConfigT:
     """Public wrapper for nested dataclass materialization from dict payloads."""
     return _materialize_dataclass(cls, payload)
 
 
-MANIFEST_FILE_NAME = "resolved_config.yaml"
-
-
-def _l1_objectives_without_semantics_marker(payload: Any, path: str = "") -> list[str]:
-    """Dotted paths of l1 objectives in a manifest that predate L1_SEMANTICS_VERSION."""
-    stale: list[str] = []
-    if isinstance(payload, list):
-        for index, item in enumerate(payload):
-            stale.extend(_l1_objectives_without_semantics_marker(item, f"{path}[{index}]"))
-        return stale
-    if not isinstance(payload, dict):
-        return stale
-    for key, value in payload.items():
-        child_path = f"{path}.{key}" if path else str(key)
-        if (
-            key == "objectives"
-            and isinstance(value, dict)
-            and all(isinstance(item, dict) for item in value.values())
-        ):
-            stale.extend(
-                f"{child_path}.{name}"
-                for name, objective in value.items()
-                if objective.get("type") in L1_OBJECTIVE_TYPES
-                and int(objective.get("semantics_version", 1)) < L1_SEMANTICS_VERSION
-            )
-            continue
-        stale.extend(_l1_objectives_without_semantics_marker(value, child_path))
-    return stale
-
-
-def stamp_l1_semantics_marker(payload: Any) -> Any:
-    """Write the current L1 semantics version into every l1 objective of a raw payload."""
-    if isinstance(payload, list):
-        for item in payload:
-            stamp_l1_semantics_marker(item)
-        return payload
-    if not isinstance(payload, dict):
-        return payload
-    for key, value in payload.items():
-        if (
-            key == "objectives"
-            and isinstance(value, dict)
-            and all(isinstance(item, dict) for item in value.values())
-        ):
-            for objective in value.values():
-                if objective.get("type") in L1_OBJECTIVE_TYPES:
-                    objective.setdefault("semantics_version", L1_SEMANTICS_VERSION)
-            continue
-        stamp_l1_semantics_marker(value)
-    return payload
-
-
-def _require_l1_semantics_marker(payload: dict[str, Any], path: Path) -> None:
-    if path.name != MANIFEST_FILE_NAME:
-        return
-    stale = _l1_objectives_without_semantics_marker(payload)
-    if not stale:
-        return
-    raise ValueError(
-        f"{path} declares l1 objective(s) {sorted(stale)} without "
-        f"semantics_version={L1_SEMANTICS_VERSION}. This manifest predates the change that made "
-        "the L1 term a mean over units, so its weight is code_dim times (512x at code_dim=512) "
-        "what the same number means now. Replaying it as written applies a code_dim-weaker "
-        "penalty. Multiply the weight by code_dim and add "
-        f"semantics_version: {L1_SEMANTICS_VERSION} to keep the old strength, or add the marker "
-        "alone to accept the new one. No silent rescale."
-    )
+def load_raw_config_payload(config_path: Path, overrides: list[str]) -> dict[str, Any]:
+    """Load config including keys not represented in typed dataclasses."""
+    payload = _resolve_defaults(config_path, _load_yaml(config_path))
+    return apply_overrides(payload, overrides, config_path=config_path)
 
 
 def load_experiment_config(
@@ -253,7 +193,6 @@ def load_experiment_config(
     """Load and compose an experiment config."""
     path = Path(config_path)
     payload = _resolve_defaults(path, _load_yaml(path))
-    _require_l1_semantics_marker(payload, path)
     payload = apply_overrides(payload, overrides, config_path=path)
     return _materialize_dataclass(ExperimentConfig, payload)
 

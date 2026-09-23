@@ -22,140 +22,6 @@ def normalize_goal_code(code: np.ndarray) -> np.ndarray:
     return (vector / norm).astype(np.float32, copy=False)
 
 
-def compute_goal_code_distance(
-    achieved_goal: np.ndarray,
-    desired_goal: np.ndarray,
-    *,
-    metric: str,
-    normalize_codes: bool,
-) -> np.ndarray:
-    achieved = np.asarray(achieved_goal, dtype=np.float32)
-    desired = np.asarray(desired_goal, dtype=np.float32)
-    if achieved.ndim == 1:
-        achieved = achieved.reshape(1, -1)
-    if desired.ndim == 1:
-        desired = desired.reshape(1, -1)
-    if achieved.shape != desired.shape:
-        raise ValueError(
-            "Goal-code distance requires achieved_goal and desired_goal with matching shapes. "
-            f"Got {tuple(achieved.shape)} and {tuple(desired.shape)}."
-        )
-    if normalize_codes:
-        achieved = np.stack([normalize_goal_code(row) for row in achieved], axis=0)
-        desired = np.stack([normalize_goal_code(row) for row in desired], axis=0)
-    metric_name = str(metric).strip().lower()
-    if metric_name == "l2":
-        return np.linalg.norm(achieved - desired, axis=-1).astype(np.float32, copy=False)
-    if metric_name == "cosine":
-        achieved_norm = np.linalg.norm(achieved, axis=-1)
-        desired_norm = np.linalg.norm(desired, axis=-1)
-        norm_product = achieved_norm * desired_norm
-        safe_denominator = np.where(norm_product <= 1e-8, 1.0, norm_product)
-        similarity = np.sum(achieved * desired, axis=-1) / safe_denominator
-        return (1.0 - similarity).astype(np.float32, copy=False)
-    raise ValueError(f"Unsupported goal-code distance metric: {metric!r}")
-
-
-@dataclass(frozen=True, slots=True)
-class GoalSuccessMetric:
-    """Complete distance-and-threshold contract for one goal transition."""
-
-    distance_metric: str
-    normalize_codes: bool
-    success_threshold: float
-
-    def __post_init__(self) -> None:
-        metric = str(self.distance_metric).strip().lower()
-        if metric not in {"l2", "cosine"}:
-            raise ValueError(f"Unsupported goal distance metric: {self.distance_metric!r}")
-        threshold = float(self.success_threshold)
-        if not np.isfinite(threshold) or threshold <= 0.0:
-            raise ValueError("Goal success threshold must be positive and finite.")
-        object.__setattr__(self, "distance_metric", metric)
-        object.__setattr__(self, "normalize_codes", bool(self.normalize_codes))
-        object.__setattr__(self, "success_threshold", threshold)
-
-    @classmethod
-    def from_step_info(
-        cls,
-        info: dict[str, Any] | None,
-        *,
-        code_space: bool | None = None,
-        completed_goal: bool = False,
-        default_success_threshold: float | None = None,
-    ) -> GoalSuccessMetric:
-        """Resolve the metric carried by a goal-conditioned environment step."""
-
-        step_info = info if isinstance(info, dict) else {}
-        uses_code_space = (
-            "goal_code_success_threshold" in step_info
-            if code_space is None
-            else bool(code_space)
-        )
-        if uses_code_space:
-            raw_threshold = step_info.get("goal_code_success_threshold", 0.35)
-            return cls(
-                distance_metric=str(step_info.get("goal_code_distance_metric", "l2")),
-                normalize_codes=bool(step_info.get("goal_code_normalize", True)),
-                success_threshold=float(0.35 if raw_threshold is None else raw_threshold),
-            )
-
-        threshold_key = (
-            "completed_goal_reach_radius" if completed_goal else "goal_reach_radius"
-        )
-        raw_threshold = step_info.get(threshold_key)
-        if raw_threshold is None and completed_goal:
-            raw_threshold = step_info.get("goal_reach_radius")
-        if raw_threshold is None:
-            raw_threshold = default_success_threshold
-        if raw_threshold is None:
-            raise RuntimeError(
-                "Goal-coordinate replay requires a goal reach radius on every step."
-            )
-        return cls(
-            distance_metric="l2",
-            normalize_codes=False,
-            success_threshold=float(raw_threshold),
-        )
-
-    def distances(
-        self,
-        achieved_goal: np.ndarray,
-        desired_goal: np.ndarray,
-    ) -> np.ndarray:
-        return compute_goal_code_distance(
-            achieved_goal,
-            desired_goal,
-            metric=self.distance_metric,
-            normalize_codes=self.normalize_codes,
-        )
-
-    def is_success(
-        self,
-        achieved_goal: np.ndarray,
-        desired_goal: np.ndarray,
-    ) -> bool:
-        distances = self.distances(achieved_goal, desired_goal)
-        if distances.size != 1:
-            raise ValueError("is_success() requires exactly one goal transition.")
-        return bool(float(distances[0]) < self.success_threshold)
-
-    def state_dict(self) -> dict[str, Any]:
-        return {
-            "distance_metric": self.distance_metric,
-            "normalize_codes": self.normalize_codes,
-            "success_threshold": self.success_threshold,
-        }
-
-    @classmethod
-    def from_state_dict(cls, payload: dict[str, Any]) -> GoalSuccessMetric:
-        return cls(
-            distance_metric=str(payload["distance_metric"]),
-            normalize_codes=bool(payload["normalize_codes"]),
-            success_threshold=float(payload["success_threshold"]),
-        )
-
-
 @dataclass(slots=True)
 class GoalPlaceCodeRuntime:
     """Shared place-code runtime for current-state and goal snapshot encoding."""
@@ -164,10 +30,8 @@ class GoalPlaceCodeRuntime:
     goal_snapshot_extractor: FrozenRepresentationExtractor
     snapshot_heading_radians: float
     normalize_codes: bool
-    distance_metric: str
-    success_threshold: float
     feature_dim: int = field(init=False)
-    _goal_codebook_by_index: dict[int, np.ndarray] = field(init=False, default_factory=dict)
+    _goal_code_by_index: dict[int, np.ndarray] = field(init=False, default_factory=dict)
 
     def __post_init__(self) -> None:
         self.feature_dim = int(self.current_extractor.feature_dim)
@@ -200,8 +64,6 @@ class GoalPlaceCodeRuntime:
             ),
             snapshot_heading_radians=math.radians(float(goal_code_config.snapshot_heading_degrees)),
             normalize_codes=bool(goal_code_config.normalize_codes),
-            distance_metric=str(goal_code_config.distance_metric),
-            success_threshold=float(goal_code_config.success_threshold),
         )
 
     def reset_episode(self) -> None:
@@ -233,11 +95,11 @@ class GoalPlaceCodeRuntime:
         goal_xy: np.ndarray,
         goal_index: int | None,
     ) -> np.ndarray:
-        if goal_index is not None and goal_index in self._goal_codebook_by_index:
-            return self._goal_codebook_by_index[goal_index].copy()
+        if goal_index is not None and goal_index in self._goal_code_by_index:
+            return self._goal_code_by_index[goal_index].copy()
         code = self._encode_goal_snapshot(adapter=adapter, goal_xy=goal_xy)
         if goal_index is not None:
-            self._goal_codebook_by_index[goal_index] = code.copy()
+            self._goal_code_by_index[goal_index] = code.copy()
         return code
 
     def _goal_snapshot_kinematics(self) -> np.ndarray | None:

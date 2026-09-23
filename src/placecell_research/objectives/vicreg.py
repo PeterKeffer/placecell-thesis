@@ -15,12 +15,6 @@ from .masking import flatten_valid_steps, sample_time_mask, valid_steps
 
 @dataclass
 class VICRegObjective(ConfiguredObjective):
-    def required_representations(self) -> set[str]:
-        representations = super().required_representations()
-        if self.config.routing_mask_source:
-            representations.add(self.config.routing_mask_source)
-        return representations
-
     def compute(self, bundle: RepresentationBundle, batch: dict[str, Tensor]) -> ObjectiveResult:
         losses: list[Tensor] = []
         mean_std_values: list[Tensor] = []
@@ -32,20 +26,6 @@ class VICRegObjective(ConfiguredObjective):
             stride=self.config.anchor_stride,
             offset=self.config.anchor_offset,
         )
-        if self.config.routing_mask_source:
-            routing = bundle.get_representation(self.config.routing_mask_source)
-            if routing.shape[:2] != target_mask.shape:
-                raise ValueError(
-                    "VICReg routing mask must share the target batch and time dimensions."
-                )
-            if self.config.routing_mask_index >= routing.shape[-1]:
-                raise ValueError(
-                    f"VICReg routing_mask_index={self.config.routing_mask_index} is outside "
-                    f"the routing width {routing.shape[-1]}."
-                )
-            target_mask = target_mask & (
-                routing.argmax(dim=-1) == self.config.routing_mask_index
-            )
         for target_name in self.config.targets:
             target = bundle.get_representation(target_name)
             flat_target = flatten_valid_steps(target, target_mask)

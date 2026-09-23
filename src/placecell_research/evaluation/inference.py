@@ -20,7 +20,7 @@ from placecell_research.tracking.progress import ProgressUpdate
 _OPEN_LOOP_REANCHOR_STEPS = 8
 
 
-def _configure_open_loop_rollout(model: object, source_names: tuple[str, ...]) -> None:
+def configure_open_loop_rollout(model: object, source_names: tuple[str, ...]) -> None:
     """Enable the open-loop predictor rollout only when a predictor_rollout source is requested."""
     if hasattr(model, "export_open_loop_rollout_steps"):
         model.export_open_loop_rollout_steps = (  # type: ignore[attr-defined]
@@ -128,7 +128,7 @@ def collect_representations(
     device: torch.device,
     batch_size: int,
     include_batch_keys: list[str] | None = None,
-    observation_source: Literal["latent", "rgb", "action", "both"] | None = None,
+    observation_source: Literal["latent", "rgb", "both"] | None = None,
     max_episodes: int | None = None,
     progress_callback: Callable[[ProgressUpdate], None] | None = None,
     input_batch_cache: InputBatchCache | None = None,
@@ -171,7 +171,7 @@ def iter_representation_batches(
     device: torch.device,
     batch_size: int,
     include_batch_keys: list[str] | None = None,
-    observation_source: Literal["latent", "rgb", "action", "both"] | None = None,
+    observation_source: Literal["latent", "rgb", "both"] | None = None,
     max_episodes: int | None = None,
     progress_callback: Callable[[ProgressUpdate], None] | None = None,
     input_batch_cache: InputBatchCache | None = None,
@@ -182,8 +182,6 @@ def iter_representation_batches(
     if observation_source is None:
         section_started_at = perf_counter()
         components = getattr(model, "components", None)
-        if components is None:
-            components = getattr(getattr(model, "root", None), "components", None)
         observation_source = getattr(
             getattr(components, "config", None),
             "inputs",

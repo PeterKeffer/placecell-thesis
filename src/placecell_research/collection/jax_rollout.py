@@ -103,7 +103,7 @@ def _make_trajectory_scan(
             "action": action,
             "valid": ~done_flags,
         }
-        observation, state, _reward, done, info = jax.vmap(env.step)(state, action)
+        observation, state, _reward, _done, info = jax.vmap(env.step)(state, action)
         reached_goal = require_reached_goal(info)
         timed_out = state.t >= int(horizon)
         step_terminated = (~done_flags) & reached_goal & bool(terminate_on_goal)
@@ -131,34 +131,6 @@ def _make_trajectory_scan(
         return trajectory
 
     return scan_batch
-
-
-def rollout_jaxenstein(
-    *,
-    env_id: str,
-    num_envs: int,
-    horizon: int,
-    base_seed: int,
-    policy: Any,
-    terminate_on_goal: bool = True,
-    randomize_agent_start: bool | None = None,
-    uniform_spawn: bool = True,
-    keep_rgb_on_device: bool = False,
-) -> list[dict[str, Any]]:
-    """Roll out num_envs JAXenstein envs for horizon steps on-device (vmap + scan)."""
-    rollout = make_jaxenstein_rollout(
-        env_id=env_id,
-        policy=policy,
-        terminate_on_goal=terminate_on_goal,
-        randomize_agent_start=randomize_agent_start,
-        uniform_spawn=uniform_spawn,
-    )
-    return rollout(
-        num_envs=num_envs,
-        horizon=horizon,
-        base_seed=base_seed,
-        keep_rgb_on_device=keep_rgb_on_device,
-    )
 
 
 def make_jaxenstein_rollout(
