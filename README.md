@@ -33,7 +33,7 @@ driver (or a software Mesa build), on macOS a display that stays awake (for long
 
 ```bash
 pc reproduce --profile local --smoke --only baseline,no_competition,retrofitted_competition
-pc pipeline --config configs/experiment/smoke_jaxenstein.yaml   # museum pipeline, no display
+pc pipeline --config configs/experiment/smoke_museum.yaml   # museum pipeline, no display
 pytest tests/
 ```
 
@@ -47,8 +47,13 @@ summaries, in about ten minutes on a laptop. Everything goes to `smoke/`, which 
 under `artifacts/` and a run record under `runs/by_id/`. A stage whose inputs and settings match an
 existing artifact reuses it (`policies.artifact_reuse: reuse_if_config_match`), so all WallGap
 conditions share one collected dataset, split and visual encoder, and only the place-cell model is
-trained again. `pc inspect-config --config <config>` prints the resolved configuration, and
-`-o key=value` overrides any setting.
+trained again. A config sets only what differs from the configs it inherits, and its `name`
+names its runs. `pc inspect-config --config <config>` prints the resolved configuration, and
+`-o key=value` overrides any setting. A key that the schema (`src/placecell_research/config/`)
+does not declare is an error, so a misspelled or outdated setting stops the run before it starts.
+Each stage takes its device from its own section (`vision.device`, `encoding.device`,
+`spatial_model.training.device`, `representation_collection.device`, `evaluation.device`,
+`analysis.device`); `auto` picks CUDA, then MPS, then the CPU.
 
 `--place-tag <name>` gives the trained model a name that later commands accept as `tag:<name>`.
 The commands below tag the seed-42 model of a condition with the condition's name and the other
@@ -88,11 +93,11 @@ over the first 512 episodes of the training, validation and test splits. The thi
 |---|---|---|
 | Baseline model; Results, emergence of localized fields, traversals, population code | `baseline.yaml`, `untrained.yaml` | three seeds |
 | Prediction target and regularizers | `no_prediction`, `no_ema`, `next_visual_latent_target`, `same_step_no_predictor`, `same_step_with_predictor`, `reconstruction_target`, `variance_regularizer_off`, `covariance_regularizer_off`, `both_regularizers_off` | three seeds, except next visual latent target and reconstruction target |
-| Weight decay | `weight_decay_0`, `weight_decay_1e-6`, `weight_decay_1e-5_retrained`, `weight_decay_1e-4`, `both_regularizers_off_no_weight_decay`, `no_prediction_no_weight_decay`, `reconstruction_target_no_weight_decay`, `no_competition_no_weight_decay` | one seed; see below for the retrained reference |
+| Weight decay | `weight_decay_0`, `weight_decay_1e-6`, `weight_decay_1e-5`, `weight_decay_1e-4`, `both_regularizers_off_no_weight_decay`, `no_prediction_no_weight_decay`, `reconstruction_target_no_weight_decay`, `no_competition_no_weight_decay` | one seed; `weight_decay_1e-5` trains its own model, see below |
 | Self-motion and history | `actions_only`, `self_motion_only`, `no_motion_input`, `feedforward_encoder` | three seeds, feedforward encoder one |
 | Competition | `winners_1`, `winners_5`, `winners_26`, `winners_51`, `winners_128`, `no_competition`, `l1_0.003`, `l1_0.01`, `l1_0.03` | `no_competition` and `l1_0.003` three seeds; the baseline is the 10-winner point |
 | Competition after training | `competition_added_after_training`, `retrofitted_competition` | need the trained `no_competition` model; retrofitted three seeds, one parent per seed; see below |
-| Encoder and predictor width, cell type, code width | `width_<encoder>_<predictor>` (8 files; 1,024 / 512 is the baseline), `cell_type_gru_gru`, `cell_type_gru_lstm`, `cell_type_lstm_lstm`, `code_width_128`, `code_width_256` | one seed |
+| Encoder and predictor width, cell type, code width | `encoder_<width>_predictor_<width>` (8 files; 1,024 / 512 is the baseline), `encoder_gru_predictor_gru`, `encoder_gru_predictor_lstm`, `encoder_lstm_predictor_lstm`, `code_128`, `code_256` | one seed |
 | Objects removed | `objects_removed` | collects its own dataset |
 | Second environment | `museum`, `museum_untrained` | three seeds |
 | Navigation | `configs/thesis/navigation/` (28 files) | see Navigation |
@@ -134,10 +139,11 @@ column is left out for a condition when any of its runs has no value.
 - `competition_added_after_training` trains nothing. It keeps the 10 largest values of each step
   of the `no_competition` code at read time (`measures.read_time_top_k: 10`):
   `pc measures -c configs/thesis/competition_added_after_training.yaml -o reuse.place_model_artifact_id=tag:no_competition`.
-- `weight_decay_1e-5_retrained` is the baseline recipe trained a second time as the matched
-  reference of the weight-decay rows. Its config forces a new model and runs only the training,
+- `weight_decay_1e-5` is the default-value point of the weight-decay series. It has the
+  baseline recipe but trains a model of its own, which the weight-decay rows report. Its config
+  forces a new model and runs only the training,
   evaluation and analysis stages, so pass the WallGap data:
-  `pc pipeline -c configs/thesis/weight_decay_1e-5_retrained.yaml --dataset auto`, which picks
+  `pc pipeline -c configs/thesis/weight_decay_1e-5.yaml --dataset auto`, which picks
   the finished data chain that matches the config.
 
 ### Decoding inputs and stages
@@ -272,26 +278,37 @@ about 750 GPU hours for the models, a little over two weeks with two GPUs at a t
 ## Repository layout
 
 ```
-configs/thesis/              one config per thesis condition
-configs/thesis/navigation/   one config per navigation algorithm, input and goal
-configs/reproduce.yaml       seeds, stage decoding and smoke sizes of the pc reproduce plan
-configs/launcher/            execution profiles: local, slurm, hpc3
-configs/experiment/          WallGap and museum base recipes, smoke configs
-configs/study/               example sweep and curriculum
-configs/<group>/             shared blocks (environment, collection, vision, model, analysis, ...)
-configs/downstream/          navigation base configs (PPO, DQN)
+configs/
+  thesis/                    one config per thesis condition
+  thesis/navigation/         one config per navigation algorithm, input and goal
+  experiment/                WallGap and museum base recipes (wallgap, museum) and smoke configs
+  downstream/                navigation base configs (PPO, DQN)
+  launcher/                  execution profiles: local, slurm, hpc3
+  study/                     example sweep and curriculum
+  analysis/ collection/ dataset/ environment/ evaluation/ splits/ spatial_model/ tracking/ vision/
+                             shared blocks the recipes compose
+  reproduce.yaml             seeds, stage decoding and smoke sizes of the pc reproduce plan
 src/placecell_research/
+  config/                    typed schema, loading, validation (experiment and navigation configs)
+  launch/                    the pc command line, SLURM scripts, remote runs, user settings
   reproduce/                 the pc reproduce plan and its local and SLURM executors
   stages/                    one module per pipeline stage
-  collection/ envs/          data collection, MiniWorld WallGap and JAXenstein museum
+  envs/ collection/          MiniWorld WallGap and JAXenstein museum, data collection
+  datasets/                  Zarr datasets, splits, batch readers, node-local staging
   vision/                    convolutional autoencoder
-  spatial_model/ objectives/ training/   place-cell model, losses, training loop
-  evaluation/ analysis/      pc evaluate and pc analyze
+  spatial_model/             place-cell model: encoder, predictor, sparsifiers, EMA teacher
+  objectives/ training/      losses and the training loop
+  evaluation/                pc evaluate, stored forward passes, decoders
+  analysis/ numerics/        pc analyze modules and their kernels
   measures/                  pc measures, pc summarize, pc navigation-measures
   downstream/                navigation agents
-  launch/                    the pc command line, SLURM scripts, remote runs, user settings
-scripts/setup_env.sh         creates the conda environment and runs pc doctor
-scripts/slurm/               per-job environment setup (common, MiniWorld/EGL, JAXenstein, site/hpc3)
-scripts/evaluation/ scripts/experiments/   standalone frozen-code, traversal and navigation evaluation
+  studies/                   pc sweep and pc curriculum
+  artifacts/ tracking/       artifact registry, run records, logging
+  utils/                     small shared helpers
+scripts/
+  setup_env.sh               creates the conda environment and runs pc doctor
+  slurm/                     per-job environment setup (common, MiniWorld/EGL, JAXenstein, site/hpc3)
+  evaluation/frozen_controls.py        frozen code organisation and reset/blackout recovery
+  experiments/*_navigation_memory.py   navigation policies with exploration or a per-step state reset
 tests/                       pytest suite
 ```
