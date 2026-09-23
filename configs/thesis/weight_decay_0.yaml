@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: weight_decay_0
+spatial_model:
+  training:
+    weight_decay: 0.0
+tracking:
+  variant_name: weight_decay_0

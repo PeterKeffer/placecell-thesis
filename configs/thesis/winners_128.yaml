@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: winners_128
+spatial_model:
+  sparsifier:
+    k_fraction: 0.25
+tracking:
+  variant_name: winners_128

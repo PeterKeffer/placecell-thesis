@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: cell_type_lstm_lstm
+spatial_model:
+  predictor:
+    family: lstm
+tracking:
+  variant_name: cell_type_lstm_lstm

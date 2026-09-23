@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: actions_only
+spatial_model:
+  inputs:
+    predictor_context_channels: [action]
+tracking:
+  variant_name: actions_only

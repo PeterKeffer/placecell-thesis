@@ -1,0 +1,9 @@
+defaults: [baseline]
+name: cell_type_gru_lstm
+spatial_model:
+  encoder:
+    family: gru
+  predictor:
+    family: lstm
+tracking:
+  variant_name: cell_type_gru_lstm

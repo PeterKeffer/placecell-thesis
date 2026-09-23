@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: no_motion_input
+spatial_model:
+  inputs:
+    predictor_context_channels: []
+tracking:
+  variant_name: no_motion_input

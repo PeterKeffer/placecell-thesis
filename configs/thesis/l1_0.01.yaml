@@ -1,0 +1,13 @@
+defaults: [baseline]
+name: l1_0.01
+spatial_model:
+  sparsifier:
+    type: none
+  objectives:
+    l1_encoder:
+      type: l1_sparsity
+      targets: [encoder.place_codes]
+      weight: 5.12
+      semantics_version: 2
+tracking:
+  variant_name: l1_0.01

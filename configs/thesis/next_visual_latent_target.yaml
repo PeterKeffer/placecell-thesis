@@ -1,0 +1,11 @@
+defaults: [baseline]
+name: next_visual_latent_target
+spatial_model:
+  objectives:
+    prediction_cosine:
+      weight: 0.0
+    world_latent_reconstruction:
+      type: latent_reconstruction
+      weight: 1.0
+tracking:
+  variant_name: next_visual_latent_target

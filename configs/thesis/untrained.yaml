@@ -1,0 +1,9 @@
+defaults: [baseline]
+name: untrained
+spatial_model:
+  training:
+    epochs: 1
+    learning_rate: 1.0e-12
+    weight_decay: 0.0
+tracking:
+  variant_name: untrained

@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: no_competition
+spatial_model:
+  sparsifier:
+    k_fraction: 1.0
+tracking:
+  variant_name: no_competition

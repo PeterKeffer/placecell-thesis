@@ -1,0 +1,14 @@
+defaults: [baseline]
+name: retrofitted_competition
+policies:
+  training_resume: weights_only
+reuse:
+  place_model_artifact_id: tag:no_competition
+spatial_model:
+  training:
+    phases:
+    - name: frozen_lstm_top10_adaptation
+      epochs: 128
+      train: [encoder_head, predictor, embeddings]
+tracking:
+  variant_name: retrofitted_competition

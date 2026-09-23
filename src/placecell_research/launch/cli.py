@@ -320,10 +320,11 @@ def _echo_stage_result(result: dict[str, object] | None) -> None:
 
 def _register_command_groups() -> None:
     """Attach every command group onto the root app at import time."""
-    from placecell_research.launch.commands import downstream, pipeline, remote
+    from placecell_research.launch.commands import downstream, measures, pipeline, remote
 
     pipeline.register(app)
     downstream.register(app)
+    measures.register(app)
     remote.register(app)
 
 

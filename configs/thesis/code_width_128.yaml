@@ -1,0 +1,9 @@
+defaults: [baseline]
+name: code_width_128
+spatial_model:
+  sparsifier:
+    k_fraction: 0.078125
+  training:
+    code_dim: 128
+tracking:
+  variant_name: code_width_128

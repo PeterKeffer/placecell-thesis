@@ -1,0 +1,10 @@
+defaults: [baseline]
+name: same_step_no_predictor
+spatial_model:
+  objectives:
+    prediction_cosine:
+      type: timescale_alignment
+      targets: [encoder.place_codes, teacher.place_codes]
+      timescale: 0
+tracking:
+  variant_name: same_step_no_predictor

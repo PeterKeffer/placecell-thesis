@@ -1,0 +1,18 @@
+defaults: [../../downstream/wallgap_navigation_ppo]
+name: ppo_pixels_north
+models:
+  vision_encoder_artifact_id: auto
+goal_task:
+  candidate_positions_xy:
+  - [0.0, 18.0]
+observation:
+  mode: raw_pixels
+  feature_sources: [goal_xy_scaled, heading_sin_cos]
+training:
+  cnn_features_dim: 512
+  device: auto
+  total_timesteps: 3000000
+  learning_rate: 0.0005
+  ent_coef: 0.01
+tracking:
+  variant_name: ppo_pixels_north

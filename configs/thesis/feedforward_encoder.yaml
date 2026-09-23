@@ -1,0 +1,25 @@
+defaults: [baseline]
+name: feedforward_encoder
+spatial_model:
+  encoder:
+    family: mlp
+    layer_sizes: [3537, 3537, 3537]
+evaluation:
+  sources: [encoder.place_codes, predictor.place_codes, encoder.backbone_output, encoder.pre_sparsifier,
+    predictor.hidden_state]
+analysis:
+  comparative:
+    combined_example_episode:
+      inputs:
+      - label: encoder_place_cells
+        source: encoder.place_codes
+      - label: predictor_place_cells
+        source: predictor.place_codes
+      - label: encoder_pre_sparsifier
+        source: encoder.pre_sparsifier
+      - label: encoder_backbone_output
+        source: encoder.backbone_output
+      - label: predictor_hidden_state
+        source: predictor.hidden_state
+tracking:
+  variant_name: feedforward_encoder

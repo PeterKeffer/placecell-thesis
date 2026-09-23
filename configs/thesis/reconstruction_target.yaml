@@ -1,0 +1,12 @@
+defaults: [baseline]
+name: reconstruction_target
+spatial_model:
+  objectives:
+    prediction_cosine:
+      weight: 0.0
+    current_latent_reconstruction:
+      type: latent_reconstruction
+      targets: [encoder.place_codes]
+      weight: 1.0
+tracking:
+  variant_name: reconstruction_target

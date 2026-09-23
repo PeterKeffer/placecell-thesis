@@ -1,0 +1,7 @@
+defaults: [baseline]
+name: no_ema
+spatial_model:
+  teacher_student:
+    ema_decay: 0.0
+tracking:
+  variant_name: no_ema

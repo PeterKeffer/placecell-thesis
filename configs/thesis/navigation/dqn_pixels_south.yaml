@@ -1,0 +1,19 @@
+defaults: [../../downstream/wallgap_navigation_dqn]
+name: dqn_pixels_south
+models:
+  vision_encoder_artifact_id: auto
+goal_task:
+  candidate_positions_xy:
+  - [18.0, -22.0]
+observation:
+  mode: raw_pixels
+  feature_sources: [goal_xy_scaled, heading_sin_cos]
+training:
+  cnn_features_dim: 512
+  device: auto
+  total_timesteps: 3000000
+  exploration_fraction: 0.1667
+  learning_rate: 0.0001
+  exploration_final_eps: 0.05
+tracking:
+  variant_name: dqn_pixels_south
