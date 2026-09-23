@@ -520,7 +520,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 "dataset_artifact_id": dataset_id,
                 "split_artifact_id": split_id,
                 "episode_ids": {name: list(map(int, ids)) for name, ids in episode_ids.items()},
-                "evaluation_config": evaluation_config,
+                "evaluation_config": config.to_dict()["evaluation"],
                 "representation_set_artifact_id": representation_set_id,
                 "representation_inference": (
                     {key: stored_inference[key] for key in
@@ -566,6 +566,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             files_writer=_write_report,
             config_fingerprint_value=stage_fingerprint,
             raw_config=raw_config,
+            active_config=config.to_dict(),
             hyperparameter_sections=[
                 "evaluation",
                 "dataset",

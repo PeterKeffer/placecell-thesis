@@ -287,6 +287,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         write_artifact_config_snapshots(
             temp_dir,
             raw_payload,
+            config.to_dict(),
             stage_name="encode_dataset",
             section_names=["dataset", "vision", "seed", "policies", "reuse", "tracking"],
             extra_payload={

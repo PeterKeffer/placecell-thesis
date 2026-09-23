@@ -114,6 +114,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         write_artifact_config_snapshots(
             temp_dir,
             raw_config,
+            config.to_dict(),
             stage_name="collect_dataset",
             section_names=[
                 "environment",

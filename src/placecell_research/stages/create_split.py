@@ -129,6 +129,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         write_artifact_config_snapshots(
             temp_dir,
             raw_config,
+            config.to_dict(),
             stage_name="create_split",
             section_names=["dataset", "splits", "seed", "policies", "tracking"],
             extra_payload={

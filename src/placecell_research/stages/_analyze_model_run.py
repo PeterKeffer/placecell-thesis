@@ -450,6 +450,12 @@ def execute_comparative_work_items(
         collection_cache.clear()
 
 
+def _active_config(config, analysis_config: dict[str, object]) -> dict[str, object]:
+    """Schema-resolved config whose analysis section carries the values this stage ran with."""
+    active_config = config.to_dict()
+    return {**active_config, "analysis": {**active_config["analysis"], **analysis_config}}
+
+
 def finalize_report(
     *,
     single_results: dict[str, AnalysisResult],
@@ -509,6 +515,7 @@ def finalize_report(
         files_writer=_write_report,
         config_fingerprint_value=stage_fingerprint,
         raw_config=raw_config,
+        active_config=_active_config(runtime.config, analysis_config),
         hyperparameter_sections=[
             "analysis",
             "dataset",

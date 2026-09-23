@@ -187,6 +187,7 @@ def publish_report(
     files_writer: Callable[[Path, str], None],
     config_fingerprint_value: str | None = None,
     raw_config: dict[str, Any] | None = None,
+    active_config: dict[str, Any] | None = None,
     hyperparameter_sections: list[str] | None = None,
     hyperparameter_context: dict[str, Any] | None = None,
 ) -> tuple[str, Path]:
@@ -200,6 +201,7 @@ def publish_report(
             write_artifact_config_snapshots(
                 temporary_path,
                 raw_config,
+                active_config or {},
                 stage_name=stage_name,
                 section_names=hyperparameter_sections or [],
                 extra_payload=hyperparameter_context or {"artifact_id": artifact_id},

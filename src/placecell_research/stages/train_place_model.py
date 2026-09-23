@@ -1282,6 +1282,7 @@ def run(
             write_artifact_config_snapshots(
                 temporary_dir,
                 raw_config,
+                config.to_dict(),
                 stage_name="train_place_model",
                 section_names=[
                     "spatial_model",

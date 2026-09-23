@@ -186,6 +186,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         write_artifact_config_snapshots(
             temp_dir,
             raw_config,
+            config.to_dict(),
             stage_name=_STAGE_NAME,
             section_names=["representation_collection", "seed", "policies", "reuse", "tracking"],
             extra_payload={"artifact_id": artifact_id},
