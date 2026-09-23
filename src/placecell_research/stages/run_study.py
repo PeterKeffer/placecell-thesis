@@ -64,13 +64,12 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     repo_root = find_repo_root(config_path)
     variant_slug = generate_variant_slug(
         study_config.to_dict(),
-        fallback_name=study_config.tracking.variant_name
-        or study_config.name,
+        fallback_name=study_config.name,
     )
     run_identity = RunIdentity(
         run_id=make_run_id(repo_root, descriptor=variant_slug),
         study_name=study_config.tracking.study_name,
-        variant_name=study_config.tracking.variant_name,
+        variant_name=study_config.name,
         variant_slug=variant_slug,
         signature=f"study__{study_config.name}",
     )

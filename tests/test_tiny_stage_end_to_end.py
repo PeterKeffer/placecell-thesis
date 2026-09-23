@@ -157,7 +157,7 @@ def test_tiny_stage_end_to_end_runs_train_eval_and_analysis(tmp_path: Path, monk
     Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
 
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     artifact_root = tmp_path / "artifacts"
     raw_artifact_id = "raw_tiny_stage_e2e"
@@ -416,7 +416,7 @@ def test_train_vision_encoder_uses_raw_dataset_split_for_validation_when_availab
     pytest.importorskip("zarr")
 
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     artifact_root = tmp_path / "artifacts"
     raw_artifact_id = "raw_tiny_stage_with_validation"
@@ -450,7 +450,7 @@ def test_train_vision_encoder_uses_default_validation_split_without_split_artifa
     pytest.importorskip("zarr")
 
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     artifact_root = tmp_path / "artifacts"
     raw_artifact_id = "raw_tiny_stage_default_validation"
@@ -530,7 +530,7 @@ def test_collect_stage_publishes_without_repo_root_temp_leak(tmp_path: Path, mon
 
     monkeypatch.setattr(collect_dataset, "collect_raw_dataset", fake_collect_raw_dataset)
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
 
     result = collect_dataset.run(config_path, _common_overrides(tmp_path))
@@ -626,7 +626,7 @@ def test_collect_stage_emits_collection_progress_updates(
 
     monkeypatch.setattr(collect_dataset, "collect_raw_dataset", fake_collect_raw_dataset)
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
 
     collect_dataset.run(config_path, _common_overrides(tmp_path))

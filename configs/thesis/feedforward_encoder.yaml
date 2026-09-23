@@ -21,5 +21,3 @@ analysis:
         source: encoder.backbone_output
       - label: predictor_hidden_state
         source: predictor.hidden_state
-tracking:
-  variant_name: feedforward_encoder

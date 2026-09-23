@@ -4,23 +4,21 @@ defaults:
   - {dataset: default}
   - {splits: episode_random}
   - {vision: autoencoder_64}
-  - {spatial_model: lstm_gru_kwinners_submit_stream}
+  - {spatial_model: lstm_gru_kwinners}
   - {evaluation: default}
   - {analysis: standard}
   - {tracking: local}
   - {launcher: local}
 
-name: jaxenstein_museum_place_offline
+name: museum
 
 seed:
-  global_seed: 42
   collection_seed: 42
   split_seed: 42
   training_seed: 42
 
 policies:
   artifact_reuse: reuse_if_config_match
-  training_resume: fresh
 
 environment:
   episode_length: 2048
@@ -29,36 +27,18 @@ collection:
   episodes: 8192
   episode_length: 2048
   num_parallel_envs: 256
-  policy: ou_smoothed_random
 
 vision:
   epochs: 16
   batch_size: 256
   max_episodes: 0
 
-spatial_model:
-  training:
-    epochs: 128
-    batch_size: 32
-
 evaluation:
   eval_every_n_epochs: 8
 
 analysis:
-  num_bins_x: 60
-  num_bins_y: 60
   smoothing_sigma: 0.0
 
 tracking:
   study_name: jaxenstein_museum
-  variant_name: museum_lstm_gru_kwinners
 
-pipeline:
-  stages:
-  - collect_dataset
-  - create_split
-  - train_vision_encoder
-  - encode_dataset
-  - train_place_model
-  - evaluate_model
-  - analyze_model

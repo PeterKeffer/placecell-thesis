@@ -12,7 +12,7 @@ from placecell_research.config.schema import (
 from placecell_research.studies.curriculum import CurriculumStageRunners, run_curriculum
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BASE_EXPERIMENT_PATH = REPO_ROOT / "configs/experiment/smoke_jaxenstein.yaml"
+BASE_EXPERIMENT_PATH = REPO_ROOT / "configs/experiment/smoke_museum.yaml"
 
 
 def test_curriculum_injects_explicit_comparative_inputs() -> None:
@@ -40,7 +40,7 @@ def test_curriculum_injects_explicit_comparative_inputs() -> None:
 
     curriculum = CurriculumConfig(
         name="remap_test",
-        base_experiment="smoke_jaxenstein",
+        base_experiment="smoke_museum",
         phases=[
             CurriculumPhaseConfig(
                 name="env_a",
@@ -158,7 +158,7 @@ def test_curriculum_collects_named_sources_then_reuses_them_for_shared_vision_an
 
     curriculum = CurriculumConfig(
         name="shared_ae_sources",
-        base_experiment="smoke_jaxenstein",
+        base_experiment="smoke_museum",
         sources={
             "env_a": CurriculumSourceConfig(
                 environment={"env_id": "MiniWorld-WallGapAsym-v0"},

@@ -10,6 +10,3 @@ observation:
 training:
   total_timesteps: 3000000
   learning_rate: 0.0005
-  ent_coef: 0.01
-tracking:
-  variant_name: ppo_coordinates_south

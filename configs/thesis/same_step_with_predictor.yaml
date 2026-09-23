@@ -4,5 +4,3 @@ spatial_model:
   objectives:
     prediction_cosine:
       target_offset: 0
-tracking:
-  variant_name: same_step_with_predictor

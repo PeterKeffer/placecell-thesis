@@ -8,11 +8,8 @@ goal_task:
 observation:
   feature_sources: [synthetic_grid_cells, goal_xy_scaled, heading_sin_cos]
   synthetic_grid_cells:
-    num_cells: 512
     normalization: l2
 training:
   total_timesteps: 3000000
   learning_rate: 0.0001
   ent_coef: 0.02
-tracking:
-  variant_name: ppo_synthetic_grid_cells_south

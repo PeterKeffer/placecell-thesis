@@ -3,5 +3,3 @@ name: objects_removed
 environment:
   env_kwargs:
     place_landmark_objects: false
-tracking:
-  variant_name: objects_removed

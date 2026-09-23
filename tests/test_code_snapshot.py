@@ -130,7 +130,7 @@ def test_parse_code_snapshot_output_fails_loudly_on_a_truncated_report() -> None
 def test_rewrite_config_path_for_snapshot_maps_into_the_frozen_copy() -> None:
     rewritten = code_snapshot.rewrite_config_path_for_snapshot(
         remote_config_path=PurePosixPath(
-            f"{REMOTE_REPO_ROOT}/configs/experiment/smoke_miniworld.yaml"
+            f"{REMOTE_REPO_ROOT}/configs/experiment/smoke_wallgap.yaml"
         ),
         remote_repo_root=PurePosixPath(REMOTE_REPO_ROOT),
         snapshot_path=f"{REMOTE_REPO_ROOT}/.code_snapshots/20260826T101112Z_ab12cd34",
@@ -138,7 +138,7 @@ def test_rewrite_config_path_for_snapshot_maps_into_the_frozen_copy() -> None:
 
     assert str(rewritten) == (
         f"{REMOTE_REPO_ROOT}/.code_snapshots/20260826T101112Z_ab12cd34"
-        "/configs/experiment/smoke_miniworld.yaml"
+        "/configs/experiment/smoke_wallgap.yaml"
     )
 
 
@@ -160,7 +160,7 @@ def test_repo_root_resolves_past_a_snapshot_to_the_shared_checkout(tmp_path: Pat
     snapshot = repo_root / code_snapshot.SNAPSHOT_DIR_NAME / "20260826T101112Z_ab12cd34"
     (snapshot / "src" / "placecell_research").mkdir(parents=True)
     (snapshot / "configs" / "experiment").mkdir(parents=True)
-    snapshot_config = snapshot / "configs" / "experiment" / "smoke_miniworld.yaml"
+    snapshot_config = snapshot / "configs" / "experiment" / "smoke_wallgap.yaml"
     snapshot_config.write_text("name: smoke\n")
 
     assert find_repo_root(snapshot_config) == repo_root
@@ -186,7 +186,7 @@ def test_config_fingerprint_survives_the_move_into_a_snapshot(tmp_path: Path) ->
         config = load_experiment_config(config_path, ["launcher=hpc3"])
         return config_fingerprint(yaml.safe_dump(config.to_dict(), sort_keys=False))
 
-    relative_config = Path("configs") / "experiment" / "smoke_miniworld.yaml"
+    relative_config = Path("configs") / "experiment" / "smoke_wallgap.yaml"
 
     assert fingerprint(repo_root / relative_config) == fingerprint(tmp_path / relative_config)
 
@@ -249,14 +249,14 @@ def test_submit_command_points_the_job_at_the_snapshot() -> None:
 
     script = remote_run.format_remote_cli_command(
         settings,
-        ["submit", "--config", f"{snapshot.path}/configs/experiment/smoke_miniworld.yaml"],
+        ["submit", "--config", f"{snapshot.path}/configs/experiment/smoke_wallgap.yaml"],
         snapshot,
     )
 
     assert f"export PYTHONPATH={snapshot.path}/src" in script
     assert "${PYTHONPATH:+:${PYTHONPATH}}" in script
     assert f"export PLACECELL_CODE_SNAPSHOT={snapshot.path}" in script
-    assert f"--config {snapshot.path}/configs/experiment/smoke_miniworld.yaml" in script
+    assert f"--config {snapshot.path}/configs/experiment/smoke_wallgap.yaml" in script
     assert f"cd {REMOTE_REPO_ROOT}" in script
     assert script.index("conda activate placecell") < script.index("export PYTHONPATH")
 
@@ -293,7 +293,7 @@ def _fake_submit_transport(observed_commands: list[list[str]], snapshot_path: st
 
 def test_submit_remote_slurm_job_snapshots_by_default(monkeypatch) -> None:
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     snapshot_path = f"{REMOTE_REPO_ROOT}/.code_snapshots/20260826T101112Z_ab12cd34"
     observed_commands: list[list[str]] = []
@@ -310,7 +310,7 @@ def test_submit_remote_slurm_job_snapshots_by_default(monkeypatch) -> None:
     assert result.code_snapshot_hash == "ab12cd34"
     assert len(observed_commands) == 2
     submit_script = observed_commands[1][-1]
-    assert f"--config {snapshot_path}/configs/experiment/smoke_miniworld.yaml" in submit_script
+    assert f"--config {snapshot_path}/configs/experiment/smoke_wallgap.yaml" in submit_script
     assert f"export PYTHONPATH={snapshot_path}/src" in submit_script
     assert (
         result.slurm_log_path
@@ -320,7 +320,7 @@ def test_submit_remote_slurm_job_snapshots_by_default(monkeypatch) -> None:
 
 def test_submit_remote_slurm_job_escape_hatch_skips_the_snapshot(monkeypatch) -> None:
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     observed_commands: list[list[str]] = []
     monkeypatch.setattr(
@@ -336,7 +336,7 @@ def test_submit_remote_slurm_job_escape_hatch_skips_the_snapshot(monkeypatch) ->
     assert result.code_snapshot_path == ""
     assert len(observed_commands) == 1
     assert (
-        f"--config {REMOTE_REPO_ROOT}/configs/experiment/smoke_miniworld.yaml"
+        f"--config {REMOTE_REPO_ROOT}/configs/experiment/smoke_wallgap.yaml"
         in observed_commands[0][-1]
     )
 
@@ -408,7 +408,7 @@ def _fake_chained_transport(created_snapshot_paths: list[str], submitted_scripts
 def test_a_chain_of_detached_submissions_shares_one_snapshot(monkeypatch) -> None:
     """Ten chained jobs off an unchanged tree get one frozen copy, each pinned to it."""
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     created_snapshot_paths: list[str] = []
     submitted_scripts: list[str] = []
@@ -447,7 +447,7 @@ def test_a_chain_of_detached_submissions_shares_one_snapshot(monkeypatch) -> Non
         assert f"export PYTHONPATH={created_snapshot_paths[0]}/src" in script
         assert f"export {code_snapshot.SNAPSHOT_ENV_VAR}={created_snapshot_paths[0]}" in script
         assert (
-            f"--config {created_snapshot_paths[0]}/configs/experiment/smoke_miniworld.yaml"
+            f"--config {created_snapshot_paths[0]}/configs/experiment/smoke_wallgap.yaml"
             in script
         )
     assert "--slurm-dependency" not in submitted_scripts[0]
@@ -486,7 +486,7 @@ def _make_remote_checkout(root: Path) -> Path:
     module.parent.mkdir(parents=True)
     module.write_text("VALUE = 1\n")
     (root / "configs").mkdir()
-    (root / "configs" / "smoke_miniworld.yaml").write_text("epochs: 1\n")
+    (root / "configs" / "smoke_wallgap.yaml").write_text("epochs: 1\n")
     (root / "scripts" / "slurm").mkdir(parents=True)
     (root / "scripts" / "slurm" / "env_common.sh").write_text("# env\n")
     return module

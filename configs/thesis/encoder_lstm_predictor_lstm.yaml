@@ -1,0 +1,5 @@
+defaults: [baseline]
+name: encoder_lstm_predictor_lstm
+spatial_model:
+  predictor:
+    family: lstm

@@ -144,7 +144,6 @@ class TrackingConfig:
     run_root: Path = Path("runs")
     artifact_root: Path = Path("artifacts")
     study_name: str = "default_study"
-    variant_name: str = "baseline"
     tags: list[str] = field(default_factory=list)
     output_tags: TrackingOutputTagsConfig = field(default_factory=TrackingOutputTagsConfig)
 

@@ -1,9 +1,3 @@
-use_wandb: false
 wandb_mode: disabled
-wandb_failure_mode: warn
-log_interval_steps: 50
-run_root: runs
-artifact_root: artifacts
 study_name: wallgap
-variant_name: baseline
 tags: [local]

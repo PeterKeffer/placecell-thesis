@@ -9,8 +9,8 @@ from placecell_research.launch import submit as submit_module
 from placecell_research.launch.submit import default_environment_activation, submit_cli_entrypoint
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SMOKE_CONFIG = REPO_ROOT / "configs" / "experiment" / "smoke_miniworld.yaml"
-MUSEUM_CONFIG = REPO_ROOT / "configs" / "experiment" / "smoke_jaxenstein.yaml"
+SMOKE_CONFIG = REPO_ROOT / "configs" / "experiment" / "smoke_wallgap.yaml"
+MUSEUM_CONFIG = REPO_ROOT / "configs" / "experiment" / "smoke_museum.yaml"
 NAVIGATION_CONFIG = REPO_ROOT / "configs" / "thesis" / "navigation" / "ppo_place_code_north.yaml"
 
 

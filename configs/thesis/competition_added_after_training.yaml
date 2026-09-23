@@ -2,5 +2,3 @@ defaults: [no_competition]
 name: competition_added_after_training
 measures:
   read_time_top_k: 10
-tracking:
-  variant_name: competition_added_after_training

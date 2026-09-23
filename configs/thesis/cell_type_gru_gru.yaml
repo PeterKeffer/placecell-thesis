@@ -1,7 +1,0 @@
-defaults: [baseline]
-name: cell_type_gru_gru
-spatial_model:
-  encoder:
-    family: gru
-tracking:
-  variant_name: cell_type_gru_gru

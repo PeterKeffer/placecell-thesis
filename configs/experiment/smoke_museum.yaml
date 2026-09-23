@@ -1,7 +1,7 @@
 defaults:
-  - jaxenstein_museum_place_offline
+  - museum
 
-name: smoke_jaxenstein
+name: smoke_museum
 
 policies:
   artifact_reuse: force_recompute
@@ -51,4 +51,3 @@ tracking:
   artifact_root: smoke/artifacts
   run_root: smoke/runs
   study_name: smoke
-  variant_name: smoke_jaxenstein

@@ -595,7 +595,7 @@ def _summarize_headline_config(config) -> dict[str, Any]:
         },
         "tracking": {
             "study_name": getattr(config.tracking, "study_name", ""),
-            "variant_name": getattr(config.tracking, "variant_name", ""),
+            "variant_name": config.name,
             "tags": list(getattr(config.tracking, "tags", []) or []),
             "use_wandb": getattr(config.tracking, "use_wandb", False),
             "wandb_project": getattr(config.tracking, "wandb_project", ""),
@@ -1125,12 +1125,12 @@ def run(
     config_payload = config.to_dict()
     variant_slug = generate_variant_slug(
         config_payload,
-        fallback_name=config.tracking.variant_name,
+        fallback_name=config.name,
     )
     pipeline_identity = RunIdentity(
         run_id=_make_pipeline_run_id(repo_root, descriptor=variant_slug),
         study_name=config.tracking.study_name,
-        variant_name=config.tracking.variant_name,
+        variant_name=config.name,
         variant_slug=variant_slug,
         signature=generate_signature(config_payload),
     )

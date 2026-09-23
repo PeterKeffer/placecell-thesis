@@ -48,8 +48,8 @@ def test_dependent_conditions_wait_for_their_parent_model(full_plan) -> None:
     assert added.dependencies == ("representations.no_competition.s42",)
     assert "train.competition_added_after_training.s42" not in full_plan
     assert "reuse.place_model_artifact_id=tag:no_competition" in _overrides(added)
-    retrained = full_plan["train.weight_decay_1e-5_retrained.s42"]
-    assert retrained.arguments[-2:] == ("--dataset", "auto")
+    default_decay = full_plan["train.weight_decay_1e-5.s42"]
+    assert default_decay.arguments[-2:] == ("--dataset", "auto")
     navigation = full_plan["navigation.dqn_pixels_south.s9"]
     assert navigation.dependencies == ("train.baseline.s42",)
     assert "seed=9" in _overrides(navigation)
@@ -89,7 +89,9 @@ def test_smoke_plan_is_small_keeps_conditions_distinct_and_writes_to_smoke() -> 
     steps = {
         step.name: step
         for step in build_plan(
-            CONFIG_ROOT, only=["baseline", "width_256_256", "no_competition"], smoke=True
+            CONFIG_ROOT,
+            only=["baseline", "encoder_256_predictor_256", "no_competition"],
+            smoke=True,
         )
     }
     assert not any(name.endswith((".s1", ".s2")) for name in steps)
@@ -98,7 +100,7 @@ def test_smoke_plan_is_small_keeps_conditions_distinct_and_writes_to_smoke() -> 
         "navigation.measures",
     ]
     baseline = _overrides(steps["train.baseline.s42"])
-    narrow = _overrides(steps["train.width_256_256.s42"])
+    narrow = _overrides(steps["train.encoder_256_predictor_256.s42"])
     assert "spatial_model.encoder.layer_sizes=[32,32,32]" in baseline
     assert "spatial_model.encoder.layer_sizes=[8,8,8]" in narrow
     assert "tracking.artifact_root=smoke/artifacts" in baseline

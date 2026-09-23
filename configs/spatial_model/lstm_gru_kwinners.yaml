@@ -1,0 +1,27 @@
+encoder:
+  family: lstm
+  layer_sizes: [1024, 1024, 1024]
+  normalize_codes: false
+predictor:
+  layer_sizes: [512, 512]
+  normalize_codes: false
+sparsifier:
+  type: kwinners
+  k_fraction: 0.02
+  temperature: 0.5
+teacher_student:
+  teacher_sees_unmasked: true
+objectives:
+  prediction_cosine:
+    type: prediction_alignment
+  vicreg_encoder:
+    type: vicreg
+    targets: [encoder.place_codes]
+    variance_weight: 5.0
+    covariance_weight: 1.0
+    minimum_std: 0.1
+training:
+  epochs: 128
+  code_dim: 512
+  num_workers: 8
+  optimizer: adam

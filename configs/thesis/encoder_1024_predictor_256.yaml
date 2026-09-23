@@ -1,0 +1,5 @@
+defaults: [baseline]
+name: encoder_1024_predictor_256
+spatial_model:
+  predictor:
+    layer_sizes: [256, 256]

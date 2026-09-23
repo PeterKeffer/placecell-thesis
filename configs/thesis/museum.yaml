@@ -1,4 +1,4 @@
-defaults: [../experiment/jaxenstein_museum_place_offline]
+defaults: [../experiment/museum]
 name: museum
 environment:
   env_kwargs:
@@ -14,5 +14,3 @@ representation_collection:
   device: auto
 measures:
   traversal_shifts: 100
-tracking:
-  variant_name: museum

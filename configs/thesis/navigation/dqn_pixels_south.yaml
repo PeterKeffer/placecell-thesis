@@ -13,7 +13,4 @@ training:
   device: auto
   total_timesteps: 3000000
   exploration_fraction: 0.1667
-  learning_rate: 0.0001
   exploration_final_eps: 0.05
-tracking:
-  variant_name: dqn_pixels_south

@@ -1,9 +1,0 @@
-defaults: [baseline]
-name: width_1024_256
-spatial_model:
-  encoder:
-    layer_sizes: [1024, 1024, 1024]
-  predictor:
-    layer_sizes: [256, 256]
-tracking:
-  variant_name: width_1024_256

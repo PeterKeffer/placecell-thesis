@@ -8,12 +8,8 @@ goal_task:
 observation:
   feature_sources: [synthetic_grid_cells, goal_xy_scaled, heading_sin_cos]
   synthetic_grid_cells:
-    num_cells: 512
     normalization: l2
 training:
   total_timesteps: 3000000
   exploration_fraction: 0.1667
   learning_rate: 0.0003
-  exploration_final_eps: 0.1
-tracking:
-  variant_name: dqn_synthetic_grid_cells_south

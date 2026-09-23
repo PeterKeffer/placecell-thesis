@@ -9,13 +9,11 @@ import yaml
 
 from placecell_research.analysis.base import AnalysisInput
 from placecell_research.analysis.world_overlay import overlay_bounds, resolve_world_overlay
+from placecell_research.config import load_experiment_config
 from placecell_research.numerics.rate_map_kernels import compute_spatial_bin_assignments
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-ANALYSIS_DEFAULT_CONFIG = REPOSITORY_ROOT / "configs" / "analysis" / "default.yaml"
-WALLGAP_RECIPE_CONFIG = (
-    REPOSITORY_ROOT / "configs" / "experiment" / "wallgap_asym_submit_stream_recipe.yaml"
-)
+WALLGAP_RECIPE_CONFIG = REPOSITORY_ROOT / "configs" / "experiment" / "wallgap.yaml"
 WALLGAP_ENVIRONMENT_CONFIG = (
     REPOSITORY_ROOT / "configs" / "environment" / "miniworld_wallgap_asym_large.yaml"
 )
@@ -28,10 +26,8 @@ REAL_MAX_REACHABLE_COVERAGE = 0.20
 
 
 def shipped_analysis_config() -> dict:
-    """Analysis knobs as a WallGap run resolves them: file defaults, recipe overrides on top."""
-    config = yaml.safe_load(ANALYSIS_DEFAULT_CONFIG.read_text())
-    config.update(yaml.safe_load(WALLGAP_RECIPE_CONFIG.read_text())["analysis"])
-    return config
+    """Analysis knobs as a WallGap run resolves them."""
+    return load_experiment_config(WALLGAP_RECIPE_CONFIG, []).to_dict()["analysis"]
 
 
 def wallgap_env_id() -> str:

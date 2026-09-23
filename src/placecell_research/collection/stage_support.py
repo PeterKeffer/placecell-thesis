@@ -89,13 +89,13 @@ def initialize_stage_runtime(
     config_payload = config.to_dict()
     variant_slug = generate_variant_slug(
         config_payload,
-        fallback_name=config.tracking.variant_name,
+        fallback_name=config.name,
     )
     run_id = make_run_id(repo_root, descriptor=variant_slug)
     identity = RunIdentity(
         run_id=run_id,
         study_name=config.tracking.study_name,
-        variant_name=config.tracking.variant_name,
+        variant_name=config.name,
         variant_slug=variant_slug,
         signature=generate_signature(config_payload),
     )

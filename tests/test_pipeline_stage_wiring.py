@@ -226,7 +226,7 @@ def test_pipeline_injects_stage_outputs_into_later_stage_overrides_and_builds_re
         Path(__file__).resolve().parents[1]
         / "configs"
         / "experiment"
-        / "smoke_miniworld.yaml"
+        / "smoke_wallgap.yaml"
     )
     result = pipeline.run(
         config_path,
@@ -447,7 +447,7 @@ def test_pipeline_does_not_inject_metrics_as_overrides(tmp_path, monkeypatch) ->
         Path(__file__).resolve().parents[1]
         / "configs"
         / "experiment"
-        / "smoke_miniworld.yaml"
+        / "smoke_wallgap.yaml"
     )
     pipeline.run(
         config_path,
@@ -526,7 +526,7 @@ def test_pipeline_skips_producer_stages_satisfied_by_explicit_encoded_artifact(
         Path(__file__).resolve().parents[1]
         / "configs"
         / "experiment"
-        / "smoke_miniworld.yaml"
+        / "smoke_wallgap.yaml"
     )
     result = pipeline.run(
         config_path,
@@ -563,7 +563,7 @@ def test_pipeline_auto_reuses_encoded_replacement_for_matching_pruned_raw_artifa
         Path(__file__).resolve().parents[1]
         / "configs"
         / "experiment"
-        / "smoke_miniworld.yaml"
+        / "smoke_wallgap.yaml"
     )
     overrides = [
         f"tracking.run_root={run_root}",
@@ -714,7 +714,7 @@ def test_resolve_pinned_dataset_artifact_type_infers_encoded_type_from_registry(
     _write_artifact(artifact_root, "encoded_dataset", "encoded_pinned")
     registry = ArtifactRegistry(artifact_root)
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     overrides = [
         f"tracking.artifact_root={artifact_root}",

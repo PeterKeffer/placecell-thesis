@@ -7,12 +7,7 @@ models:
 goal_task:
   candidate_positions_xy:
   - [18.0, -22.0]
-observation:
-  feature_sources: [place_codes_l2, goal_xy_scaled, heading_sin_cos]
 training:
   total_timesteps: 3000000
   exploration_fraction: 0.1667
-  learning_rate: 0.0001
   exploration_final_eps: 0.05
-tracking:
-  variant_name: dqn_recurrent_state_south

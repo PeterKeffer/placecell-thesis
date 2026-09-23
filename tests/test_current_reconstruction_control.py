@@ -14,7 +14,7 @@ from placecell_research.spatial_model.types import RepresentationBundle
 
 RECIPE = (
     Path(__file__).resolve().parents[1]
-    / "configs/experiment/wallgap_asym_submit_stream_recipe.yaml"
+    / "configs/experiment/wallgap.yaml"
 )
 RECONSTRUCTION_OVERRIDES = [
     "spatial_model.objectives.prediction_cosine.weight=0",

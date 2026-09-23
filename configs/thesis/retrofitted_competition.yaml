@@ -10,5 +10,3 @@ spatial_model:
     - name: frozen_lstm_top10_adaptation
       epochs: 128
       train: [encoder_head, predictor, embeddings]
-tracking:
-  variant_name: retrofitted_competition

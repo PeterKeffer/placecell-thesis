@@ -1,7 +1,7 @@
 name: example_curriculum
 curriculum:
   name: example_curriculum
-  base_experiment: smoke_jaxenstein
+  base_experiment: smoke_museum
   sources:
     random_start:
       environment:
@@ -39,4 +39,3 @@ tracking:
   run_root: smoke/runs
   artifact_root: smoke/artifacts
   study_name: example_curriculum
-  variant_name: curriculum

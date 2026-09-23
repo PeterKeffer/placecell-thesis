@@ -7,8 +7,5 @@ spatial_model:
     current_latent_reconstruction:
       type: latent_reconstruction
       targets: [encoder.place_codes]
-      weight: 1.0
   training:
     weight_decay: 0.0
-tracking:
-  variant_name: reconstruction_target_no_weight_decay

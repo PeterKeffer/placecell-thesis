@@ -4,5 +4,3 @@ spatial_model:
   objectives:
     vicreg_encoder:
       covariance_weight: 0.0
-tracking:
-  variant_name: covariance_regularizer_off

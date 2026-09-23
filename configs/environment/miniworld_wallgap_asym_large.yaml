@@ -1,5 +1,4 @@
 env_id: MiniWorld-WallGapAsymLarge-v0
-kind: miniworld
 episode_length: 256
 env_kwargs: {}
 randomize_agent_start: true

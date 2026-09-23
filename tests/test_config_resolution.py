@@ -18,7 +18,7 @@ def test_default_groups_materialize_under_expected_top_level_keys() -> None:
         Path(__file__).resolve().parents[1]
         / "configs"
         / "experiment"
-        / "wallgap_asym_submit_stream_recipe.yaml"
+        / "wallgap.yaml"
     )
     assert config.environment.env_id == "MiniWorld-WallGapAsymLarge-v0"
     assert config.dataset.artifact_type == "raw_dataset"
@@ -36,7 +36,7 @@ def test_explicit_reuse_summary_distinguishes_reuse_from_resume() -> None:
         Path(__file__).resolve().parents[1]
         / "configs"
         / "experiment"
-        / "wallgap_asym_submit_stream_recipe.yaml"
+        / "wallgap.yaml"
     )
     reuse_config = load_experiment_config(
         config_path,
@@ -73,7 +73,7 @@ def test_reuse_summary_reports_direct_recovery_checkpoint() -> None:
 
 def test_tracking_output_tags_materialize_from_overrides() -> None:
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     config = load_experiment_config(
         config_path,
@@ -91,7 +91,7 @@ def test_tracking_output_tags_materialize_from_overrides() -> None:
 
 def test_unknown_keys_are_rejected_at_every_level() -> None:
     config_path = (
-        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_miniworld.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     for override in (
         "grid_stream.enabled=true",

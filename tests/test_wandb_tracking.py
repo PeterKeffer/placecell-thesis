@@ -394,7 +394,3 @@ def test_run_study_propagates_wandb_and_study_name_to_child_runs(tmp_path, monke
     assert "study_mode:sweep" in tags_override
     assert "trial:0" in tags_override
     assert "seed:0" in tags_override
-    assert not any(
-        override.startswith("tracking.variant_name=")
-        for override in captured_overrides[0]
-    )

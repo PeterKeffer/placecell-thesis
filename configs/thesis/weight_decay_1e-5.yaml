@@ -1,8 +1,6 @@
 defaults: [baseline]
-name: weight_decay_1e-5_retrained
+name: weight_decay_1e-5
 policies:
   artifact_reuse: force_recompute
 pipeline:
   stages: [train_place_model, evaluate_model, analyze_model]
-tracking:
-  variant_name: weight_decay_1e-5_retrained

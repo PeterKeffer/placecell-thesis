@@ -193,7 +193,7 @@ def _render_launch_provenance(
         'echo "[placecell_research] launch provenance"',
         f'echo "[placecell_research]   entrypoint: {entrypoint}"',
         f'echo "[placecell_research]   config:     {resolved_config_path}"',
-        f'echo "[placecell_research]   variant:    {config.tracking.variant_name}"',
+        f'echo "[placecell_research]   variant:    {config.name}"',
         'printf \'%s\\n\' "[placecell_research]   run_id:     ${PLACECELL_RUN_ID:-<fallback>}"',
         f'echo "[placecell_research]   fallback_run_id: {fallback_run_id}"',
         'echo "[placecell_research]   overrides:"',
@@ -485,7 +485,7 @@ def submit_cli_entrypoint(
         repo_root,
         descriptor=generate_variant_slug(
             config.to_dict(),
-            fallback_name=config.tracking.variant_name,
+            fallback_name=config.name,
         ),
         include_slurm_job=False,
     )

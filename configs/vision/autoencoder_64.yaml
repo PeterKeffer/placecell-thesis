@@ -1,20 +1,2 @@
-type: autoencoder
-artifact_id: ""
-latent_dim: 64
-beta: 4.0
-channels: [32, 64, 128, 256, 512]
-learning_rate: 0.001
-loss_type: mse
-loss_l1_weight: 1.0
-loss_ssim_weight: 0.5
-loss_edge_weight: 0.25
 epochs: 2
 batch_size: 32
-max_episodes: 16
-max_frames_per_episode: 64
-frame_cache_mode: auto
-frame_cache_memory_fraction: 0.7
-data_loader_num_workers: 0
-data_loader_pin_memory: true
-data_loader_persistent_workers: true
-datasets: []

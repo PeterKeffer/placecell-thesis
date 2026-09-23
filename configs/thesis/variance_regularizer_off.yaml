@@ -4,5 +4,3 @@ spatial_model:
   objectives:
     vicreg_encoder:
       variance_weight: 0.0
-tracking:
-  variant_name: variance_regularizer_off

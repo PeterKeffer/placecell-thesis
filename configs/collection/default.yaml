@@ -1,17 +1,6 @@
 episodes: 32
 episode_length: 256
-policy: ou_smoothed_random
 action_probabilities: {}
-save_rgb: true
-save_topdown: true
 spawn_regions: []
 safety:
-  multiprocessing_start_method: spawn
   num_workers: 0
-  stagger_worker_start_seconds: 2.0
-  watchdog_timeout_seconds: 300.0
-  worker_max_episodes: 0
-  isolate_cuda_miniworld: true
-  skip_env_close_on_slurm: true
-  render_timeout_seconds: 30.0
-  cpu_encoder_during_collection: false

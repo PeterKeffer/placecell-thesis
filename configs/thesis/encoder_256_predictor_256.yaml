@@ -1,9 +1,7 @@
 defaults: [baseline]
-name: width_256_512
+name: encoder_256_predictor_256
 spatial_model:
   encoder:
     layer_sizes: [256, 256, 256]
   predictor:
-    layer_sizes: [512, 512]
-tracking:
-  variant_name: width_256_512
+    layer_sizes: [256, 256]

@@ -6,5 +6,3 @@ spatial_model:
       weight: 0.0
   training:
     weight_decay: 0.0
-tracking:
-  variant_name: no_prediction_no_weight_decay

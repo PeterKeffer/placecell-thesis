@@ -36,11 +36,11 @@ def initialize_downstream_session(
     repo_root = find_repo_root(config_path)
     _ = _resolve_defaults(config_path, _load_yaml(config_path))
     raw_payload = load_raw_config_payload(config_path, overrides)
-    variant_slug = slugify(tracking.variant_name)
+    variant_slug = slugify(config_name)
     run_identity = RunIdentity(
         run_id=make_run_id(repo_root, descriptor=variant_slug),
         study_name=tracking.study_name,
-        variant_name=tracking.variant_name,
+        variant_name=config_name,
         variant_slug=variant_slug,
         signature=f"{stage_name}__{config_name}",
     )

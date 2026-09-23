@@ -10,7 +10,4 @@ observation:
   feature_sources: [ae_latent, goal_xy_scaled, heading_sin_cos]
 training:
   total_timesteps: 3000000
-  learning_rate: 0.00025
   ent_coef: 0.003
-tracking:
-  variant_name: ppo_visual_latent_south

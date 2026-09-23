@@ -7,5 +7,3 @@ spatial_model:
       covariance_weight: 0.0
   training:
     weight_decay: 0.0
-tracking:
-  variant_name: both_regularizers_off_no_weight_decay

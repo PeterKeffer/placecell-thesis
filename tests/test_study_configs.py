@@ -19,14 +19,14 @@ STUDY_CONFIGS = REPO_ROOT / "configs" / "study"
 
 def test_experiment_reference_resolution_is_shared_across_study_entrypoints() -> None:
     study_config_path = STUDY_CONFIGS / "example_grid.yaml"
-    expected = (REPO_ROOT / "configs" / "experiment" / "smoke_jaxenstein.yaml").resolve()
+    expected = (REPO_ROOT / "configs" / "experiment" / "smoke_museum.yaml").resolve()
 
     references = (
         str(expected),
-        "configs/experiment/smoke_jaxenstein.yaml",
-        "../experiment/smoke_jaxenstein.yaml",
-        "smoke_jaxenstein",
-        "smoke_jaxenstein.yaml",
+        "configs/experiment/smoke_museum.yaml",
+        "../experiment/smoke_museum.yaml",
+        "smoke_museum",
+        "smoke_museum.yaml",
     )
 
     assert {
@@ -47,7 +47,7 @@ def test_example_study_config_and_its_base_experiment_validate(name: str) -> Non
 def test_curriculum_rejects_encoding_keys_it_does_not_run() -> None:
     study = StudyConfig(
         curriculum=CurriculumConfig(
-            base_experiment="smoke_jaxenstein",
+            base_experiment="smoke_museum",
             encoding={"pool": {"alias": "joint", "sources": ["a", "b"]}},
         )
     )

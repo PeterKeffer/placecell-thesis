@@ -5,5 +5,3 @@ spatial_model:
     vicreg_encoder:
       variance_weight: 0.0
       covariance_weight: 0.0
-tracking:
-  variant_name: both_regularizers_off

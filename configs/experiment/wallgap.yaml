@@ -4,27 +4,21 @@ defaults:
   - {dataset: default}
   - {splits: episode_random}
   - {vision: autoencoder_64}
-  - {spatial_model: lstm_gru_kwinners_submit_stream}
+  - {spatial_model: lstm_gru_kwinners}
   - {evaluation: default}
   - {analysis: standard}
   - {tracking: local}
   - {launcher: local}
 
-name: wallgap_asym_submit_stream_recipe
+name: wallgap
 
 seed:
-  global_seed: 42
   collection_seed: 42
   split_seed: 42
   training_seed: 42
 
 policies:
   artifact_reuse: reuse_if_config_match
-  training_resume: fresh
-
-reuse:
-  vision_encoder_artifact_id: ""
-  place_model_artifact_id: ""
 
 environment:
   episode_length: 2048
@@ -48,23 +42,15 @@ collection:
 
 dataset:
   canonicality_policy: latent_canonical
-  keep_rgb: false
 
 vision:
-  latent_dim: 64
   epochs: 16
   batch_size: 256
   max_episodes: 0
   max_frames_per_episode: 128
-  frame_cache_mode: auto
-  frame_cache_memory_fraction: 0.7
   data_loader_num_workers: 8
-  data_loader_pin_memory: true
-  data_loader_persistent_workers: true
 
 evaluation:
-  split_name: test
-  max_eval_episodes: 0
   eval_every_n_epochs: 8
   sources:
     - encoder.place_codes
@@ -72,74 +58,13 @@ evaluation:
     - encoder.hidden_state
     - encoder.pre_sparsifier
     - predictor.hidden_state
-  compute_spatial_info: true
-  spatial_info_top_k: 16
-  compute_gridness: false
-  nonlinear_decode_enabled: true
-  nonlinear_decode_hidden_sizes: [128, 128]
-  nonlinear_decode_max_epochs: 200
-  nonlinear_decode_batch_size: 1024
-  nonlinear_decode_max_train_samples: 65536
-  nonlinear_decode_max_validation_samples: 16384
-  nonlinear_decode_random_seed: 0
 
 analysis:
-  split_name: test
-  num_bins_x: 60
-  num_bins_y: 60
   smoothing_sigma: 0.0
-  min_occupancy: 1.0e-6
-  per_episode_num_bins_x: 20
-  per_episode_num_bins_y: 20
   per_episode_smoothing_sigma: 0.0
-  per_episode_min_occupancy: 1.0e-6
-  per_episode_minimum_visited_fraction: 0.05
-  per_episode_minimum_valid_steps: 200
-  reliability_threshold_fraction: 0.2
-  place_field_threshold_fraction: 0.2
-  rate_map_panel_top_k: 128
-  rate_map_panel_show_all_units: false
-  rate_map_grid_top_k: 128
-  rate_map_grid_show_all_units: false
-  rate_map_shared_color_scale: false
-  rate_map_colormap_mode: reds
-  decode_max_samples: 0
-  decode_random_seed: 0
-  decode_nonlinear_enabled: true
-  decode_nonlinear_hidden_sizes: [128, 128]
-  decode_nonlinear_max_epochs: 200
-  decode_nonlinear_batch_size: 1024
-  decode_nonlinear_max_train_samples: 65536
-  decode_nonlinear_max_validation_samples: 16384
-  decode_nonlinear_random_seed: 0
-  redundancy_max_samples: 4096
-  redundancy_random_seed: 0
-  example_episode_index: -1
-  example_episode_random_seed: null
-  example_episode_top_k: 0
-  umap_max_points: 4096
-  umap_n_neighbors: 25
-  umap_min_dist: 0.1
-  umap_metric: euclidean
-  umap_random_seed: 42
-  umap_pool_mode: spatial_bins
-  umap_pool_num_bins_x: 20
-  umap_pool_num_bins_y: 20
-  umap_pool_min_count: 2
-  umap_trustworthiness_neighbors: 15
-  manifold_max_points: 4096
-  manifold_pool_num_bins_x: 20
-  manifold_pool_num_bins_y: 20
-  manifold_pool_min_count: 2
-  manifold_metric: cosine
-  manifold_trustworthiness_neighbors: 15
-  manifold_random_seed: 42
-  isomap_n_neighbors: 10
   max_cost_tier: heavy
   targets:
     encoder_place_cells:
-      source: encoder.place_codes
-      enabled: true
       modules:
         - dataset_coverage
         - rate_map_fields
@@ -174,8 +99,6 @@ analysis:
         - confounds
         - place_field_overlay
     predictor_place_cells:
-      source: predictor.place_codes
-      enabled: true
       modules:
         - rate_map_fields
         - rate_map_reliability
@@ -207,8 +130,6 @@ analysis:
         - neighborhood_preservation
         - confounds
     encoder_pre_sparsifier:
-      source: encoder.pre_sparsifier
-      enabled: true
       modules:
         - gridness
         - rate_map_fields
@@ -482,11 +403,6 @@ analysis:
         - confounds
   comparative:
     combined_example_episode:
-      module: combined_episode_dynamics
-      enabled: true
-      example_episode_index: -1
-      example_episode_random_seed: null
-      example_episode_top_k: 0
       inputs:
         - {label: encoder_place_cells, source: encoder.place_codes}
         - {label: predictor_place_cells, source: predictor.place_codes}
@@ -495,17 +411,6 @@ analysis:
         - {label: predictor_hidden_state, source: predictor.hidden_state}
 
 tracking:
-  study_name: wallgap
-  variant_name: lstm_gru_kwinners512_encoder_vicreg
   tags:
     - wallgap
 
-pipeline:
-  stages:
-    - collect_dataset
-    - create_split
-    - train_vision_encoder
-    - encode_dataset
-    - train_place_model
-    - evaluate_model
-    - analyze_model

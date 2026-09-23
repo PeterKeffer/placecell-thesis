@@ -252,7 +252,7 @@ def test_source_union_covers_evaluation_and_analysis() -> None:
     from placecell_research.config import load_experiment_config
     from placecell_research.stages.collect_representations import resolve_source_names
 
-    config = load_experiment_config("configs/experiment/wallgap_asym_submit_stream_recipe.yaml")
+    config = load_experiment_config("configs/experiment/wallgap.yaml")
     names = resolve_source_names(config)
     assert names[: len(config.evaluation.sources)] == list(config.evaluation.sources)
     assert len(names) == len(set(names)), "duplicates would collect the same pass twice"

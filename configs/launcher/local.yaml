@@ -1,11 +1,1 @@
-type: local
-partition: gpu
-gpus: 1
-time_hours: 48
 memory_gb: 16
-cpus_per_task: 4
-threading_safety:
-  omp_num_threads: 1
-  mkl_num_threads: 1
-  openblas_num_threads: 1
-  torch_num_threads: 1

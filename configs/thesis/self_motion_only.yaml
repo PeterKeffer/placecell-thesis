@@ -3,5 +3,3 @@ name: self_motion_only
 spatial_model:
   inputs:
     predictor_context_channels: [step_displacement, angular_velocity]
-tracking:
-  variant_name: self_motion_only
