@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from . import echo_stage_result
+from . import ConfigOption, OverrideOption, echo_stage_result
 
 
 def _run_study(config: Path, override: list[str] | None) -> None:
@@ -18,16 +18,16 @@ def _run_study(config: Path, override: list[str] | None) -> None:
 def register(app: typer.Typer) -> None:
     @app.command("sweep")
     def sweep_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Train every variant of a sweep config over its base experiment."""
         _run_study(config, override)
 
     @app.command("curriculum")
     def curriculum_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Collect the sources of a curriculum config and train its phases in order."""
         _run_study(config, override)

@@ -10,7 +10,7 @@ import yaml
 from placecell_research.artifacts.registry import ArtifactRegistry
 from placecell_research.utils.repo_paths import find_repo_root
 
-from . import echo_stage_result
+from . import ConfigOption, OverrideOption, echo_stage_result
 
 
 def _artifact_registry(config_path: Path, overrides: list[str]) -> ArtifactRegistry:
@@ -208,8 +208,8 @@ def train_place_overrides(
 def register(app: typer.Typer) -> None:
     @app.command("inspect-config")
     def inspect_config(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Print resolved config, signature, active objectives, parameter count, and warnings."""
         from placecell_research.launch.inspect_config import inspect_experiment_config
@@ -219,8 +219,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("pipeline")
     def pipeline_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
         force_recompute: bool = typer.Option(
             False,
             "--force-recompute",
@@ -293,8 +293,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("collect")
     def collect_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Collect a raw dataset of random-walk episodes."""
         from placecell_research.stages import collect_dataset
@@ -305,8 +305,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("create-split")
     def split_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Split a dataset into train, validation and test episodes."""
         from placecell_research.stages import create_split
@@ -317,8 +317,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("train-vision")
     def train_vision_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
         force_recompute: bool = typer.Option(
             False,
             "--force-recompute",
@@ -360,8 +360,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("encode-dataset")
     def encode_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Encode a raw dataset with a trained visual encoder."""
         from placecell_research.stages import encode_dataset
@@ -372,8 +372,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("train-model")
     def train_place_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
         force_recompute: bool = typer.Option(
             False,
             "--force-recompute",
@@ -430,8 +430,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("collect-representations")
     def collect_representations_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Store the forward pass of a trained model over the configured splits."""
         from placecell_research.stages import collect_representations
@@ -444,8 +444,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("evaluate")
     def evaluate_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Decoding and spatial information of a trained model on each evaluation split."""
         from placecell_research.stages import evaluate_model
@@ -456,8 +456,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("analyze")
     def analyze_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Run the configured analysis modules on a trained model."""
         from placecell_research.stages import analyze_model

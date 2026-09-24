@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 import yaml
 
-from placecell_research.launch.commands import remote_settings_or_exit
+from placecell_research.launch.commands import ConfigOption, OverrideOption, remote_settings_or_exit
 
 REMOTE_OPTION_HELP = "Defaults come from the user file (pc doctor prints its path)."
 REMOTE_FLAG_HINT = ", or pass --remote-host and --remote-repo-root"
@@ -16,8 +16,8 @@ REMOTE_FLAG_HINT = ", or pass --remote-host and --remote-repo-root"
 def register(app: typer.Typer) -> None:
     @app.command("submit")
     def submit_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
         entrypoint: str = typer.Option(
             "auto",
             "--entrypoint",
@@ -63,7 +63,7 @@ def register(app: typer.Typer) -> None:
 
     @app.command("hpc")
     def hpc_command(
-        config: Path = typer.Option(..., "--config", "-c"),
+        config: ConfigOption,
         entrypoint: str = typer.Option("auto", "--entrypoint", "--command"),
         remote_host: str | None = typer.Option(None, "--remote-host", help=REMOTE_OPTION_HELP),
         remote_repo_root: str | None = typer.Option(None, "--remote-repo-root"),
@@ -90,7 +90,7 @@ def register(app: typer.Typer) -> None:
             "--cancel-on-interrupt/--detach-on-interrupt",
             help="Cancel the remote job when you stop streaming with Ctrl+C.",
         ),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        override: OverrideOption = None,
         force_recompute: bool = typer.Option(False, "--force-recompute"),
     ) -> None:
         """Sync the repo to the cluster over SSH, submit one job there, and stream its log."""

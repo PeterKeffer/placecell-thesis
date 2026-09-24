@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 
 if TYPE_CHECKING:
     from placecell_research.launch.user_settings import RemoteSettings
+
+ConfigOption = Annotated[
+    Path, typer.Option("--config", "-c", help="YAML config to run (see configs/).")
+]
+OverrideOption = Annotated[
+    list[str] | None,
+    typer.Option("--override", "-o", help="Config override key=value (repeatable)."),
+]
 
 
 def remote_settings_or_exit(flag_hint: str = "", **values: Any) -> RemoteSettings:

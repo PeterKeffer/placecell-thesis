@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import typer
 import yaml
+
+from . import ConfigOption, OverrideOption
 
 
 def register(app: typer.Typer) -> None:
     @app.command("downstream-rollout")
     def downstream_rollout_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Roll out forward or random actions in a navigation environment and report success."""
         from placecell_research.config import (
@@ -64,8 +64,8 @@ def register(app: typer.Typer) -> None:
 
     @app.command("downstream-train")
     def downstream_train_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
     ) -> None:
         """Train a navigation policy on the configured input."""
         from placecell_research.config import (

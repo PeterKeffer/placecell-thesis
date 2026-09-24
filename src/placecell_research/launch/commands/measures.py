@@ -6,12 +6,14 @@ from pathlib import Path
 
 import typer
 
+from . import ConfigOption, OverrideOption
+
 
 def register(app: typer.Typer) -> None:
     @app.command("measures")
     def measures_command(
-        config: Path = typer.Option(..., "--config", "-c"),
-        override: list[str] | None = typer.Option(None, "--override", "-o"),
+        config: ConfigOption,
+        override: OverrideOption = None,
         inputs: bool = typer.Option(
             False,
             "--inputs",
