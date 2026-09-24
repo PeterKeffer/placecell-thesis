@@ -9,14 +9,25 @@ import typer
 from . import echo_stage_result
 
 
+def _run_study(config: Path, override: list[str] | None) -> None:
+    from placecell_research.stages import run_study
+
+    echo_stage_result(run_study.run(config, override or []))
+
+
 def register(app: typer.Typer) -> None:
     @app.command("sweep")
-    @app.command("curriculum")
-    def study_command(
+    def sweep_command(
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
-        """Run the sweep or curriculum of a study config."""
-        from placecell_research.stages import run_study
+        """Train every variant of a sweep config over its base experiment."""
+        _run_study(config, override)
 
-        echo_stage_result(run_study.run(config, override or []))
+    @app.command("curriculum")
+    def curriculum_command(
+        config: Path = typer.Option(..., "--config", "-c"),
+        override: list[str] | None = typer.Option(None, "--override", "-o"),
+    ) -> None:
+        """Collect the sources of a curriculum config and train its phases in order."""
+        _run_study(config, override)
