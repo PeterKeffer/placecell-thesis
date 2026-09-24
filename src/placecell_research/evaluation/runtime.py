@@ -216,4 +216,3 @@ def publish_report(
         manifest.write(temporary_path / "manifest.json")
         final_path = registry.register_directory(artifact_type, artifact_id, temporary_path)
     return artifact_id, final_path
-

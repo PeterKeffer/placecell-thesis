@@ -1314,6 +1314,7 @@ _INHERITED_ANALYSIS_SETTINGS = {
     "reanchoring_per_episode_num_bins_x": "per_episode_num_bins_x",
     "reanchoring_per_episode_num_bins_y": "per_episode_num_bins_y",
 }
+
 _FDR_PERMUTATION_COUNT_FIELDS: dict[str, float | str] = {
     "spatial_information_null_shuffles": 0.05,
     "directionality_null_shuffles": 0.05,
