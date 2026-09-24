@@ -7,8 +7,10 @@ trained to predict its own next code. Its place code then carries position, and 
 behave like place cells. The repository trains every model variant of the thesis, computes the
 measures the thesis reports, and trains the navigation agents that use the frozen codes.
 
-[QUICKSTART.md](QUICKSTART.md) walks through a first run on a PC, on the lab cluster and on any
-other SLURM cluster.
+Three guides list every command from a fresh clone to the results:
+[your own computer](docs/guide_local.md), [the lab cluster hpc3](docs/guide_hpc3.md) and
+[any other SLURM cluster](docs/guide_slurm.md). [QUICKSTART.md](QUICKSTART.md) says which to pick
+and shows a first run.
 
 ## Install
 
@@ -22,10 +24,14 @@ pc doctor
 (`--prefix`, default `~/miniforge3`), with PyTorch and JAX builds for the machine (CUDA on Linux GPU
 machines and clusters, MPS or CPU on a Mac), MiniWorld, and this package with the extras `rl`
 (Stable-Baselines3), `jax` (JAX and the JAXenstein simulator at a pinned commit) and `dev` (pytest,
-ruff). Package versions are pinned to the tested set in `constraints.txt`. It installs Miniforge
-first if no conda is found, and ends by printing the line that activates the environment; the
-second line above is that line for the default prefix. `pc doctor` checks Python, the torch and
-JAX devices, one MiniWorld and one museum frame, and write access. By hand:
+ruff). Conda installs only Python; pip installs the rest, pinned to the tested set in
+`constraints.txt`. It installs Miniforge first if no conda is found. On a cluster that provides
+conda and other tools through spack or modules, `--site <name>` sources
+`scripts/slurm/site/<name>.sh` first and uses the conda it provides; Miniforge is never installed
+then. Temporary files and package caches go to `<prefix>/setup_tmp` and are removed at the end. The
+script ends by printing the line that activates the environment; the second line above is that
+line for the default prefix. `pc doctor` checks Python, the torch and JAX devices, one MiniWorld
+and one museum frame, and write access. By hand:
 `pip install -e ".[rl,jax,dev]" -c constraints.txt` into Python 3.11 or 3.12 (NumPy 1.26 has no
 wheels for 3.13).
 
@@ -70,7 +76,7 @@ seeds as `<condition>_seed1` and `<condition>_seed2`.
 ```bash
 pc reproduce --profile local        # this machine, one job after the other
 pc reproduce --profile hpc3         # the lab cluster, as a SLURM dependency chain
-pc reproduce --profile slurm        # any SLURM cluster (QUICKSTART.md, section 3)
+pc reproduce --profile slurm        # any SLURM cluster (docs/guide_slurm.md)
 ```
 
 `pc reproduce` builds the whole plan from `configs/thesis/` and `configs/reproduce.yaml`: the three
@@ -243,27 +249,47 @@ steps.
 ## Running on a cluster
 
 An execution profile in `configs/launcher/` says where and how jobs run: `local` (this machine),
-`slurm` (any SLURM cluster, neutral defaults) and `hpc3` (the lab cluster the thesis ran on: its
-partitions, a full H100 per GPU job, MIG slices refused, `klab-7` excluded, 200 GB and 16 CPUs per
-GPU job, at most two GPU jobs at once, spack `mesa-glu` for MiniWorld). Personal values (account,
-QOS, partition, how jobs activate the environment, the SSH host and checkout for remote use) never
-go into the repository; they come from `~/.config/placecell/user.yaml` or `PLACECELL_*` variables,
-and `pc doctor` prints which file it reads. QUICKSTART.md lists the keys.
+`slurm` (any SLURM cluster, neutral defaults) and `hpc3` (the lab cluster the thesis ran on:
+account and QOS `klab`, its partitions, a full H100 per GPU job, MIG slices refused, `klab-7`
+excluded, 200 GB and 16 CPUs per GPU job, at most two GPU jobs at once). A profile's
+`site_env_script` names a site script under `scripts/slurm/site/` that every job sources before it
+activates the environment, and that `setup_env.sh --site` sources before the install. `hpc3.sh`
+sets the proxy and loads conda, git and `mesa-glu` (libGLU for MiniWorld) through spack. Personal
+values (an account or QOS of your own, partition, how jobs activate the environment, the SSH host
+and checkout for remote use) never go into the repository; they come from
+`~/.config/placecell/user.yaml` or `PLACECELL_*` variables, and `pc doctor` prints which file it
+reads. [docs/guide_slurm.md](docs/guide_slurm.md) lists the keys.
 
 | Command | What it does |
 |---|---|
 | `pc reproduce --profile hpc3` | submits the whole plan with `afterok` dependencies, at most `max_concurrent_gpu_jobs` GPU jobs at a time |
 | `pc submit -c <config> -o launcher=hpc3` | writes the batch script for one command and submits it (`--dry-run` only writes it) |
-| `pc hpc -c <config>` | from a laptop: copies the checkout to the cluster, freezes the code for the job, submits, streams the log |
+| `pc hpc -c <config> -o launcher=hpc3` | from a laptop: copies the checkout to the cluster, freezes the code for the job, submits, streams the log |
 | `pc hpc-logs --job-id <id>`, `pc remote-sync` | reattach to a job's log; copy the checkout without submitting |
 | `pc reproduce --profile hpc3 --remote` | runs `pc reproduce` on the login node from a laptop |
 
+From a laptop, `pc hpc` and `--remote` copy the checkout to `remote.repo_root` and freeze the code
+in `.code_snapshots/`, so that later copies cannot change jobs that are queued or running.
+
 Every batch script comes from one template (`launch/submit.py`). It sets per-job temporary
 folders, caps threads, runs a CUDA check, forwards TERM to the whole process tree on a timeout
-and cleans up after it. It then sources `scripts/slurm/env_miniworld.sh` or `env_jaxenstein.sh`,
-which set up headless EGL rendering and check MiniWorld or JAX before the job starts. Data
-collection runs in spawned workers with a progress watchdog, a memory watchdog and a render
-timeout.
+and cleans up after it. It sources the site script, activates the environment, and then sources
+`scripts/slurm/env_miniworld.sh` or `env_jaxenstein.sh`, which set up headless EGL rendering and
+check MiniWorld or JAX before the job starts.
+
+### How jobs protect the nodes
+
+- Every job requests memory, CPUs and time, caps BLAS and OpenMP threads, and gets 120 s of
+  warning before its time runs out. On a timeout or `scancel` the batch script forwards TERM to
+  the whole process group, waits, kills what is left, and deletes its temporary folder.
+- Each job has its own temporary folder and caches, reached through a short `TMPDIR` link.
+- GPU jobs run a CUDA check first and stop within a minute on a broken GPU.
+- Collection runs in spawned worker processes, one environment per worker, never more workers
+  than the job has CPUs. A watchdog stops workers that make no progress for 300 s, a memory
+  watchdog stops them above 90% of the job's memory, and previews render in their own process
+  with a 30 s timeout.
+- A job whose input failed is cancelled instead of waiting forever, and dependency lanes keep the
+  number of running reproduction jobs at the configured limit.
 
 ## Other commands
 
@@ -288,12 +314,17 @@ Rough figures for one condition at full size, measured on the runs behind the th
 | Visual encoder | one GPU | about 2 h |
 | Place-cell model (128 epochs) | one GPU (H100 class) | about 4 h |
 | `pc analyze` on all test episodes | up to 181 GB RAM for the 1,024-unit encoder, 16 CPUs | about 5 h |
+| Stored forward pass (`pc collect-representations`) | one GPU | minutes |
 | `pc measures` | CPU; the codes of all test episodes (about 10 GB for 512 units); the shift nulls are computed in chunks | not timed at full size |
 | Navigation, 3 million steps per policy | CPU, pixels on a GPU; seven policies in parallel on one machine | PPO about 6 to 7 h, DQN about 9 to 11 h per batch of seven |
 
-A representation set with the place code of 3 x 512 episodes takes about 3.5 GB, with all five
-stages about 20 GB. The full plan (83 trainings, 84 measure jobs, 84 navigation policies) needs
-about 750 GPU hours for the models, a little over two weeks with two GPUs at a time.
+The data chain (collection, split, visual encoder, encoding) runs three times: WallGap, museum and
+objects removed. The full plan (83 trainings, 84 measure jobs, 84 navigation policies) needs about
+750 GPU hours for the models, a little over two weeks with two GPUs at a time, and about 700 hours
+for navigation. Disk, estimated from the sizes of the thesis artifacts: a raw dataset takes over
+10 GB, an encoded one 2.6 GB, a trained model 1.4 GB, and a stored forward pass of 3 x 512 episodes
+about 3.5 GB with the place code alone and about 20 GB with all five stages; in total well under
+1 TB.
 
 ## Repository layout
 
@@ -325,8 +356,10 @@ src/placecell_research/
   studies/                   pc sweep and pc curriculum
   artifacts/ tracking/       artifact registry, run records, logging
   utils/                     small shared helpers
+docs/                        guides: your own computer, the lab cluster hpc3, any SLURM cluster
 scripts/
   setup_env.sh               creates the conda environment and runs pc doctor
-  slurm/                     per-job environment setup (common, MiniWorld/EGL, JAXenstein, site/hpc3)
+  slurm/                     per-job environment setup (common, MiniWorld/EGL, JAXenstein)
+  slurm/site/                site scripts for setup_env.sh --site and for jobs (hpc3)
 tests/                       pytest suite
 ```

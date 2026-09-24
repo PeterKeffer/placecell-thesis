@@ -1,5 +1,7 @@
 type: slurm
 partition: klab-gpu
+account: klab
+qos: klab
 exclude_nodes:
   - klab-7
 gpu_type: H100.80gb

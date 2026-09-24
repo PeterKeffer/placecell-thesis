@@ -247,13 +247,11 @@ def _render_environment_lines(launcher, environment_kind: str) -> list[str]:
     lines = [
         f'PLACECELL_SLURM_SCRIPT_ROOT="${{{SNAPSHOT_ENV_VAR}:-.}}/scripts/slurm"',
         'source "${PLACECELL_SLURM_SCRIPT_ROOT}/env_common.sh"',
-        "set +u",
-        activation,
-        "set -u",
     ]
     site_env_script = str(launcher.site_env_script).strip()
     if site_env_script:
         lines.append(f'source "${{PLACECELL_SLURM_SCRIPT_ROOT}}/{site_env_script}"')
+    lines.extend(["set +u", activation, "set -u"])
     if environment_kind != "common":
         script_name = SLURM_ENVIRONMENT_SCRIPTS[environment_kind]
         lines.append(f'source "${{PLACECELL_SLURM_SCRIPT_ROOT}}/{script_name}"')

@@ -86,25 +86,62 @@ def test_miniworld_gpu_env_fails_closed_without_libegl(tmp_path: Path) -> None:
     assert "libEGL.so.1 not found" in completed.stderr
 
 
-def test_lab_site_script_only_touches_miniworld_gpu_jobs(tmp_path: Path) -> None:
-    probe = f'source {SLURM_SCRIPTS}/site/hpc3.sh\necho "EGL=${{PLACECELL_EGL_LIBRARY:-unset}}"'
-    jax_job = _bash(
-        f"set -euo pipefail\n{probe}",
-        tmp_path,
-        PLACECELL_ENVIRONMENT_KIND="jaxenstein",
-        PLACECELL_REQUESTED_GPUS="1",
+def _stub_spack_and_conda(directory: Path) -> Path:
+    directory.mkdir()
+    (directory / "spack").write_text(
+        '#!/bin/bash\nif [[ "$1" == location ]]; then echo /spack/mesa-glu; exit; fi\n'
+        'echo "stub spack $*"\n'
     )
-    assert jax_job.returncode == 0 and "EGL=unset" in jax_job.stdout
-    miniworld_job = _bash(
-        f"set -euo pipefail\n{probe}",
-        tmp_path,
-        PLACECELL_ENVIRONMENT_KIND="miniworld",
-        PLACECELL_REQUESTED_GPUS="1",
-        PLACECELL_EXTRA_LIBRARY_PATH="/opt/glu/lib",
+    (directory / "conda").write_text(
+        '#!/bin/bash\nif [[ "$1" == info ]]; then echo /spack/miniconda3; exit; fi\n'
+        'echo "conda 4.10.3"\n'
     )
-    assert miniworld_job.returncode == 0, miniworld_job.stderr
-    assert "EGL=/usr/lib64/libEGL.so.1" in miniworld_job.stdout
-    assert "libGLU from /opt/glu/lib" in miniworld_job.stdout
+    for stub in directory.iterdir():
+        stub.chmod(0o755)
+    return directory
+
+
+def test_lab_site_script_loads_spack_tools_and_keeps_the_callers_shell_options(
+    tmp_path: Path,
+) -> None:
+    stubs = _stub_spack_and_conda(tmp_path / "stubs")
+    completed = _bash(
+        f"set -euo pipefail\nsource {SLURM_SCRIPTS}/site/hpc3.sh\n"
+        'echo "options=$-:$(set -o | grep -c "pipefail.*on")"\n'
+        'echo "GLU=${PLACECELL_EXTRA_LIBRARY_PATH}"\n',
+        tmp_path,
+        PATH=f"{stubs}:/usr/bin:/bin",
+    )
+    assert completed.returncode == 0, completed.stderr
+    output = completed.stdout
+    for spec in ("miniconda3@4.10.3", "git@2.31.1", "mesa-glu@9.0.1"):
+        assert f"stub spack load {spec}" in output
+    assert "GLU=/spack/mesa-glu/lib" in output
+    assert "proxy http://rhn-proxy.rz.uos.de:3128" in output
+    options = next(line for line in output.splitlines() if line.startswith("options="))
+    assert "e" in options and "u" in options and options.endswith(":1")
+
+
+def test_setup_script_with_a_site_takes_conda_from_it_and_never_installs_miniforge(
+    tmp_path: Path,
+) -> None:
+    stubs = _stub_spack_and_conda(tmp_path / "stubs")
+    prefix = tmp_path / "share" / "placecell"
+    completed = _bash(
+        f"bash {REPO_ROOT / 'scripts' / 'setup_env.sh'} --site hpc3 --dry-run --prefix {prefix}",
+        tmp_path,
+        PATH=f"{stubs}:/usr/bin:/bin",
+    )
+    assert completed.returncode == 0, completed.stderr
+    output = completed.stdout
+    assert "stub spack load miniconda3@4.10.3" in output
+    assert f"using {stubs}/conda (conda 4.10.3)" in output
+    assert f"export TMPDIR={prefix}/setup_tmp" in output
+    assert f"rm -rf {prefix}/setup_tmp" in output
+    assert f"create -y -p {prefix}/envs/placecell --override-channels -c conda-forge" in output
+    assert "Miniforge" not in output
+    assert f'source "{SLURM_SCRIPTS}/site/hpc3.sh" && source' in output
+    assert not prefix.exists()
 
 
 def test_setup_script_dry_run_prints_every_step_and_runs_none(tmp_path: Path) -> None:

@@ -8,6 +8,7 @@ PYTHON_VERSION="3.12"
 GPU_MODE="auto"
 EXTRAS="rl,jax,dev"
 TORCH_INDEX_URL=""
+SITE_NAME=""
 DRY_RUN=0
 RUN_DOCTOR=1
 
@@ -17,9 +18,12 @@ Usage: scripts/setup_env.sh [options]
 
 Creates your own conda environment for this repository and checks it with pc doctor.
 The environment goes to --prefix/envs/NAME, also when conda comes from a cluster module.
-If no conda or mamba is found, Miniforge is installed into --prefix first.
+If no conda or mamba is found, Miniforge is installed into --prefix first, except with --site.
+Temporary files and package caches go to --prefix/setup_tmp and are removed at the end.
 Package versions are pinned to the tested set in constraints.txt.
 
+  --site NAME         source scripts/slurm/site/NAME.sh first (proxy, spack or module loads)
+                      and use the conda it provides, e.g. --site hpc3
   --prefix DIR        Miniforge (if no conda is found) and the environment go here
                       (default: $PLACECELL_CONDA_PREFIX or ~/miniforge3)
   --env NAME          environment name (default: $PLACECELL_ENV_NAME or placecell)
@@ -34,6 +38,7 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --site) SITE_NAME="$2"; shift 2 ;;
     --prefix) CONDA_INSTALL_PREFIX="$2"; shift 2 ;;
     --env) ENV_NAME="$2"; shift 2 ;;
     --gpu) GPU_MODE="$2"; shift 2 ;;
@@ -59,6 +64,11 @@ step() {
   echo "== $*"
 }
 
+export_setting() {
+  printf '+ export %s=%q\n' "$1" "$2"
+  export "$1=$2"
+}
+
 OS_NAME="$(uname -s)"
 ARCH_NAME="$(uname -m)"
 case "${OS_NAME}" in
@@ -80,17 +90,41 @@ esac
 
 step "system: ${OS_NAME} ${ARCH_NAME}, torch/jax build: ${GPU_MODE}, repo: ${REPO_ROOT}"
 
+SITE_SCRIPT=""
+ACTIVATION_PREFIX=""
+if [[ -n "${SITE_NAME}" ]]; then
+  SITE_SCRIPT="${REPO_ROOT}/scripts/slurm/site/${SITE_NAME}.sh"
+  if [[ ! -f "${SITE_SCRIPT}" ]]; then
+    echo "No site script ${SITE_SCRIPT}; the sites are: $(ls "${REPO_ROOT}/scripts/slurm/site")" >&2
+    exit 2
+  fi
+  step "site settings from ${SITE_SCRIPT}"
+  printf '+ source %q\n' "${SITE_SCRIPT}"
+  source "${SITE_SCRIPT}"
+  ACTIVATION_PREFIX="source \"${SITE_SCRIPT}\" && "
+elif command -v spack >/dev/null 2>&1 || [[ -n "${SPACK_ROOT:-}" ]]; then
+  echo "hint: this machine has spack; if its cluster provides conda and other tools through spack, rerun with --site <name> (scripts/slurm/site/)"
+fi
+
 step "1. find conda or mamba"
 CONDA_BIN=""
-for candidate in "${CONDA_EXE:-}" "$(command -v conda 2>/dev/null || true)" "${CONDA_INSTALL_PREFIX}/bin/conda" "$(command -v mamba 2>/dev/null || true)"; do
+if [[ -n "${SITE_NAME}" ]]; then
+  CONDA_CANDIDATES=("$(command -v conda 2>/dev/null || true)")
+else
+  CONDA_CANDIDATES=("${CONDA_EXE:-}" "$(command -v conda 2>/dev/null || true)" "${CONDA_INSTALL_PREFIX}/bin/conda" "$(command -v mamba 2>/dev/null || true)")
+fi
+for candidate in "${CONDA_CANDIDATES[@]}"; do
   if [[ -n "${candidate}" && -x "${candidate}" ]] && "${candidate}" --version >/dev/null 2>&1; then
     CONDA_BIN="${candidate}"
     break
   fi
 done
 if [[ -n "${CONDA_BIN}" ]]; then
-  echo "using ${CONDA_BIN}"
+  echo "using ${CONDA_BIN} ($("${CONDA_BIN}" --version))"
   CONDA_BASE="$("${CONDA_BIN}" info --base)"
+elif [[ -n "${SITE_NAME}" ]]; then
+  echo "ERROR: ${SITE_SCRIPT} put no conda on PATH; with --site, Miniforge is not installed." >&2
+  exit 1
 else
   echo "no conda found; installing Miniforge into ${CONDA_INSTALL_PREFIX}"
   INSTALLER_URL="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-${OS_NAME}-${ARCH_NAME}.sh"
@@ -105,15 +139,26 @@ ENV_PREFIX="${CONDA_INSTALL_PREFIX}/envs/${ENV_NAME}"
 CONSTRAINTS=(-c "${REPO_ROOT}/constraints.txt")
 PYTHON_BIN="${ENV_PREFIX}/bin/python"
 
-step "2. create the environment ${ENV_PREFIX}"
+SETUP_TMP="${CONDA_INSTALL_PREFIX}/setup_tmp"
+step "2. temporary files and package caches in ${SETUP_TMP}, removed at the end"
+run mkdir -p "${SETUP_TMP}"
+remove_setup_tmp() {
+  run rm -rf "${SETUP_TMP}"
+}
+trap remove_setup_tmp EXIT
+export_setting TMPDIR "${SETUP_TMP}"
+export_setting PIP_CACHE_DIR "${SETUP_TMP}/pip"
+export_setting CONDA_PKGS_DIRS "${SETUP_TMP}/conda_pkgs"
+
+step "3. create the environment ${ENV_PREFIX} (conda installs Python only; pip installs the rest)"
 if [[ -x "${PYTHON_BIN}" ]]; then
   echo "environment exists; updating it"
 else
-  run "${CONDA_BIN}" create -y -p "${ENV_PREFIX}" -c conda-forge "python=${PYTHON_VERSION}" pip
+  run "${CONDA_BIN}" create -y -p "${ENV_PREFIX}" --override-channels -c conda-forge "python=${PYTHON_VERSION}" pip
 fi
 run "${PYTHON_BIN}" -m pip install --upgrade pip
 
-step "3. PyTorch (${GPU_MODE})"
+step "4. PyTorch (${GPU_MODE})"
 TORCH_ARGS=(torch)
 if [[ -n "${TORCH_INDEX_URL}" ]]; then
   TORCH_ARGS+=(--index-url "${TORCH_INDEX_URL}")
@@ -122,14 +167,14 @@ elif [[ "${OS_NAME}" == "Linux" && "${GPU_MODE}" == "cpu" ]]; then
 fi
 run "${PYTHON_BIN}" -m pip install "${TORCH_ARGS[@]}" "${CONSTRAINTS[@]}"
 
-step "4. this package (editable, extras ${EXTRAS}), MiniWorld, pyglet, JAX and JAXenstein"
+step "5. this package (editable, extras ${EXTRAS}), MiniWorld, pyglet, JAX and JAXenstein"
 PACKAGE_ARGS=(-e "${REPO_ROOT}[${EXTRAS}]")
 if [[ "${OS_NAME}" == "Linux" && "${GPU_MODE}" == "cuda" ]]; then
   PACKAGE_ARGS+=("jax[cuda12]")
 fi
 run "${PYTHON_BIN}" -m pip install "${PACKAGE_ARGS[@]}" "${CONSTRAINTS[@]}"
 
-step "5. OpenGL/EGL for headless MiniWorld"
+step "6. OpenGL/EGL for headless MiniWorld"
 if [[ "${OS_NAME}" == "Darwin" ]]; then
   echo "macOS renders through the window system: wake the display (caffeinate -u -t 5) and keep it awake (caffeinate -d -i) while MiniWorld runs."
 else
@@ -145,10 +190,10 @@ else
   else
     echo "WARNING: no system libEGL.so.1. Ask for libglvnd (libEGL) on the GPU nodes or set PLACECELL_EGL_LIBRARY."
   fi
-  echo "CPU-only MiniWorld jobs need software Mesa: set PLACECELL_MESA_PREFIX (see README)."
+  echo "CPU-only MiniWorld jobs need software Mesa: set PLACECELL_MESA_PREFIX (docs/guide_slurm.md)."
 fi
 
-step "6. self-check"
+step "7. self-check"
 if [[ "${RUN_DOCTOR}" -eq 1 ]]; then
   DOCTOR_ARGS=()
   if [[ "${OS_NAME}" == "Linux" ]] && ! command -v nvidia-smi >/dev/null 2>&1; then
@@ -160,7 +205,7 @@ fi
 step "done"
 cat <<DONE
 Activate the environment with:
-  source "${CONDA_BASE}/etc/profile.d/conda.sh" && conda activate "${ENV_PREFIX}"
+  ${ACTIVATION_PREFIX}source "${CONDA_BASE}/etc/profile.d/conda.sh" && conda activate "${ENV_PREFIX}"
 Python for SLURM jobs and for remote.python in the user file on your laptop:
   ${PYTHON_BIN}
 DONE

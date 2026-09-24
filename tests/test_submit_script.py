@@ -73,11 +73,15 @@ def test_lab_profile_pins_a_full_gpu_excludes_klab7_and_sources_the_site_script(
 ) -> None:
     text = _script(tmp_path, ["launcher=hpc3"])
     assert "#SBATCH --partition=klab-gpu" in text
+    assert "#SBATCH --account=klab" in text
+    assert "#SBATCH --qos=klab" in text
     assert "#SBATCH --exclude=klab-7" in text
     assert "#SBATCH --gres=gpu:H100.80gb:1" in text
     assert "#SBATCH --mem=200G" in text
     assert 'source "${PLACECELL_SLURM_SCRIPT_ROOT}/site/hpc3.sh"' in text
-    assert text.index("site/hpc3.sh") < text.index("env_miniworld.sh")
+    assert text.index("env_common.sh") < text.index("site/hpc3.sh")
+    assert text.index("site/hpc3.sh") < text.index(default_environment_activation())
+    assert text.index(default_environment_activation()) < text.index("env_miniworld.sh")
 
 
 @pytest.mark.parametrize("gpu_type", ["null", "H100.10gb", "h100.10gb"])
