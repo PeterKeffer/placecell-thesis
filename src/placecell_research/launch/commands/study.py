@@ -16,6 +16,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Run the sweep or curriculum of a study config."""
         from placecell_research.stages import run_study
 
         echo_stage_result(run_study.run(config, override or []))

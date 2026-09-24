@@ -14,6 +14,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Roll out forward or random actions in a navigation environment and report success."""
         from placecell_research.config import (
             load_downstream_run_config,
             validate_downstream_run_config,
@@ -66,6 +67,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Train a navigation policy on the configured input."""
         from placecell_research.config import (
             load_downstream_run_config,
             validate_downstream_run_config,

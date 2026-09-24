@@ -267,6 +267,7 @@ def register(app: typer.Typer) -> None:
             help="Assign one or more tags to the resulting or reused place model artifact.",
         ),
     ) -> None:
+        """Run the configured stages in order, reusing artifacts whose inputs and settings match."""
         from placecell_research.stages import pipeline
 
         echo_stage_result(
@@ -295,6 +296,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Collect a raw dataset of random-walk episodes."""
         from placecell_research.stages import collect_dataset
 
         echo_stage_result(
@@ -306,6 +308,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Split a dataset into train, validation and test episodes."""
         from placecell_research.stages import create_split
 
         echo_stage_result(
@@ -338,6 +341,7 @@ def register(app: typer.Typer) -> None:
             help="Assign one or more tags to the resulting or reused vision encoder artifact.",
         ),
     ) -> None:
+        """Train the visual encoder."""
         from placecell_research.stages import train_vision_encoder
 
         echo_stage_result(
@@ -359,6 +363,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Encode a raw dataset with a trained visual encoder."""
         from placecell_research.stages import encode_dataset
 
         echo_stage_result(
@@ -404,6 +409,7 @@ def register(app: typer.Typer) -> None:
             help="Assign one or more tags to the resulting or reused place model artifact.",
         ),
     ) -> None:
+        """Train the place-cell model."""
         from placecell_research.stages import train_place_model
 
         echo_stage_result(
@@ -427,6 +433,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Store the forward pass of a trained model over the configured splits."""
         from placecell_research.stages import collect_representations
 
         echo_stage_result(
@@ -440,6 +447,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Decoding and spatial information of a trained model on each evaluation split."""
         from placecell_research.stages import evaluate_model
 
         echo_stage_result(
@@ -451,6 +459,7 @@ def register(app: typer.Typer) -> None:
         config: Path = typer.Option(..., "--config", "-c"),
         override: list[str] | None = typer.Option(None, "--override", "-o"),
     ) -> None:
+        """Run the configured analysis modules on a trained model."""
         from placecell_research.stages import analyze_model
 
         echo_stage_result(
