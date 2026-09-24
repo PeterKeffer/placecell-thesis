@@ -193,9 +193,7 @@ class _VectorScoreCore:
         flat_peak = maps.reshape(num_units, -1).argmax(axis=1)
         peak_distance_bin = flat_peak // num_angle_bins
         peak_distance = (peak_distance_bin + 0.5) / num_distance_bins * max_distance
-        peak_direction = (
-            ((flat_peak % num_angle_bins) + 0.5) / num_angle_bins * 2.0 * np.pi - np.pi
-        )
+        peak_direction = ((flat_peak % num_angle_bins) + 0.5) / num_angle_bins * 2.0 * np.pi - np.pi
 
         min_distance_fraction = float(config.get("vector_min_peak_distance_fraction", 0.15))
         min_peak_distance = min_distance_fraction * max_distance
@@ -203,9 +201,7 @@ class _VectorScoreCore:
         significant = self._shuffle_significance(
             distances, angles, activations, spatial_information, config=config, binning=binning
         )
-        significance_gate = (
-            np.ones(num_units, dtype=bool) if significant is None else significant
-        )
+        significance_gate = np.ones(num_units, dtype=bool) if significant is None else significant
 
         is_reliable = reliability >= reliability_threshold
         is_vector = is_reliable & (peak_distance >= min_peak_distance) & significance_gate
@@ -302,9 +298,7 @@ class _VectorScoreCore:
         extent = (-180.0, 180.0, 0.0, float(max_distance))
         for panel_index, unit in enumerate(top):
             axis = flat_axes[panel_index]
-            axis.imshow(
-                maps[unit], origin="lower", aspect="auto", extent=extent, cmap="Reds"
-            )
+            axis.imshow(maps[unit], origin="lower", aspect="auto", extent=extent, cmap="Reds")
             mark = "VECTOR" if is_vector[unit] else "-"
             axis.set_title(
                 f"u{unit} r={reliability[unit]:.2f} d*={peak_distance[unit]:.1f} {mark}", fontsize=8
@@ -318,9 +312,7 @@ class _VectorScoreCore:
         summary.axhline(0.4, color="0.4", linewidth=0.8, linestyle="--")
         summary.set_xlabel("peak distance to reference", fontsize=7)
         summary.set_ylabel("split-half reliability", fontsize=7)
-        summary.set_title(
-            f"{is_vector.sum()} {self.reference_kind}-vector cells", fontsize=8
-        )
+        summary.set_title(f"{is_vector.sum()} {self.reference_kind}-vector cells", fontsize=8)
         summary.tick_params(labelsize=6)
         figure.suptitle(
             f"{self.name}  {analysis_input.label}  ({analysis_input.split_name})  "

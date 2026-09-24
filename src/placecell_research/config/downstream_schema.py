@@ -108,9 +108,7 @@ class DownstreamObservationConfig:
     synthetic_place_cells: SyntheticPlaceCellsConfig = field(
         default_factory=SyntheticPlaceCellsConfig
     )
-    synthetic_grid_cells: SyntheticGridCellsConfig = field(
-        default_factory=SyntheticGridCellsConfig
-    )
+    synthetic_grid_cells: SyntheticGridCellsConfig = field(default_factory=SyntheticGridCellsConfig)
 
 
 @dataclass(config=PYDANTIC_CONFIG)

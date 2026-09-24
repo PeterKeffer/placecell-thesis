@@ -46,18 +46,23 @@ class FourierRingModule:
 
         population = ring_metrics(rate_maps, band_pass_ratio=band_pass_ratio)
         per_unit_score = np.array(
-            [ring_metrics(unit_map, band_pass_ratio=band_pass_ratio)["ring_score"]
-             for unit_map in rate_maps],
+            [
+                ring_metrics(unit_map, band_pass_ratio=band_pass_ratio)["ring_score"]
+                for unit_map in rate_maps
+            ],
             dtype=np.float32,
         )
         per_unit_peak = np.array(
-            [ring_metrics(unit_map, band_pass_ratio=band_pass_ratio)["ring_peak_frequency"]
-             for unit_map in rate_maps],
+            [
+                ring_metrics(unit_map, band_pass_ratio=band_pass_ratio)["ring_peak_frequency"]
+                for unit_map in rate_maps
+            ],
             dtype=np.float32,
         )
         fraction_band_pass = (
             float(((per_unit_score >= band_pass_ratio) & (per_unit_peak > 1.0)).mean())
-            if len(per_unit_score) else 0.0
+            if len(per_unit_score)
+            else 0.0
         )
         frequencies, radial_power = radial_power_spectrum(rate_maps)
         figure_path = self._render(

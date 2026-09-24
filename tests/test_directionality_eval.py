@@ -50,7 +50,10 @@ def test_directionality_eval_metrics_distinguish_single_peak_from_180_degree_tun
     representation = np.stack([single_peak, bidirectional_peak], axis=-1)
 
     metrics = _compute_directionality_eval_metrics(
-        representation, position_xy, valid, heading,
+        representation,
+        position_xy,
+        valid,
+        heading,
         num_bins_x=3,
         num_bins_y=3,
         field_threshold_fraction=0.2,
@@ -97,7 +100,10 @@ def test_directionality_eval_metrics_show_denominator_and_distribution():
     representation = np.concatenate([representation, inactive_unit], axis=-1)
 
     metrics = _compute_directionality_eval_metrics(
-        representation, position_xy, valid, heading,
+        representation,
+        position_xy,
+        valid,
+        heading,
         num_bins_x=3,
         num_bins_y=3,
         field_threshold_fraction=0.2,
@@ -114,7 +120,10 @@ def test_directionality_eval_metrics_report_place_field_omnidirectionality_direc
     representation, position_xy, valid, heading = _omni_and_conjunctive_field()
 
     metrics = _compute_directionality_eval_metrics(
-        representation, position_xy, valid, heading,
+        representation,
+        position_xy,
+        valid,
+        heading,
         num_bins_x=3,
         num_bins_y=3,
         field_threshold_fraction=0.2,
@@ -141,7 +150,10 @@ def test_directionality_eval_metrics_report_place_field_omnidirectionality_direc
 def test_directionality_eval_metrics_emitted_and_finite():
     representation, position_xy, valid, heading = _omni_and_conjunctive_field()
     metrics = _compute_directionality_eval_metrics(
-        representation, position_xy, valid, heading,
+        representation,
+        position_xy,
+        valid,
+        heading,
         num_bins_x=3,
         num_bins_y=3,
         field_threshold_fraction=0.2,
@@ -156,9 +168,15 @@ def test_directionality_eval_metrics_emitted_and_finite():
 
 def test_directionality_eval_metrics_empty_without_heading():
     representation, position_xy, valid, _heading = _omni_and_conjunctive_field()
-    assert _compute_directionality_eval_metrics(
-        representation, position_xy, valid, None,
-        num_bins_x=3,
-        num_bins_y=3,
-        field_threshold_fraction=0.2,
-    ) == {}
+    assert (
+        _compute_directionality_eval_metrics(
+            representation,
+            position_xy,
+            valid,
+            None,
+            num_bins_x=3,
+            num_bins_y=3,
+            field_threshold_fraction=0.2,
+        )
+        == {}
+    )

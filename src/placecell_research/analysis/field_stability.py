@@ -328,8 +328,7 @@ class _FieldStabilityModuleBase:
             / f"field_stability__{analysis_input.source_name}__{analysis_input.split_name}.png"
         )
         trajectory_figure_path = (
-            module_dir
-            / f"field_center_trajectories__{analysis_input.source_name}"
+            module_dir / f"field_center_trajectories__{analysis_input.source_name}"
             f"__{analysis_input.split_name}.png"
         )
         drift_values = per_unit_drift[per_unit_valid_episode_fraction > 0.0]

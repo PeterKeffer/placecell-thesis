@@ -1,4 +1,5 @@
 """Cheap per-validation probes for catching representation quality early."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

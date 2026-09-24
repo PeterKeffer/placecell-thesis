@@ -134,9 +134,9 @@ def test_feature_source_reads_position_and_dim():
     )
     out = source.extract(context, None)
     assert out.shape == (8,)
-    expected = synthetic_grid_cell_code(
-        np.array([[3.0, -7.0]], np.float32), wave_vectors, phases
-    )[0]
+    expected = synthetic_grid_cell_code(np.array([[3.0, -7.0]], np.float32), wave_vectors, phases)[
+        0
+    ]
     np.testing.assert_allclose(out, expected, atol=1e-6)
 
 
@@ -226,13 +226,23 @@ def test_current_and_goal_grid_share_basis(tmp_path):
     a = np.array([3.0, -7.0], dtype=np.float32)
     b = np.array([-11.0, 20.0], dtype=np.float32)
     at_a_goal_b = extractor.extract(
-        StepContext(rgb=np.zeros((3, 4, 4), np.uint8), position_xy=a, heading=0.0,
-                    kinematics=None, goal_position_xy=b),
+        StepContext(
+            rgb=np.zeros((3, 4, 4), np.uint8),
+            position_xy=a,
+            heading=0.0,
+            kinematics=None,
+            goal_position_xy=b,
+        ),
         None,
     )
     at_b_goal_a = extractor.extract(
-        StepContext(rgb=np.zeros((3, 4, 4), np.uint8), position_xy=b, heading=0.0,
-                    kinematics=None, goal_position_xy=a),
+        StepContext(
+            rgb=np.zeros((3, 4, 4), np.uint8),
+            position_xy=b,
+            heading=0.0,
+            kinematics=None,
+            goal_position_xy=a,
+        ),
         None,
     )
     current_at_a, goal_is_b = at_a_goal_b[:16], at_a_goal_b[16:]
@@ -355,8 +365,13 @@ def test_goal_grid_single_and_vectorized_paths_match(tmp_path):
     position = np.array([3.0, -7.0], dtype=np.float32)
     goal = np.array([-11.0, 20.0], dtype=np.float32)
     single = extractor.extract(
-        StepContext(rgb=np.zeros((3, 4, 4), np.uint8), position_xy=position, heading=0.0,
-                    kinematics=None, goal_position_xy=goal),
+        StepContext(
+            rgb=np.zeros((3, 4, 4), np.uint8),
+            position_xy=position,
+            heading=0.0,
+            kinematics=None,
+            goal_position_xy=goal,
+        ),
         None,
     )
     batched = pipeline.encode(

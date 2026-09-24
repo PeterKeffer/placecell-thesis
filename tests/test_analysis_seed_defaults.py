@@ -107,9 +107,7 @@ def test_overlay_kwinners_respects_explicit_value() -> None:
 
 
 def test_overlay_kwinners_skipped_when_module_not_enabled() -> None:
-    config = {
-        "targets": {"encoder_place_cells": {"enabled": True, "modules": ["rate_map_fields"]}}
-    }
+    config = {"targets": {"encoder_place_cells": {"enabled": True, "modules": ["rate_map_fields"]}}}
     resolved = _analysis_config_with_overlay_kwinners_default(
         config,
         encoder_sparsifier_type="kwinners",

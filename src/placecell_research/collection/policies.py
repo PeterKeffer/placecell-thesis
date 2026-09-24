@@ -187,7 +187,8 @@ class MotionBoutPolicy:
     def sample(self, observation: Any) -> int:
         position = np.asarray(observation.position_xy)
         collision = (
-            self.action == self.forward and self.previous_position is not None
+            self.action == self.forward
+            and self.previous_position is not None
             and float(np.linalg.norm(position - self.previous_position)) < 1e-6
         )
         if collision or self.rng.random() < self.switch_probability:

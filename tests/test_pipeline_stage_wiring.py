@@ -104,7 +104,9 @@ def test_pipeline_injects_stage_outputs_into_later_stage_overrides_and_builds_re
         "CompositePlaceModel(\n  (encoder_stack): EncoderStack(...)\n)\n"
     )
     representation_set = _write_artifact(
-        artifact_root, "representation_set", "representation_fixture",
+        artifact_root,
+        "representation_set",
+        "representation_fixture",
         input_artifact_ids=["place_fixture_model"],
     )
     evaluation_report = _write_artifact(
@@ -224,10 +226,7 @@ def test_pipeline_injects_stage_outputs_into_later_stage_overrides_and_builds_re
     monkeypatch.setenv("PLACECELL_RUN_ID", "pipeline_probe_run")
 
     config_path = (
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "experiment"
-        / "smoke_wallgap.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     result = pipeline.run(
         config_path,
@@ -244,8 +243,7 @@ def test_pipeline_injects_stage_outputs_into_later_stage_overrides_and_builds_re
     assert "dataset.artifact_id=encoded_fixture_dataset" in captured_overrides["train_place_model"]
     assert "splits.artifact_id=encoded_fixture_split" in captured_overrides["train_place_model"]
     assert (
-        "evaluation.model_artifact_id=place_fixture_model"
-        in captured_overrides["evaluate_model"]
+        "evaluation.model_artifact_id=place_fixture_model" in captured_overrides["evaluate_model"]
     )
     assert "analysis.model_artifact_id=place_fixture_model" in captured_overrides["analyze_model"]
     for stage in ("evaluate_model", "analyze_model"):
@@ -297,17 +295,10 @@ def test_pipeline_injects_stage_outputs_into_later_stage_overrides_and_builds_re
         place_model / "weights_best_primary.pt"
     ).resolve()
     assert (
-        pipeline_results
-        / "stages"
-        / "train_place_model"
-        / "selected_checkpoint.pt"
+        pipeline_results / "stages" / "train_place_model" / "selected_checkpoint.pt"
     ).resolve() == (place_model / "weights_best_primary.pt").resolve()
     assert (
-        pipeline_results
-        / "related"
-        / "artifacts"
-        / "raw_dataset"
-        / "raw_fixture_dataset"
+        pipeline_results / "related" / "artifacts" / "raw_dataset" / "raw_fixture_dataset"
     ).exists()
     assert (pipeline_results / "related" / "runs" / "collect_run__raw_dataset").exists()
     assert (pipeline_open / "artifacts" / "model_dataset").resolve() == (
@@ -397,15 +388,9 @@ def test_link_related_lineage_skips_self_referential_run_symlink(tmp_path: Path)
     )
 
     assert (
-        run_directory.results_dir
-        / "related"
-        / "artifacts"
-        / "raw_dataset"
-        / "raw_fixture_dataset"
+        run_directory.results_dir / "related" / "artifacts" / "raw_dataset" / "raw_fixture_dataset"
     ).exists()
-    assert not (
-        run_directory.results_dir / "related" / "runs" / "self_run__raw_dataset"
-    ).exists()
+    assert not (run_directory.results_dir / "related" / "runs" / "self_run__raw_dataset").exists()
 
 
 def test_pipeline_does_not_inject_metrics_as_overrides(tmp_path, monkeypatch) -> None:
@@ -445,10 +430,7 @@ def test_pipeline_does_not_inject_metrics_as_overrides(tmp_path, monkeypatch) ->
     monkeypatch.setattr(pipeline, "_load_stage_runner", lambda name: make_runner(name))
 
     config_path = (
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "experiment"
-        / "smoke_wallgap.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     pipeline.run(
         config_path,
@@ -524,10 +506,7 @@ def test_pipeline_skips_producer_stages_satisfied_by_explicit_encoded_artifact(
     monkeypatch.setattr(pipeline, "_load_stage_runner", lambda name: make_runner(name))
 
     config_path = (
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "experiment"
-        / "smoke_wallgap.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     result = pipeline.run(
         config_path,
@@ -561,10 +540,7 @@ def test_pipeline_auto_reuses_encoded_replacement_for_matching_pruned_raw_artifa
     artifact_root = tmp_path / "artifacts"
     run_root = tmp_path / "runs"
     config_path = (
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "experiment"
-        / "smoke_wallgap.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "smoke_wallgap.yaml"
     )
     overrides = [
         f"tracking.run_root={run_root}",

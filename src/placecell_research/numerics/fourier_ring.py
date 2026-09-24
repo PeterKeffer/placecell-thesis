@@ -32,8 +32,10 @@ def radial_power_spectrum(rate_maps: np.ndarray) -> tuple[np.ndarray, np.ndarray
         return frequencies, np.zeros(max_radius + 1, dtype=np.float64)
     mean_power = accumulated_power / used_units
     radial_power = np.array(
-        [float(mean_power[radius == r].mean()) if np.any(radius == r) else 0.0
-         for r in range(max_radius + 1)],
+        [
+            float(mean_power[radius == r].mean()) if np.any(radius == r) else 0.0
+            for r in range(max_radius + 1)
+        ],
         dtype=np.float64,
     )
     return frequencies, radial_power

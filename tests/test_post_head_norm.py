@@ -190,9 +190,7 @@ def test_learned_gain_is_never_weight_decayed() -> None:
 
 def test_exemption_is_scoped_to_the_cage_and_leaves_plain_rmsnorm_decayed() -> None:
     """The backbones carry their own nn.RMSNorm."""
-    container = nn.ModuleDict(
-        {"backbone": nn.RMSNorm(CODE_DIM), "cage": PostHeadRMSNorm(CODE_DIM)}
-    )
+    container = nn.ModuleDict({"backbone": nn.RMSNorm(CODE_DIM), "cage": PostHeadRMSNorm(CODE_DIM)})
     _names, no_decay_ids = _named_parameter_lookup([container])
 
     assert id(container["cage"].weight) in no_decay_ids

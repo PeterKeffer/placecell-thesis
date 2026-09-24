@@ -207,9 +207,7 @@ def build_comparative_work_items(
     comparative_input_payloads: Callable[[str, dict[str, object]], list[dict[str, object]]],
 ) -> list[tuple[str, dict[str, object], list[AnalysisSourceReference]]]:
     """Resolve each enabled comparative analysis to its concrete source references."""
-    comparative_work_items: list[
-        tuple[str, dict[str, object], list[AnalysisSourceReference]]
-    ] = []
+    comparative_work_items: list[tuple[str, dict[str, object], list[AnalysisSourceReference]]] = []
     for analysis_name, analysis_payload in enabled_comparative_items:
         references = [
             resolve_reference(
@@ -220,9 +218,7 @@ def build_comparative_work_items(
                     default_dataset_artifact_type=default_dataset_type,
                     default_split_artifact_id=default_split_id,
                     default_split_name=default_split_name,
-                    default_source_name=str(
-                        analysis_payload.get("source", "encoder.place_codes")
-                    ),
+                    default_source_name=str(analysis_payload.get("source", "encoder.place_codes")),
                 ),
                 registry=registry,
             )
@@ -532,9 +528,7 @@ def finalize_report(
             "split_artifact_id": default_split_id,
             "split_name": default_split_name,
             "analysis_targets": sorted(analysis_config.get("targets", {}).keys()),
-            "comparative_targets": sorted(
-                name for name, _payload in enabled_comparative_items
-            ),
+            "comparative_targets": sorted(name for name, _payload in enabled_comparative_items),
         },
     )
     write_analysis_browser_links(
@@ -589,8 +583,11 @@ def finalize_report(
             report_path / "metrics.csv",
         ],
     )
-    return augment_stage_result(runtime, {
-        "analysis_report_id": report_id,
-        "analysis_report_path": str(report_path),
-        **flat_summary,
-    })
+    return augment_stage_result(
+        runtime,
+        {
+            "analysis_report_id": report_id,
+            "analysis_report_path": str(report_path),
+            **flat_summary,
+        },
+    )

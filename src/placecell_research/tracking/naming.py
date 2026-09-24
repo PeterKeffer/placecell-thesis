@@ -203,5 +203,3 @@ def generate_variant_slug(resolved_config: dict, *, fallback_name: str = "baseli
     if parts:
         return "__".join(parts)
     return slugify(fallback_name)
-
-

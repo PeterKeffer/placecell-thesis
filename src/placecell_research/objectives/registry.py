@@ -87,9 +87,7 @@ def _build_reconstruction_head(
     model_contract: dict[str, Any],
 ) -> nn.Module:
     head_config = objective_config.auxiliary_head
-    source = (
-        objective_config.targets[0] if objective_config.targets else "predictor.place_codes"
-    )
+    source = objective_config.targets[0] if objective_config.targets else "predictor.place_codes"
     return ReconstructionHead(
         objective_name,
         source=source,
@@ -154,9 +152,7 @@ def build_objectives(model: PlaceModel, model_config: SpatialModelConfig) -> Bui
             auxiliary_heads[objective_name] = auxiliary_head
         objectives.append(registration.build_objective(objective_name, objective_config, model))
     available_auxiliary_outputs = {
-        output_name
-        for head in auxiliary_heads.values()
-        for output_name in head.output_names()
+        output_name for head in auxiliary_heads.values() for output_name in head.output_names()
     }
     for objective in objectives:
         objective.validate_configuration(available_representations, available_auxiliary_outputs)
@@ -230,19 +226,14 @@ def compute_total_loss(
                 ("blackout", corruption_regime.eq(2)),
                 ("any", corruption_regime.gt(0)),
             ):
-                realized_fraction = (
-                    selected_steps & corruption_valid_steps
-                ).sum() / valid_count
+                realized_fraction = (selected_steps & corruption_valid_steps).sum() / valid_count
                 _queue_tensor_metric(
                     f"corruption/{fraction_name}_fraction",
                     realized_fraction.float(),
                 )
     for module_name, module_outputs in bundle.modules.items():
         for auxiliary_name, value in module_outputs.auxiliary.items():
-            if (
-                auxiliary_name.startswith(("kwinners.", "grouped_kwinners."))
-                and value.numel() == 1
-            ):
+            if auxiliary_name.startswith(("kwinners.", "grouped_kwinners.")) and value.numel() == 1:
                 _queue_tensor_metric(f"{module_name}/{auxiliary_name}", value)
     _assert_all_finite(loss_terms)
     _queue_tensor_metric("loss/total", total_loss)

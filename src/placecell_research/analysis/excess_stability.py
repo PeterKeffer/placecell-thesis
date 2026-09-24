@@ -253,16 +253,14 @@ def _rotation_variance_fraction(
     if displacement_rms <= 0.0:
         rotation_dominated = heading_delta > 0.0
     else:
-        rotation_dominated = (
-            heading_delta / heading_delta_rms > displacement / displacement_rms
-        )
+        rotation_dominated = heading_delta / heading_delta_rms > displacement / displacement_rms
     squared_change_per_step = np.zeros(pair_valid.shape, dtype=np.float64)
     num_units = representation.shape[-1]
     for start_index in range(0, num_units, _UNIT_CHUNK_SIZE):
         chunk = representation[..., start_index : start_index + _UNIT_CHUNK_SIZE]
-        squared_change_per_step += np.square(
-            chunk[:, 1:] - chunk[:, :-1], dtype=np.float64
-        ).sum(axis=-1)
+        squared_change_per_step += np.square(chunk[:, 1:] - chunk[:, :-1], dtype=np.float64).sum(
+            axis=-1
+        )
     total = float(squared_change_per_step[pair_valid].sum())
     if total <= 0.0:
         return float("nan"), int((rotation_dominated & pair_valid).sum())
@@ -362,8 +360,7 @@ class ExcessStabilityModule:
 
         module_dir = output_dir / self.name
         figure_path = (
-            module_dir
-            / f"excess_stability__{analysis_input.source_name}"
+            module_dir / f"excess_stability__{analysis_input.source_name}"
             f"__{analysis_input.split_name}.png"
         )
         figure_path.parent.mkdir(parents=True, exist_ok=True)

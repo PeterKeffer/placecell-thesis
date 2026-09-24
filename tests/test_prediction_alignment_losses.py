@@ -84,18 +84,22 @@ def test_prediction_alignment_rejects_unknown_loss_type() -> None:
         _loss("typo", [1.0, 0.0], [1.0, 0.0])
 
 
-@pytest.mark.parametrize('offset,expected', [(0, 0.0), (1, 1.0)])
+@pytest.mark.parametrize("offset,expected", [(0, 0.0), (1, 1.0)])
 def test_target_offset_uses_same_predictor_and_valid_transitions(offset, expected):
-    prediction = torch.tensor([[[99., 99.], [1., 0.], [0., 1.], [99., 99.]]],
-                              requires_grad=True)
-    teacher = torch.tensor([[[1., 0.], [0., 1.], [1., 0.], [99., 99.]]])
-    bundle = RepresentationBundle(
-        modules={'predictor': ModuleOutputs(place_codes=prediction),
-                 'teacher': ModuleOutputs(place_codes=teacher)},
-        masks={'valid_steps': torch.tensor([[True, True, True, False]])},
+    prediction = torch.tensor(
+        [[[99.0, 99.0], [1.0, 0.0], [0.0, 1.0], [99.0, 99.0]]], requires_grad=True
     )
-    objective = PredictionAlignmentObjective(name='prediction', config=ObjectiveConfig(
-        type='prediction_alignment', target_offset=offset))
+    teacher = torch.tensor([[[1.0, 0.0], [0.0, 1.0], [1.0, 0.0], [99.0, 99.0]]])
+    bundle = RepresentationBundle(
+        modules={
+            "predictor": ModuleOutputs(place_codes=prediction),
+            "teacher": ModuleOutputs(place_codes=teacher),
+        },
+        masks={"valid_steps": torch.tensor([[True, True, True, False]])},
+    )
+    objective = PredictionAlignmentObjective(
+        name="prediction", config=ObjectiveConfig(type="prediction_alignment", target_offset=offset)
+    )
     loss = objective.compute(bundle, {}).loss
     assert loss.item() == pytest.approx(expected)
     loss.backward()

@@ -103,13 +103,9 @@ class GRUSequenceTemporal(ProjectedTemporalBase):
                 for layer_index, layer_output_t in enumerate(step_layer_outputs):
                     layer_outputs_by_layer[layer_index].append(layer_output_t.unsqueeze(1))
                 if self.uses_adaptive_state_gate:
-                    update_rates.append(
-                        self.last_auxiliary_outputs["adaptive_state_update_rate"]
-                    )
+                    update_rates.append(self.last_auxiliary_outputs["adaptive_state_update_rate"])
                     open_probabilities.append(
-                        self.last_auxiliary_outputs[
-                            "adaptive_state_gate_open_probability"
-                        ]
+                        self.last_auxiliary_outputs["adaptive_state_gate_open_probability"]
                     )
             if self.uses_adaptive_state_gate:
                 self.last_auxiliary_outputs = {
@@ -120,8 +116,7 @@ class GRUSequenceTemporal(ProjectedTemporalBase):
                     ),
                 }
                 self.last_diagnostics = {
-                    name: value.detach()
-                    for name, value in self.last_auxiliary_outputs.items()
+                    name: value.detach() for name, value in self.last_auxiliary_outputs.items()
                 }
             return (
                 torch.cat(outputs, dim=1),
@@ -297,13 +292,9 @@ class LSTMSequenceTemporal(ProjectedTemporalBase):
                 for layer_index, layer_output_t in enumerate(step_layer_outputs):
                     layer_outputs_by_layer[layer_index].append(layer_output_t.unsqueeze(1))
                 if self.uses_adaptive_state_gate:
-                    update_rates.append(
-                        self.last_auxiliary_outputs["adaptive_state_update_rate"]
-                    )
+                    update_rates.append(self.last_auxiliary_outputs["adaptive_state_update_rate"])
                     open_probabilities.append(
-                        self.last_auxiliary_outputs[
-                            "adaptive_state_gate_open_probability"
-                        ]
+                        self.last_auxiliary_outputs["adaptive_state_gate_open_probability"]
                     )
             if self.uses_adaptive_state_gate:
                 self.last_auxiliary_outputs = {
@@ -314,8 +305,7 @@ class LSTMSequenceTemporal(ProjectedTemporalBase):
                     ),
                 }
                 self.last_diagnostics = {
-                    name: value.detach()
-                    for name, value in self.last_auxiliary_outputs.items()
+                    name: value.detach() for name, value in self.last_auxiliary_outputs.items()
                 }
             return (
                 torch.cat(outputs, dim=1),
@@ -393,9 +383,8 @@ class LSTMSequenceTemporal(ProjectedTemporalBase):
                 )
                 expanded_update_rate = update_rate.unsqueeze(-1)
                 new_cell = (
-                    (1.0 - expanded_update_rate) * previous_cell
-                    + expanded_update_rate * new_cell
-                )
+                    1.0 - expanded_update_rate
+                ) * previous_cell + expanded_update_rate * new_cell
                 layer_output = new_hidden.unsqueeze(1)
                 update_rates.append(update_rate)
                 open_probabilities.append(open_probability)

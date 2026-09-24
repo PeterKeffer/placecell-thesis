@@ -30,7 +30,7 @@ def _synthetic_place_activity(
     width: float = 0.22,
 ) -> np.ndarray:
     squared_distance = (positions[..., 0] - center_x) ** 2 + (positions[..., 1] - center_y) ** 2
-    return np.exp(-squared_distance / max(width ** 2, 1e-6)).astype(np.float32)
+    return np.exp(-squared_distance / max(width**2, 1e-6)).astype(np.float32)
 
 
 def _analysis_input(
@@ -386,11 +386,15 @@ def test_decode_heatmap_and_headline_use_the_same_rmse(tmp_path, monkeypatch, an
         return original(axis, values, *args, **kwargs)
 
     monkeypatch.setattr(matplotlib.axes.Axes, "imshow", capture)
-    result = DecodeXYModule().run(_analysis_input(codes, positions), tmp_path, analysis_settings(
-        decode_error_num_bins_x=1,
-        decode_error_num_bins_y=1,
-        decode_bias_min_samples_per_bin=1,
-    ))
+    result = DecodeXYModule().run(
+        _analysis_input(codes, positions),
+        tmp_path,
+        analysis_settings(
+            decode_error_num_bins_x=1,
+            decode_error_num_bins_y=1,
+            decode_bias_min_samples_per_bin=1,
+        ),
+    )
     assert images[0].shape == (1, 1)
     assert images[0][0, 0] == pytest.approx(result.metrics["decode_rmse"], rel=1e-6)
 

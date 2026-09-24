@@ -165,9 +165,7 @@ class SequenceRegularizer(nn.Module):
             if not target.startswith("predictor."):
                 continue
             module = self.site_modules[module_key]
-            is_active = (
-                module.dropout.dropout_probability > 0.0 or module.noise_scale > 0.0
-            )
+            is_active = module.dropout.dropout_probability > 0.0 or module.noise_scale > 0.0
             if is_active and target not in PREDICTOR_FUSION_COMPATIBLE_TARGETS:
                 return True
         return False

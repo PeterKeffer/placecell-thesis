@@ -62,9 +62,7 @@ def _chunks_for_shape(
 ) -> tuple[int, ...] | None:
     if len(shape) == 0:
         return None
-    episodes = _episodes_per_chunk(
-        key, shape, np.dtype(dtype).itemsize
-    )
+    episodes = _episodes_per_chunk(key, shape, np.dtype(dtype).itemsize)
     return (episodes, *[int(size) for size in shape[1:]])
 
 
@@ -317,7 +315,7 @@ class DatasetZarrStreamWriter:
         pending = self._pending_chunks.pop(key, None)
         if pending is None:
             return
-        self._group[key][pending.start_index:pending.stop_index] = np.stack(pending.episodes)
+        self._group[key][pending.start_index : pending.stop_index] = np.stack(pending.episodes)
 
     def finalize(self) -> None:
         if self._group is None:

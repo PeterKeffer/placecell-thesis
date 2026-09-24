@@ -111,10 +111,12 @@ def render_rate_map_grid_pages(
         pages.append(path)
     return pages
 
+
 def _rate_map_render_dpi(*, render_all_units: bool) -> int:
     if render_all_units:
         return 72
     return 170
+
 
 def rate_map_page_ranges(num_items: int, *, page_size: int) -> list[tuple[int, int]]:
     if num_items <= 0:
@@ -128,6 +130,7 @@ def rate_map_page_ranges(num_items: int, *, page_size: int) -> list[tuple[int, i
 
 def _rate_map_page_path(base_path: Path, *, start_index: int, end_index: int) -> Path:
     return base_path.with_name(f"{base_path.stem}__{start_index}_{end_index}{base_path.suffix}")
+
 
 def _render_summary_panel(
     path: Path,
@@ -224,6 +227,7 @@ def _render_summary_panel(
     plt.close(figure)
     return path, clean_path
 
+
 def _render_rate_map_grid(
     path: Path,
     *,
@@ -281,6 +285,7 @@ def _render_rate_map_grid(
     plt.close(figure)
     return path, clean_path
 
+
 def render_support_map(
     path: Path,
     *,
@@ -321,6 +326,7 @@ def render_support_map(
     figure.savefig(path, dpi=render_dpi, bbox_inches="tight")
     plt.close(figure)
     return path
+
 
 _PER_UNIT_EXPORT_DIR_NAME = "rate_map_units"
 _PER_UNIT_EXPORT_DPI = 160
@@ -436,9 +442,7 @@ def export_per_unit_rate_maps(
                 population_is_signed=population_is_signed,
                 colormap_mode=colormap_mode,
             )
-            for block in index_blocks(
-                export_indices.size, render_block_count(export_indices.size)
-            )
+            for block in index_blocks(export_indices.size, render_block_count(export_indices.size))
         ]
     )
     table_path = module_dir / f"rate_map_units__{source_name}__{split_name}.npz"
@@ -450,6 +454,7 @@ def export_per_unit_rate_maps(
         skaggs_bits=skaggs_bits[export_indices].astype(np.float32, copy=False),
     )
     return exported_figures, exported_destinations, table_path
+
 
 _METRICS_TABLE_HEADER = [
     "unit_index",
@@ -485,6 +490,7 @@ _METRICS_TABLE_HEADER = [
     "episode_rate_map_correlation",
 ]
 
+
 def render_panel_family(
     *,
     analysis_input: AnalysisInput,
@@ -514,9 +520,7 @@ def render_panel_family(
             else panel_base_path
         )
         clean_page_path = (
-            _rate_map_page_path(
-                clean_panel_base_path, start_index=start_index, end_index=end_index
-            )
+            _rate_map_page_path(clean_panel_base_path, start_index=start_index, end_index=end_index)
             if len(page_ranges) > 1
             else clean_panel_base_path
         )
@@ -551,9 +555,7 @@ def render_panel_family(
                 if len(page_ranges) > 1
                 else title_prefix_root
             ),
-            render_dpi=_rate_map_render_dpi(
-                render_all_units=ranked_units.render_all_panel_units
-            ),
+            render_dpi=_rate_map_render_dpi(render_all_units=ranked_units.render_all_panel_units),
             clean_path=clean_page_path,
         )
         outcome.page_paths.append(str(rendered_panel_path))
@@ -569,6 +571,7 @@ def render_panel_family(
                     rendered_clean_panel_path
                 )
     return outcome
+
 
 def render_grid_pages(
     *,
@@ -591,8 +594,7 @@ def render_grid_pages(
     )
     outcome = GridOutcome()
     grid_base_path = (
-        module_dir
-        / f"rate_map_grid__{analysis_input.source_name}__{analysis_input.split_name}.png"
+        module_dir / f"rate_map_grid__{analysis_input.source_name}__{analysis_input.split_name}.png"
     )
     clean_grid_base_path = (
         module_dir
@@ -606,9 +608,7 @@ def render_grid_pages(
             else grid_base_path
         )
         clean_page_path = (
-            _rate_map_page_path(
-                clean_grid_base_path, start_index=start_index, end_index=end_index
-            )
+            _rate_map_page_path(clean_grid_base_path, start_index=start_index, end_index=end_index)
             if len(page_ranges) > 1
             else clean_grid_base_path
         )
@@ -643,10 +643,9 @@ def render_grid_pages(
         else:
             figures[f"rate_map_grid_{start_index}_{end_index}"] = rendered_grid_path
             if rendered_clean_grid_path is not None:
-                figures[f"rate_map_grid_clean_{start_index}_{end_index}"] = (
-                    rendered_clean_grid_path
-                )
+                figures[f"rate_map_grid_clean_{start_index}_{end_index}"] = rendered_clean_grid_path
     return outcome
+
 
 def write_rate_map_metrics_table(
     path: Path,

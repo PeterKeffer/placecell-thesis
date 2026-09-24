@@ -106,8 +106,7 @@ class _RateMapModuleBase:
             max_negative_peak_fraction=float(
                 config.get("place_metric_max_negative_peak_fraction", 0.05)
             ),
-            export_per_unit=self.emit_panel
-            and bool(config.get("rate_map_export_per_unit", False)),
+            export_per_unit=self.emit_panel and bool(config.get("rate_map_export_per_unit", False)),
             spike_overlay_max_points=int(config.get("rate_map_spike_overlay_max_points", 180)),
             panel_top_k=int(config["rate_map_panel_top_k"]),
             grid_top_k=int(config["rate_map_grid_top_k"]),
@@ -218,9 +217,7 @@ class _RateMapModuleBase:
             primary_support_counts = {
                 "thresholded_reliability": bundle.reliability.thresholded_visit_counts,
                 "quantile_thresholded_reliability": bundle.reliability.quantile_visit_counts,
-                "split_half_agreement": (
-                    bundle.reliability.split_half_agreement_support_counts
-                ),
+                "split_half_agreement": (bundle.reliability.split_half_agreement_support_counts),
             }.get(settings.panel_metric_name, bundle.reliability.bin_consistency_visit_counts)
             figures["support_map"] = render_support_map(
                 module_dir
@@ -264,9 +261,7 @@ class _RateMapModuleBase:
                 title_prefix_root=title_prefix_root,
             )
             timing_seconds["render_extra_panels"] = (
-                timing_seconds.get("render_extra_panels", 0.0)
-                + perf_counter()
-                - section_started_at
+                timing_seconds.get("render_extra_panels", 0.0) + perf_counter() - section_started_at
             )
         timing_seconds.setdefault("render_extra_panels", 0.0)
         return families
@@ -337,9 +332,7 @@ class _RateMapModuleBase:
             figure_destinations.update(per_unit_destinations)
             record_timing(timing_seconds, "export_per_unit_maps", section_started_at)
 
-        _, panel_metric_inside_fields, _ = panel_metric_family(
-            bundle, settings.panel_metric_name
-        )
+        _, panel_metric_inside_fields, _ = panel_metric_family(bundle, settings.panel_metric_name)
         section_started_at = perf_counter()
         grid = (
             render_grid_pages(
@@ -526,9 +519,7 @@ class _RateMapModuleBase:
             "rate_map_panel_has_support_column": False,
             "rate_map_has_per_unit_colorbars": not settings.shared_color_scale,
             "rate_map_all_units_page_size": self.all_units_page_size,
-            "thresholded_reliability_visit_counts": (
-                bundle.reliability.thresholded_visit_counts
-            ),
+            "thresholded_reliability_visit_counts": (bundle.reliability.thresholded_visit_counts),
             "quantile_thresholded_reliability_visit_counts": (
                 bundle.reliability.quantile_visit_counts
             ),
@@ -556,9 +547,7 @@ class _RateMapModuleBase:
                 else "eligibility_lexicographic"
             ),
             "rate_map_ranking_is_peak_preview": bundle.ranking_is_peak_preview,
-            "spatial_information_null_shuffles": (
-                bundle.spatial_information_null.num_shuffles
-            ),
+            "spatial_information_null_shuffles": (bundle.spatial_information_null.num_shuffles),
             "rate_map_timing_seconds": timing_seconds,
         }
 

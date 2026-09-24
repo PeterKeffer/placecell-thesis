@@ -48,11 +48,13 @@ def snapshot_metric_values(metrics: dict[str, float | Tensor]) -> dict[str, floa
 
 def sum_metric_batches(batches: list[dict[str, float | Tensor]]) -> dict[str, float]:
     """Transfer buffered scalars together, retaining Python's batch-wise addition order."""
-    values = materialize_metric_values({
-        (index, name): value
-        for index, metrics in enumerate(batches)
-        for name, value in metrics.items()
-    })
+    values = materialize_metric_values(
+        {
+            (index, name): value
+            for index, metrics in enumerate(batches)
+            for name, value in metrics.items()
+        }
+    )
     totals: dict[str, float] = {}
     for (_, name), value in values.items():
         totals[name] = totals.get(name, 0.0) + value

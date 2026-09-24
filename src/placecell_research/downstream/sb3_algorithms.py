@@ -135,7 +135,7 @@ def import_sb3_runtime() -> Sb3Runtime:
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise RuntimeError(
             "Downstream RL training requires stable-baselines3. Install it with "
-            "`python -m pip install -e \".[rl]\"`."
+            '`python -m pip install -e ".[rl]"`.'
         ) from exc
     return Sb3Runtime(
         ppo=PPO,

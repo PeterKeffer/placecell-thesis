@@ -147,9 +147,7 @@ class DecodeConvergenceModule:
             )
             for first_step, last_step in windows
         }
-        asymptote_error = _pooled_mean(
-            validation_errors, validation_step_ids >= last_quarter_start
-        )
+        asymptote_error = _pooled_mean(validation_errors, validation_step_ids >= last_quarter_start)
         initial_error = window_metrics.get(window_metric_name(*STEP_WINDOWS[0]), float("nan"))
         if np.isfinite(asymptote_error) and asymptote_error > 0.0:
             error_ratio_initial_over_asymptote = initial_error / asymptote_error
@@ -168,8 +166,7 @@ class DecodeConvergenceModule:
 
         module_dir = output_dir / self.name
         figure_path = (
-            module_dir
-            / f"decode_convergence__{analysis_input.source_name}"
+            module_dir / f"decode_convergence__{analysis_input.source_name}"
             f"__{analysis_input.split_name}.png"
         )
         figure_path.parent.mkdir(parents=True, exist_ok=True)

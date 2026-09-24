@@ -196,9 +196,7 @@ class PlaceCodeFeatureSource:
 class AELatentFeatureSource:
     """Frozen vision encoder latent source."""
 
-    def __init__(
-        self, vision_encoder_path: Path, device: str, projection_path: str = ""
-    ) -> None:
+    def __init__(self, vision_encoder_path: Path, device: str, projection_path: str = "") -> None:
         self.name = "ae_latent"
         self.device = torch.device(device)
         self.vision_encoder_path = Path(vision_encoder_path)

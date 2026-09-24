@@ -417,5 +417,3 @@ def draw_landmarks_on_axis(
             alpha=alpha,
             zorder=zorder,
         )
-
-

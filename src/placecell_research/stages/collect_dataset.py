@@ -61,10 +61,13 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
             }
         )
         runtime.run_directory.write_symlink("results/raw_dataset", matching_artifact.path)
-        return augment_stage_result(runtime, {
-            "dataset.artifact_id": matching_artifact.artifact_id,
-            "dataset.artifact_type": "raw_dataset",
-        })
+        return augment_stage_result(
+            runtime,
+            {
+                "dataset.artifact_id": matching_artifact.artifact_id,
+                "dataset.artifact_type": "raw_dataset",
+            },
+        )
     runtime.artifact_registry.root.mkdir(parents=True, exist_ok=True)
     artifact_id = generate_artifact_id(
         "raw",
@@ -129,7 +132,10 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     )
     runtime.run_directory.write_symlink("results/raw_dataset", destination)
     runtime.artifact_registry.mark_artifact_completed("raw_dataset", artifact_id)
-    return augment_stage_result(runtime, {
-        "dataset.artifact_id": artifact_id,
-        "dataset.artifact_type": "raw_dataset",
-    })
+    return augment_stage_result(
+        runtime,
+        {
+            "dataset.artifact_id": artifact_id,
+            "dataset.artifact_type": "raw_dataset",
+        },
+    )

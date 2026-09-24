@@ -60,8 +60,7 @@ def test_zero_default_preserves_topk_output_state_and_rng() -> None:
     values = torch.randn(3, NUM_UNITS)
     cpu_rng_before = torch.random.get_rng_state().clone()
     mutable_before = {
-        name: getattr(sparsifier, name).clone()
-        for name in sparsifier.forward_mutable_buffer_names
+        name: getattr(sparsifier, name).clone() for name in sparsifier.forward_mutable_buffer_names
     }
 
     output = sparsifier(values)

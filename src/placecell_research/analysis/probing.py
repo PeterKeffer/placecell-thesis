@@ -290,13 +290,11 @@ def distance_to_segments(
     segment_lengths = np.maximum(np.sum(np.square(segment_vectors), axis=1), 1e-12)
     relative_positions = flat_positions[:, None, :] - starts[None, :, :]
     projection = (
-        np.sum(relative_positions * segment_vectors[None, :, :], axis=2)
-        / segment_lengths[None, :]
+        np.sum(relative_positions * segment_vectors[None, :, :], axis=2) / segment_lengths[None, :]
     )
     clipped_projection = np.clip(projection, 0.0, 1.0)
     closest_points = (
-        starts[None, :, :]
-        + clipped_projection[..., None] * segment_vectors[None, :, :]
+        starts[None, :, :] + clipped_projection[..., None] * segment_vectors[None, :, :]
     )
     distances = np.linalg.norm(flat_positions[:, None, :] - closest_points, axis=2)
     return np.min(distances, axis=1).reshape(positions.shape[:2]).astype(np.float32)
@@ -467,10 +465,7 @@ def _save_probe_score_figure(path: Path, metrics: dict[str, float]) -> Path:
     labels = [name for name, _value in observed_items]
     observed = np.asarray([value for _name, value in observed_items], dtype=np.float32)
     shuffled = np.asarray(
-        [
-            metrics.get(f"probe_{name}_shuffle_score", np.nan)
-            for name in labels
-        ],
+        [metrics.get(f"probe_{name}_shuffle_score", np.nan) for name in labels],
         dtype=np.float32,
     )
 

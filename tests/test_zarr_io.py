@@ -195,20 +195,14 @@ def _chunk_shapes(dataset_zarr: Path) -> dict[str, tuple[int, ...]]:
 def test_episodes_per_chunk_matches_the_filesystem_stripe_arithmetic() -> None:
     """The real 8,192 x 2,048 encoded dataset geometry."""
     latent_shape = (8192, 2048, 64)
-    assert _episodes_per_chunk(
-        LATENT_KEY, latent_shape, np.dtype(np.float32).itemsize
-    ) == 16
+    assert _episodes_per_chunk(LATENT_KEY, latent_shape, np.dtype(np.float32).itemsize) == 16
 
-    assert _episodes_per_chunk(
-        LENGTH_KEY, (8192,), np.dtype(np.int32).itemsize
-    ) == 8192
+    assert _episodes_per_chunk(LENGTH_KEY, (8192,), np.dtype(np.int32).itemsize) == 8192
 
-    assert _episodes_per_chunk(
-        RGB_KEY, (8192, 2048, 3, 64, 64), np.dtype(np.uint8).itemsize
-    ) == 1
-    assert _episodes_per_chunk(
-        KINEMATICS_KEY, (8192, 2048, 4), np.dtype(np.float32).itemsize
-    ) == 256
+    assert _episodes_per_chunk(RGB_KEY, (8192, 2048, 3, 64, 64), np.dtype(np.uint8).itemsize) == 1
+    assert (
+        _episodes_per_chunk(KINEMATICS_KEY, (8192, 2048, 4), np.dtype(np.float32).itemsize) == 256
+    )
 
 
 def test_latent_store_groups_episodes_into_stripe_sized_chunks(tmp_path: Path) -> None:
@@ -251,11 +245,7 @@ def _read_every_episode(artifact_dir: Path, *, include_rgb: bool) -> list[dict[s
         artifact_dir, include_rgb=include_rgb, include_latent=not include_rgb
     )
     return [
-        {
-            name: value.numpy()
-            for name, value in dataset[index].items()
-            if value is not None
-        }
+        {name: value.numpy() for name, value in dataset[index].items() if value is not None}
         for index in range(len(dataset))
     ]
 

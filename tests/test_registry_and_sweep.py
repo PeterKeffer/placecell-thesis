@@ -181,8 +181,9 @@ def test_run_sweep_triggers_cleanup_after_each_trial(monkeypatch, tmp_path: Path
             seeds=[0, 1],
         ),
         tmp_path / "experiment.yaml",
-        lambda _path, overrides, _row: observed_overrides.append(list(overrides))
-        or {"metric": 1.0},
+        lambda _path, overrides, _row: (
+            observed_overrides.append(list(overrides)) or {"metric": 1.0}
+        ),
     )
 
     assert len(result.rows) == 4
@@ -233,8 +234,9 @@ def test_run_paired_sweep_zips_parameters_in_declared_order(tmp_path: Path) -> N
             seeds=[42],
         ),
         tmp_path / "experiment.yaml",
-        lambda _path, overrides, _row: observed_overrides.append(list(overrides))
-        or {"metric": 1.0},
+        lambda _path, overrides, _row: (
+            observed_overrides.append(list(overrides)) or {"metric": 1.0}
+        ),
     )
 
     assert [row["spatial_model.encoder.family"] for row in result.rows] == [

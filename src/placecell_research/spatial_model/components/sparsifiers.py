@@ -223,9 +223,7 @@ class KWinnersSparsifier(nn.Module):
         noise_configured = self.selection_noise_scale > 0.0
         controller_configured = balance_configured or noise_configured
         effective_noise_scale = (
-            self._step_selection_noise_scale()
-            if self.training and noise_configured
-            else 0.0
+            self._step_selection_noise_scale() if self.training and noise_configured else 0.0
         )
         normalized_scores = None
         deterministic_selection_scores = None
@@ -245,8 +243,8 @@ class KWinnersSparsifier(nn.Module):
                 )
             deterministic_selection_scores = selection_scores
             if effective_noise_scale > 0.0:
-                selection_scores = (
-                    selection_scores + effective_noise_scale * torch.randn_like(values)
+                selection_scores = selection_scores + effective_noise_scale * torch.randn_like(
+                    values
                 )
         elif boosting:
             strength = self._step_boost_strength()
@@ -345,9 +343,7 @@ class KWinnersSparsifier(nn.Module):
             )
         step = min(int(self._k_anneal_step), self.k_anneal_steps)
         progress = step / self.k_anneal_steps
-        effective_k = round(
-            self.k_anneal_start + progress * (final_k_active - self.k_anneal_start)
-        )
+        effective_k = round(self.k_anneal_start + progress * (final_k_active - self.k_anneal_start))
         if self.training and step < self.k_anneal_steps:
             self._k_anneal_step += 1
         return int(effective_k)
@@ -401,9 +397,10 @@ class KWinnersSparsifier(nn.Module):
         win_mass = win_frequency / win_frequency.sum().clamp_min(
             torch.finfo(win_frequency.dtype).eps
         )
-        normalized_entropy = -(
-            win_mass * win_mass.clamp_min(torch.finfo(win_mass.dtype).eps).log()
-        ).sum() / torch.as_tensor(float(self.num_units), device=win_mass.device).log()
+        normalized_entropy = (
+            -(win_mass * win_mass.clamp_min(torch.finfo(win_mass.dtype).eps).log()).sum()
+            / torch.as_tensor(float(self.num_units), device=win_mass.device).log()
+        )
         if k_active < self.num_units:
             boundary_scores = torch.topk(normalized_scores, k_active + 1, dim=-1).values
             boundary_margin = (
@@ -413,8 +410,8 @@ class KWinnersSparsifier(nn.Module):
             boundary_margin = normalized_scores.new_zeros(())
         target_frequency = normalized_scores.new_tensor(k_active / self.num_units)
         mean_absolute_load_error = (win_frequency - target_frequency).abs().mean()
-        max_load_violation = (
-            (win_frequency.max() - target_frequency) / target_frequency.clamp_min(1e-12)
+        max_load_violation = (win_frequency.max() - target_frequency) / target_frequency.clamp_min(
+            1e-12
         )
         bias_to_boundary_margin = (
             self.balance_bias.abs().mean() / boundary_margin
@@ -436,12 +433,8 @@ class KWinnersSparsifier(nn.Module):
             .float()
             .mean()
             .detach(),
-            "kwinners.liveness_ever_rescued_fraction": self._ever_rescued.float()
-            .mean()
-            .detach(),
-            "kwinners.selection_noise_scale": normalized_scores.new_tensor(
-                effective_noise_scale
-            ),
+            "kwinners.liveness_ever_rescued_fraction": self._ever_rescued.float().mean().detach(),
+            "kwinners.selection_noise_scale": normalized_scores.new_tensor(effective_noise_scale),
             "kwinners.normalized_boundary_margin_mean": boundary_margin.detach(),
             "kwinners.balance_bias_to_boundary_margin": bias_to_boundary_margin.detach(),
             "kwinners.recruited_unit_fraction": (win_frequency > 0).float().mean().detach(),
@@ -451,16 +444,23 @@ class KWinnersSparsifier(nn.Module):
             "kwinners.win_frequency_entropy": normalized_entropy.detach(),
         }
         if deterministic_mask is not None:
-            deterministic_win_frequency = deterministic_mask.reshape(
-                -1,
-                self.num_units,
-            ).float().mean(dim=0)
+            deterministic_win_frequency = (
+                deterministic_mask.reshape(
+                    -1,
+                    self.num_units,
+                )
+                .float()
+                .mean(dim=0)
+            )
             winner_agreement = (mask & deterministic_mask).sum(dim=-1).float() / k_active
             diagnostics.update(
                 {
                     "kwinners.deterministic_recruited_unit_fraction": (
                         deterministic_win_frequency > 0
-                    ).float().mean().detach(),
+                    )
+                    .float()
+                    .mean()
+                    .detach(),
                     "kwinners.noisy_deterministic_winner_agreement": (
                         winner_agreement.mean().detach()
                     ),
@@ -520,8 +520,10 @@ class GroupedKWinnersSparsifier(nn.Module):
         group_best, group_argmax = grouped.max(dim=-1)
         group_scores = group_best
         if self.group_bias_rate > 0.0:
-            group_spread = group_best.detach().std(dim=-1, keepdim=True).clamp_min(
-                torch.finfo(values.dtype).eps
+            group_spread = (
+                group_best.detach()
+                .std(dim=-1, keepdim=True)
+                .clamp_min(torch.finfo(values.dtype).eps)
             )
             group_scores = group_best + self.group_bias * group_spread
         _values, active_groups = torch.topk(group_scores, self.k_active, dim=-1)
@@ -538,9 +540,7 @@ class GroupedKWinnersSparsifier(nn.Module):
             self.last_auxiliary_outputs = {
                 "kwinners.effective_k": values.new_tensor(float(self.k_active)),
                 "grouped_kwinners.unit_dead_fraction": (unit_win_frequency == 0).float().mean(),
-                "grouped_kwinners.group_dead_fraction": (group_win_frequency == 0)
-                .float()
-                .mean(),
+                "grouped_kwinners.group_dead_fraction": (group_win_frequency == 0).float().mean(),
                 "grouped_kwinners.group_max_load_ratio": group_win_frequency.max()
                 / (self.k_active / self.num_groups),
                 "grouped_kwinners.group_bias_max_abs": self.group_bias.abs().max(),
@@ -589,8 +589,7 @@ class BlockwiseSparsifier(nn.Module):
     def forward(self, values: Tensor) -> Tensor:
         if values.shape[-1] != self.width:
             raise ValueError(
-                f"BlockwiseSparsifier expected last dimension {self.width}, "
-                f"got {values.shape[-1]}."
+                f"BlockwiseSparsifier expected last dimension {self.width}, got {values.shape[-1]}."
             )
         outputs = [
             block(values[..., start:end])

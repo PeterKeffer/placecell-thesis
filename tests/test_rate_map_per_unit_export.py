@@ -16,7 +16,7 @@ def _synthetic_place_activity(
     width: float = 0.18,
 ) -> np.ndarray:
     squared_distance = (positions[..., 0] - center_x) ** 2 + (positions[..., 1] - center_y) ** 2
-    return np.exp(-squared_distance / max(width ** 2, 1e-6)).astype(np.float32)
+    return np.exp(-squared_distance / max(width**2, 1e-6)).astype(np.float32)
 
 
 def _wallgap_analysis_input() -> AnalysisInput:
@@ -68,9 +68,7 @@ def test_per_unit_export_writes_pngs_and_npz(tmp_path: Path, analysis_settings) 
     )
 
     units_dir = tmp_path / "rate_map_bundle" / "rate_map_units"
-    npz_path = (
-        tmp_path / "rate_map_bundle" / "rate_map_units__encoder.place_codes__validation.npz"
-    )
+    npz_path = tmp_path / "rate_map_bundle" / "rate_map_units__encoder.place_codes__validation.npz"
     assert result.tables["rate_map_units"] == npz_path
     assert npz_path.exists()
 
@@ -107,11 +105,13 @@ def test_per_unit_export_covers_all_units_with_show_all_units(
     result = _RateMapModuleBase().run(
         _wallgap_analysis_input(),
         tmp_path,
-        analysis_settings(**{
-            **_BASE_CONFIG,
-            "rate_map_export_per_unit": True,
-            "rate_map_panel_show_all_units": True,
-        }),
+        analysis_settings(
+            **{
+                **_BASE_CONFIG,
+                "rate_map_export_per_unit": True,
+                "rate_map_panel_show_all_units": True,
+            }
+        ),
     )
 
     units_dir = tmp_path / "rate_map_bundle" / "rate_map_units"

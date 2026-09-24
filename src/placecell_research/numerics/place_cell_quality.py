@@ -335,16 +335,13 @@ DEFAULT_PLACE_CELL_GATE_THRESHOLDS = PlaceCellGateThresholds()
 def resolve_place_cell_gate_thresholds(analysis_config: Any) -> PlaceCellGateThresholds:
     return PlaceCellGateThresholds(
         minimum_split_half=read_float_setting(
-            analysis_config,
-            "place_cell_gate_minimum_split_half", DEFAULT_GATE_MINIMUM_SPLIT_HALF
+            analysis_config, "place_cell_gate_minimum_split_half", DEFAULT_GATE_MINIMUM_SPLIT_HALF
         ),
         minimum_coherence=read_float_setting(
-            analysis_config,
-            "place_cell_gate_minimum_coherence", DEFAULT_GATE_MINIMUM_COHERENCE
+            analysis_config, "place_cell_gate_minimum_coherence", DEFAULT_GATE_MINIMUM_COHERENCE
         ),
         maximum_confound=read_float_setting(
-            analysis_config,
-            "place_cell_gate_maximum_confound", DEFAULT_GATE_MAXIMUM_CONFOUND
+            analysis_config, "place_cell_gate_maximum_confound", DEFAULT_GATE_MAXIMUM_CONFOUND
         ),
     )
 
@@ -395,9 +392,9 @@ def field_coverage_fraction(
     has_signal = peaks > 1e-8
     if not has_signal.any():
         return 0.0
-    covered = (
-        maps[has_signal] >= threshold_fraction * peaks[has_signal][:, None, None]
-    ).any(axis=0)
+    covered = (maps[has_signal] >= threshold_fraction * peaks[has_signal][:, None, None]).any(
+        axis=0
+    )
     return float(covered[visited].mean())
 
 

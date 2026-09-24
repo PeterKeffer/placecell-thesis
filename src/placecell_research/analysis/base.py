@@ -91,35 +91,29 @@ class AnalysisModule(Protocol):
     """Analysis contract for a single representation source."""
 
     @property
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @property
-    def cost_tier(self) -> CostTier:
-        ...
+    def cost_tier(self) -> CostTier: ...
 
-    def required_representations(self) -> set[str]:
-        ...
+    def required_representations(self) -> set[str]: ...
 
     def run(
         self,
         analysis_input: AnalysisInput,
         output_dir: Path,
         config: dict[str, Any],
-    ) -> AnalysisResult:
-        ...
+    ) -> AnalysisResult: ...
 
 
 class ComparativeAnalysisModule(Protocol):
     """Analysis contract for multi-input comparisons like remapping."""
 
     @property
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @property
-    def cost_tier(self) -> CostTier:
-        ...
+    def cost_tier(self) -> CostTier: ...
 
     def run(
         self,
@@ -127,5 +121,4 @@ class ComparativeAnalysisModule(Protocol):
         labels: list[str],
         output_dir: Path,
         config: dict[str, Any],
-    ) -> AnalysisResult:
-        ...
+    ) -> AnalysisResult: ...

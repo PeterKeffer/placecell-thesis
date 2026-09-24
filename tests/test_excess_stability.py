@@ -98,10 +98,9 @@ def test_temporal_integrators_fall_below_ratio_0_9(tmp_path: Path) -> None:
     integrated = np.zeros_like(spatial_signal)
     integrated[:, 0] = spatial_signal[:, 0]
     for step in range(1, spatial_signal.shape[1]):
-        integrated[:, step] = (
-            (1.0 - smoothing_factor) * integrated[:, step - 1]
-            + smoothing_factor * spatial_signal[:, step]
-        )
+        integrated[:, step] = (1.0 - smoothing_factor) * integrated[
+            :, step - 1
+        ] + smoothing_factor * spatial_signal[:, step]
 
     result = ExcessStabilityModule().run(_analysis_input(integrated, positions), tmp_path, _CONFIG)
 
@@ -151,11 +150,21 @@ def test_held_out_twin_removes_in_sample_memorization_bias() -> None:
     all_episodes = np.arange(num_episodes)
 
     in_sample = compute_twin_psi(
-        noisy, positions, None, valid, 16,
-        fit_episodes=all_episodes, eval_episodes=all_episodes, **shared_kwargs,
+        noisy,
+        positions,
+        None,
+        valid,
+        16,
+        fit_episodes=all_episodes,
+        eval_episodes=all_episodes,
+        **shared_kwargs,
     )
     held_out = compute_twin_psi(
-        noisy, positions, None, valid, 16,
+        noisy,
+        positions,
+        None,
+        valid,
+        16,
         fit_episodes=all_episodes[: num_episodes // 2],
         eval_episodes=all_episodes[num_episodes // 2 :],
         **shared_kwargs,

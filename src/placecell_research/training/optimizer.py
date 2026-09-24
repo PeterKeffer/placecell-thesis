@@ -59,9 +59,7 @@ def clip_gradients_by_component(
         ]
         assigned_ids.update(id(parameter) for parameter in group)
         ordered_groups.append((name, group))
-    ordered_groups.append(
-        ("other", [p for p in parameters if id(p) not in assigned_ids])
-    )
+    ordered_groups.append(("other", [p for p in parameters if id(p) not in assigned_ids]))
     if isolated_parameters:
         ordered_groups.append(("isolated", isolated_parameters))
 
@@ -221,9 +219,15 @@ def build_optimizer(
     ]
     options = {}
     if config.optimizer == "rmsprop":
-        options = {"alpha": config.rmsprop_alpha, "momentum": config.rmsprop_momentum,
-                   "eps": config.rmsprop_eps}
+        options = {
+            "alpha": config.rmsprop_alpha,
+            "momentum": config.rmsprop_momentum,
+            "eps": config.rmsprop_eps,
+        }
     optimizer = optimizer_class(
-        optimizer_groups, lr=config.learning_rate, weight_decay=config.weight_decay, **options,
+        optimizer_groups,
+        lr=config.learning_rate,
+        weight_decay=config.weight_decay,
+        **options,
     )
     return optimizer, parameter_groups

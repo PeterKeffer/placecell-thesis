@@ -551,9 +551,8 @@ def _build_composite_place_model(
     )
     use_encoder_action_context = uses_action_context(config.inputs.encoder_context_channels)
     encoder_context_dim = (
-        (config.encoder.action_embedding_dim if use_encoder_action_context else 0)
-        + kinematics_dim(config.inputs.encoder_context_channels)
-    )
+        config.encoder.action_embedding_dim if use_encoder_action_context else 0
+    ) + kinematics_dim(config.inputs.encoder_context_channels)
     encoder_temporal = _prepare_encoder_state_readout(
         build_encoder_temporal(
             config.encoder,

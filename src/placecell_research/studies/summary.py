@@ -120,8 +120,6 @@ def _slug(value: str) -> str:
     return normalized.strip("_") or "unnamed"
 
 
-
-
 def _replace_relative_symlink(link_path: Path, target_path: Path) -> None:
     if not target_path.exists():
         return
@@ -204,9 +202,7 @@ def _write_grouped_links(output_dir: Path, rows: list[dict[str, object]]) -> set
             continue
         if row_type == "raw_dataset":
             source = _slug(_first_non_empty(row, "source"))
-            artifact_id = _slug(
-                _first_non_empty(row, "dataset_artifact_id", "dataset.artifact_id")
-            )
+            artifact_id = _slug(_first_non_empty(row, "dataset_artifact_id", "dataset.artifact_id"))
             link_if_absent(
                 output_dir / "by_source" / f"{source}__raw_dataset__{artifact_id}",
                 target_path,
@@ -285,7 +281,8 @@ def write_study_summary(
                 continue
         best_row = (
             sorted(numeric_rows, key=lambda item: item[0], reverse=reverse)[0][1]
-            if numeric_rows else {}
+            if numeric_rows
+            else {}
         )
         best_json = output_dir / "best_runs_by_metric.json"
         best_json.write_text(json.dumps(best_row, indent=2, sort_keys=True) + "\n")

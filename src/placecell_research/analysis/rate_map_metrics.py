@@ -252,9 +252,7 @@ def resolve_rate_map_metric_settings(config: dict) -> RateMapMetricSettings:
         split_half_agreement_min_episodes_per_half=int(
             config.get("split_half_agreement_min_episodes_per_half", 2)
         ),
-        use_absolute_activations=bool(
-            config.get("reliability_use_absolute_activations", False)
-        ),
+        use_absolute_activations=bool(config.get("reliability_use_absolute_activations", False)),
         bin_consistency_active_bin_peak_fraction=float(
             config.get("bin_consistency_active_bin_peak_fraction", 0.05)
         ),
@@ -266,19 +264,11 @@ def resolve_rate_map_metric_settings(config: dict) -> RateMapMetricSettings:
         place_cell_gate_minimum_split_half=gate_thresholds.minimum_split_half,
         place_cell_gate_minimum_coherence=gate_thresholds.minimum_coherence,
         place_cell_gate_maximum_confound=gate_thresholds.maximum_confound,
-        field_traversal_minimum_traversals=int(
-            config.get("field_traversal_minimum_traversals", 5)
-        ),
-        field_traversal_heading_sectors=int(
-            config.get("field_traversal_heading_sectors", 8)
-        ),
-        field_core_threshold_fraction=float(
-            config.get("place_field_core_threshold_fraction", 0.5)
-        ),
+        field_traversal_minimum_traversals=int(config.get("field_traversal_minimum_traversals", 5)),
+        field_traversal_heading_sectors=int(config.get("field_traversal_heading_sectors", 8)),
+        field_core_threshold_fraction=float(config.get("place_field_core_threshold_fraction", 0.5)),
         negative_tolerance=float(config.get("place_metric_negative_tolerance", 1e-8)),
-        max_negative_bin_fraction=float(
-            config.get("place_metric_max_negative_bin_fraction", 0.01)
-        ),
+        max_negative_bin_fraction=float(config.get("place_metric_max_negative_bin_fraction", 0.01)),
         max_negative_peak_fraction=float(
             config.get("place_metric_max_negative_peak_fraction", 0.05)
         ),
@@ -379,9 +369,7 @@ def _compute_reliability_pass(
         bin_coefficient_of_variation_maps=revisit_metrics.bin_coefficient_of_variation_maps,
         bin_consistency_visit_counts=revisit_metrics.consistency_visit_counts,
         split_half_agreement_maps=revisit_metrics.split_half_agreement_maps,
-        split_half_agreement_support_counts=(
-            revisit_metrics.split_half_agreement_support_counts
-        ),
+        split_half_agreement_support_counts=(revisit_metrics.split_half_agreement_support_counts),
         split_half_rate_map_correlation=revisit_metrics.split_half_rate_map_correlation,
         episode_rate_map_correlation=revisit_metrics.episode_rate_map_correlation,
     )
@@ -573,9 +561,7 @@ def _compute_spatial_information_null(
         else float("nan")
     )
     fraction_place_cells_strict = (
-        float(
-            (passes_gates & spatial_information_significant).sum() / gates_assessable.sum()
-        )
+        float((passes_gates & spatial_information_significant).sum() / gates_assessable.sum())
         if settings.null_num_shuffles > 0 and gates_assessable.any()
         else float("nan")
     )
@@ -755,13 +741,9 @@ def _fill_field_reliability_lift(
         bin_consistency=summaries.bin_consistency,
         split_half_agreement=summaries.split_half_agreement,
         reliability_supported_fraction=summaries.reliability_supported_fraction,
-        quantile_reliability_supported_fraction=(
-            summaries.quantile_reliability_supported_fraction
-        ),
+        quantile_reliability_supported_fraction=(summaries.quantile_reliability_supported_fraction),
         bin_consistency_supported_fraction=summaries.bin_consistency_supported_fraction,
-        split_half_agreement_supported_fraction=(
-            summaries.split_half_agreement_supported_fraction
-        ),
+        split_half_agreement_supported_fraction=(summaries.split_half_agreement_supported_fraction),
     )
 
 
@@ -772,8 +754,8 @@ def _compute_unit_map_summaries(
     supports_place_metrics: np.ndarray,
 ) -> UnitMapSummaries:
     """Whole-map mean/max per unit, over bins with enough revisit support."""
-    summary_bin_support = (
-        reliability.thresholded_visit_counts >= float(settings.per_bin_cv_min_episodes)
+    summary_bin_support = reliability.thresholded_visit_counts >= float(
+        settings.per_bin_cv_min_episodes
     )
     supported_reliability_maps = np.where(
         summary_bin_support[None, :, :], reliability.thresholded_maps, np.nan
@@ -805,9 +787,7 @@ def _compute_unit_map_summaries(
         max_quantile_reliability_lift=reduce_finite_maps(
             supported_quantile_lift_maps, reducer="max"
         ),
-        mean_bin_consistency=reduce_finite_maps(
-            reliability.bin_consistency_maps, reducer="mean"
-        ),
+        mean_bin_consistency=reduce_finite_maps(reliability.bin_consistency_maps, reducer="mean"),
         max_bin_consistency=reduce_finite_maps(reliability.bin_consistency_maps, reducer="max"),
         mean_split_half_agreement=reduce_finite_maps(
             reliability.split_half_agreement_maps, reducer="mean"
@@ -967,9 +947,7 @@ def compute_rate_map_metric_bundle(
         bin_coefficient_of_variation_maps=reliability_pass.bin_coefficient_of_variation_maps,
         bin_consistency_visit_counts=reliability_pass.bin_consistency_visit_counts,
         split_half_agreement_maps=reliability_pass.split_half_agreement_maps,
-        split_half_agreement_support_counts=(
-            reliability_pass.split_half_agreement_support_counts
-        ),
+        split_half_agreement_support_counts=(reliability_pass.split_half_agreement_support_counts),
         split_half_rate_map_correlation=reliability_pass.split_half_rate_map_correlation,
         episode_rate_map_correlation=reliability_pass.episode_rate_map_correlation,
     )

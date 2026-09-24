@@ -42,9 +42,9 @@ def border_score(
         coverage_max = max(coverage_max, max(wall_coverage))
 
     rows, cols = np.indices((height, width))
-    distance_to_wall = np.minimum.reduce(
-        [rows, height - 1 - rows, cols, width - 1 - cols]
-    ).astype(np.float64)
+    distance_to_wall = np.minimum.reduce([rows, height - 1 - rows, cols, width - 1 - cols]).astype(
+        np.float64
+    )
     max_distance = max((min(height, width) - 1) / 2.0, 1.0)
     weights = np.where(active, grid, 0.0)
     weight_total = weights.sum()
@@ -84,8 +84,10 @@ class BorderScoreModule:
         )
         threshold_fraction = float(config.get("border_field_threshold_fraction", 0.3))
         scores = np.asarray(
-            [border_score(rate_map, threshold_fraction=threshold_fraction)
-             for rate_map in rate_map_result.rate_maps],
+            [
+                border_score(rate_map, threshold_fraction=threshold_fraction)
+                for rate_map in rate_map_result.rate_maps
+            ],
             dtype=np.float32,
         )
         threshold = float(config.get("border_score_threshold", 0.5))

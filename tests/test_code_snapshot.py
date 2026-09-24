@@ -447,8 +447,7 @@ def test_a_chain_of_detached_submissions_shares_one_snapshot(monkeypatch) -> Non
         assert f"export PYTHONPATH={created_snapshot_paths[0]}/src" in script
         assert f"export {code_snapshot.SNAPSHOT_ENV_VAR}={created_snapshot_paths[0]}" in script
         assert (
-            f"--config {created_snapshot_paths[0]}/configs/experiment/smoke_wallgap.yaml"
-            in script
+            f"--config {created_snapshot_paths[0]}/configs/experiment/smoke_wallgap.yaml" in script
         )
     assert "--slurm-dependency" not in submitted_scripts[0]
     assert "--slurm-dependency afterany:12345" in submitted_scripts[1]

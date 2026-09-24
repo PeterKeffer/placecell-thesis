@@ -124,9 +124,7 @@ def test_curriculum_collects_named_sources_then_reuses_them_for_shared_vision_an
         environment_override = next(
             item for item in overrides if item.startswith("environment.env_id=")
         )
-        source_name = (
-            "env_a" if environment_override.endswith("museum-gallery") else "env_b"
-        )
+        source_name = "env_a" if environment_override.endswith("museum-gallery") else "env_b"
         return {"dataset.artifact_id": f"raw_{source_name}"}
 
     def train_vision_encoder(_path: Path, overrides: list[str]) -> dict[str, object]:

@@ -28,9 +28,7 @@ from .optimizer import build_optimizer, clip_gradients, clip_gradients_by_compon
 from .scheduling import build_scheduler
 from .selection import CheckpointSelector
 
-PREDICTOR_SIDE_SELECTORS: frozenset[str] = frozenset(
-    {"predictor", "sparsifier", "embeddings"}
-)
+PREDICTOR_SIDE_SELECTORS: frozenset[str] = frozenset({"predictor", "sparsifier", "embeddings"})
 
 
 def evaluation_epochs(
@@ -126,10 +124,9 @@ def _materialize_metric_means(
     """Epoch means, each divided by the number of BATCHES that actually reported that metric."""
     if not metric_sums:
         return {}
-    return materialize_metric_values({
-        name: value / max(metric_counts.get(name, 1), 1)
-        for name, value in metric_sums.items()
-    })
+    return materialize_metric_values(
+        {name: value / max(metric_counts.get(name, 1), 1) for name, value in metric_sums.items()}
+    )
 
 
 def _to_device(batch: dict[str, Tensor], device: torch.device) -> dict[str, Tensor]:

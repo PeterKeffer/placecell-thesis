@@ -262,6 +262,8 @@ def test_resolver_allows_an_unavailable_optional_observation(tmp_path, observati
     missing_key = "rgb" if observation_key == "latent" else "latent"
     with pytest.raises(KeyError, match=missing_key):
         read_representation_set(
-            tmp_path, split_name="test", source_names=list(representations),
+            tmp_path,
+            split_name="test",
+            source_names=list(representations),
             require_metadata_keys=[missing_key],
         )

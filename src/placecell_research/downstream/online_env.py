@@ -75,7 +75,6 @@ class GoalScheduler:
         return self.positions[self._current_index].copy()
 
 
-
 def _uses_uniform_random_goal_schedule(schedule: object) -> bool:
     return str(schedule).strip().lower() == "uniform_random"
 

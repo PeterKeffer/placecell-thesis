@@ -15,9 +15,7 @@ from placecell_research.analysis.registry import ANALYSIS_MODULES
 
 
 def _build_input() -> AnalysisInput:
-    heading_centers = (
-        (np.arange(16, dtype=np.float32) + 0.5) * (2.0 * np.pi / 16.0)
-    )
+    heading_centers = (np.arange(16, dtype=np.float32) + 0.5) * (2.0 * np.pi / 16.0)
     positions: list[tuple[float, float]] = []
     headings: list[float] = []
     directional_field: list[float] = []
@@ -35,9 +33,9 @@ def _build_input() -> AnalysisInput:
                 omnidirectional_field.append(1.0 if is_field_position else 0.0)
 
     steps = len(positions)
-    representation = np.stack(
-        [directional_field, omnidirectional_field], axis=1
-    ).reshape(1, steps, 2)
+    representation = np.stack([directional_field, omnidirectional_field], axis=1).reshape(
+        1, steps, 2
+    )
     return AnalysisInput(
         representation=representation.astype(np.float32),
         position_xy=np.asarray(positions, dtype=np.float32).reshape(1, steps, 2),

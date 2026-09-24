@@ -1,4 +1,5 @@
 """Cognitive-map geometry: representational distance tracks geodesic vs Euclidean."""
+
 from __future__ import annotations
 
 import numpy as np

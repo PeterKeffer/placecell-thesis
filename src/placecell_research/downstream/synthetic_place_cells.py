@@ -171,5 +171,3 @@ class SyntheticPlaceCodeEncoder:
         return synthetic_place_cell_code(
             position, self.centers, self.sigma_center, self.sigma_surround, self.normalization
         ).reshape(-1)
-
-

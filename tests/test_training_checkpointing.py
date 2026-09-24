@@ -307,9 +307,7 @@ def test_weights_only_tolerance_skips_changed_auxiliary_head_shapes(
         metrics={},
     )
     changed_heads = nn.ModuleDict({"projection": nn.Linear(2, 3)})
-    fresh_state = {
-        key: value.detach().clone() for key, value in changed_heads.state_dict().items()
-    }
+    fresh_state = {key: value.detach().clone() for key, value in changed_heads.state_dict().items()}
 
     with pytest.raises(RuntimeError, match="size mismatch"):
         load_checkpoint(checkpoint_path, model, changed_heads)
@@ -386,11 +384,7 @@ def test_auto_resume_claim_revalidates_manifest_after_acquiring_lock(
         modified_time_ns=300,
     )
     manifest_path = (
-        run_root
-        / "by_id"
-        / "finished_during_discovery"
-        / "manifests"
-        / "run_manifest.json"
+        run_root / "by_id" / "finished_during_discovery" / "manifests" / "run_manifest.json"
     )
     real_flock = fcntl.flock
     manifest_completed = False

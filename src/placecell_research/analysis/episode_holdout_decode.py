@@ -32,9 +32,7 @@ def _sample_indices(
 ) -> np.ndarray:
     if maximum_samples <= 0 or len(indices) <= maximum_samples:
         return indices
-    return np.sort(
-        random_number_generator.choice(indices, size=maximum_samples, replace=False)
-    )
+    return np.sort(random_number_generator.choice(indices, size=maximum_samples, replace=False))
 
 
 def decode_labels_episode_holdout(

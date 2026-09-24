@@ -132,9 +132,7 @@ def test_field_coverage_fraction_counts_tiled_qualifying_fields() -> None:
     rate_maps[2, :, :] = 1.0
     occupancy = np.ones((4, 4), dtype=np.float32)
 
-    both_halves = field_coverage_fraction(
-        rate_maps, occupancy, np.asarray([True, True, False])
-    )
+    both_halves = field_coverage_fraction(rate_maps, occupancy, np.asarray([True, True, False]))
     one_half = field_coverage_fraction(rate_maps, occupancy, np.asarray([True, False, False]))
     none_qualifying = field_coverage_fraction(
         rate_maps, occupancy, np.asarray([False, False, False])
@@ -214,9 +212,7 @@ def test_circular_shift_null_separates_place_cell_from_noise() -> None:
     position_sequences = []
     representation_sequences = []
     for episode_index in range(episodes):
-        positions = np.stack(
-            [x_positions, np.roll(y_positions, shift=episode_index * 3)], axis=-1
-        )
+        positions = np.stack([x_positions, np.roll(y_positions, shift=episode_index * 3)], axis=-1)
         position_sequences.append(positions)
         representation_sequences.append(
             np.stack(
@@ -636,9 +632,10 @@ def test_evaluate_representations_exports_nonlinear_decode_metrics() -> None:
     metrics = result.to_metrics()
     assert "encoder.place_codes.nonlinear_decode_rmse" in metrics
     assert "encoder.place_codes.nonlinear_decode_r2" in metrics
-    assert metrics["encoder.place_codes.nonlinear_decode_r2"] > metrics[
-        "encoder.place_codes.decode_r2"
-    ]
+    assert (
+        metrics["encoder.place_codes.nonlinear_decode_r2"]
+        > metrics["encoder.place_codes.decode_r2"]
+    )
 
 
 def test_evaluate_representations_skips_decode_with_one_episode() -> None:
@@ -722,17 +719,13 @@ def test_unsupported_signed_map_cannot_pass_the_place_cell_gate() -> None:
     passes, assessable, *_ = place_cell_pass_mask(
         split_half, coherence, confound, supported_mask=supported
     )
-    summary = fraction_place_cells(
-        split_half, coherence, confound, supported_mask=supported
-    )
+    summary = fraction_place_cells(split_half, coherence, confound, supported_mask=supported)
 
     assert not bool(passes[0])
     assert not bool(assessable[0])
     assert np.isnan(summary["fraction_place_cells"])
     assert summary["place_cell_assessable_units"] == 0.0
-    assert (
-        field_coverage_fraction(rate_maps, np.ones((20, 20), dtype=np.float32), passes) == 0.0
-    )
+    assert field_coverage_fraction(rate_maps, np.ones((20, 20), dtype=np.float32), passes) == 0.0
 
 
 def test_supported_map_still_passes_the_place_cell_gate() -> None:
@@ -878,9 +871,7 @@ def _online_fraction_place_cells(representation, positions, config) -> float:
         train_fraction=0.8,
         ridge_alpha=1e-3,
         include_shuffle=False,
-        spatial_information_scores={
-            "source": np.ones(representation.shape[-1], dtype=np.float32)
-        },
+        spatial_information_scores={"source": np.ones(representation.shape[-1], dtype=np.float32)},
         rate_map_results={"source": rate_map_result},
         rate_map_num_bins_x=_GATE_NUM_BINS,
         rate_map_num_bins_y=_GATE_NUM_BINS,
@@ -950,8 +941,13 @@ def _signed_two_unit_dataset():
 def _assessable_units(place_metric_settings) -> float:
     representation, positions, valid_mask = _signed_two_unit_dataset()
     rate_map_result = compute_rate_maps(
-        representation, positions, valid_mask, num_bins_x=8, num_bins_y=8,
-        smoothing_sigma=0.0, min_occupancy=1e-6,
+        representation,
+        positions,
+        valid_mask,
+        num_bins_x=8,
+        num_bins_y=8,
+        smoothing_sigma=0.0,
+        min_occupancy=1e-6,
     )
     result = evaluate_representations(
         {"encoder.place_codes": representation},
@@ -962,9 +958,7 @@ def _assessable_units(place_metric_settings) -> float:
         include_shuffle=False,
         spatial_information_scores={
             "encoder.place_codes": np.asarray(
-                skaggs_spatial_information(
-                    rate_map_result.rate_maps, rate_map_result.occupancy
-                ),
+                skaggs_spatial_information(rate_map_result.rate_maps, rate_map_result.occupancy),
                 dtype=np.float32,
             )
         },

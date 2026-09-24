@@ -138,6 +138,7 @@ def _collect_episode_batch_worker(
     if mp.parent_process() is not None:
         os.setsid()
     try:
+
         def _emit_episode_progress(completed: int) -> None:
             result_queue.put(
                 {

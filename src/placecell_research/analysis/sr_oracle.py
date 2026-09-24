@@ -250,16 +250,12 @@ def eigen_comparison(
     centered_oracle_modes = oracle_modes - oracle_modes.mean(axis=0, keepdims=True)
     overlap = _orthonormal_span(centered_oracle_modes).T @ _orthonormal_span(learned_modes)
     alignment = float((overlap**2).sum() / effective_num_modes)
-    finite_fragmentation = [
-        value for value in fragmentation if np.isfinite(value)
-    ]
+    finite_fragmentation = [value for value in fragmentation if np.isfinite(value)]
 
     return {
         "eigen_leading_fragmentation": _discontinuity(leading),
         "eigen_mean_fragmentation": (
-            float(np.mean(finite_fragmentation))
-            if finite_fragmentation
-            else float("nan")
+            float(np.mean(finite_fragmentation)) if finite_fragmentation else float("nan")
         ),
         "eigen_alignment": alignment,
         "eigen_alignment_chance": float(effective_num_modes / oracle.num_states),

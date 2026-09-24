@@ -22,9 +22,7 @@ def register(app: typer.Typer) -> None:
         from placecell_research.downstream.rollout import run_downstream_rollout
         from placecell_research.downstream.session import initialize_downstream_session
 
-        downstream_config = load_downstream_run_config(
-            config, override or []
-        )
+        downstream_config = load_downstream_run_config(config, override or [])
         validate_downstream_run_config(downstream_config)
         session = initialize_downstream_session(
             config_path=config,
@@ -76,9 +74,7 @@ def register(app: typer.Typer) -> None:
         from placecell_research.downstream.train import train_downstream_agent
         from placecell_research.tracking import managed_stage_run, stage_tags
 
-        downstream_config = load_downstream_run_config(
-            config, override or []
-        )
+        downstream_config = load_downstream_run_config(config, override or [])
         validate_downstream_run_config(downstream_config)
         session = initialize_downstream_session(
             config_path=config,

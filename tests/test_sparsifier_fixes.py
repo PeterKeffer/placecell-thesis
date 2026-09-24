@@ -83,8 +83,9 @@ def test_code_norm_is_sized_to_the_code_and_normalizes_the_projection_output() -
     logits = bundle.modules["encoder"].place_logits
     assert logits is not None
     root_mean_square = logits.pow(2).mean(dim=-1).sqrt()
-    torch.testing.assert_close(root_mean_square, torch.ones_like(root_mean_square), atol=1e-5,
-                               rtol=1e-5)
+    torch.testing.assert_close(
+        root_mean_square, torch.ones_like(root_mean_square), atol=1e-5, rtol=1e-5
+    )
     hidden = bundle.modules["encoder"].hidden_state
     hidden_rms = hidden.pow(2).mean(dim=-1).sqrt()
     assert not torch.allclose(hidden_rms, torch.ones_like(hidden_rms), atol=1e-3)
@@ -117,9 +118,7 @@ def test_load_sign_bias_leaks_toward_zero_without_load_error() -> None:
     sparsifier = _load_sign_sparsifier(balance_bias_leak=0.1)
     sparsifier.train()
     with torch.no_grad():
-        sparsifier.balance_bias.copy_(
-            torch.tensor([3.0, -3.0, 1.0, -1.0, 2.0, -2.0, 0.5, -0.5])
-        )
+        sparsifier.balance_bias.copy_(torch.tensor([3.0, -3.0, 1.0, -1.0, 2.0, -2.0, 0.5, -0.5]))
     magnitude_before = sparsifier.balance_bias.abs().sum().item()
     values = torch.full((4, 8), -1.0)
     for row in range(4):
@@ -194,9 +193,7 @@ def test_balance_bias_does_not_steer_selection_in_eval() -> None:
     sparsifier = _load_sign_sparsifier(balance_bias_rate=0.1)
     values = torch.tensor([[5.0, 4.0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5]])
     with torch.no_grad():
-        sparsifier.balance_bias.copy_(
-            torch.tensor([-50.0, -50.0, 0.0, 0.0, 0.0, 0.0, 50.0, 50.0])
-        )
+        sparsifier.balance_bias.copy_(torch.tensor([-50.0, -50.0, 0.0, 0.0, 0.0, 0.0, 50.0, 50.0]))
 
     sparsifier.eval()
     evaluation_output = sparsifier(values)

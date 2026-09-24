@@ -234,7 +234,8 @@ def _collect_one_episode(
     actions = np.full((max_steps,), adapter.action_space.count, dtype=np.int64)
     continuous_actions = (
         np.zeros((max_steps, 2), dtype=np.float32)
-        if collection_config.policy == "continuous_random" else None
+        if collection_config.policy == "continuous_random"
+        else None
     )
     valid_steps = np.zeros((max_steps,), dtype=bool)
     terminated = False
@@ -466,7 +467,8 @@ def _collect_raw_dataset_vectorized(
     batch_size = int(collection_config.num_parallel_envs) or total_episodes
     num_actions = len(JAXENSTEIN_NAV_ACTION_NAMES)
     rollout = make_jaxenstein_rollout(
-        env_id=str(environment_config.env_id), policy=JaxOUPolicy(),
+        env_id=str(environment_config.env_id),
+        policy=JaxOUPolicy(),
         terminate_on_goal=terminate_on_goal,
         randomize_agent_start=environment_config.randomize_agent_start,
         uniform_spawn=uniform_spawn,

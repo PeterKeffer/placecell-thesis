@@ -58,7 +58,7 @@ def load_model_from_checkpoint(
     if not isinstance(build_context, dict):
         raise RuntimeError(
             "Checkpoint is missing build_context and cannot be reconstructed into a place model."
-    )
+        )
     spatial_model_config = materialize_dataclass(
         SpatialModelConfig, build_context["spatial_model_config"]
     )

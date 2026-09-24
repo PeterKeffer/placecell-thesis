@@ -130,9 +130,8 @@ def transition_laplacian_modes(
     num_bins_y: int,
     num_modes: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    active_bin_mask = (
-        (occupancy_counts > 0.0)
-        & ((transition_counts.sum(axis=0) + transition_counts.sum(axis=1)) > 0.0)
+    active_bin_mask = (occupancy_counts > 0.0) & (
+        (transition_counts.sum(axis=0) + transition_counts.sum(axis=1)) > 0.0
     )
     active_bin_indices = np.flatnonzero(active_bin_mask)
     if active_bin_indices.size < 2:
@@ -322,14 +321,12 @@ class _TransitionGeometryModuleBase:
             record_timing(timing_seconds, "transition_counts", section_started_at)
 
             section_started_at = perf_counter()
-            selected_eigenvalues, selected_mode_indices, mode_maps = (
-                transition_laplacian_modes(
-                    transition_counts,
-                    occupancy_counts=occupancy_counts,
-                    num_bins_x=num_bins_x,
-                    num_bins_y=num_bins_y,
-                    num_modes=num_modes,
-                )
+            selected_eigenvalues, selected_mode_indices, mode_maps = transition_laplacian_modes(
+                transition_counts,
+                occupancy_counts=occupancy_counts,
+                num_bins_x=num_bins_x,
+                num_bins_y=num_bins_y,
+                num_modes=num_modes,
             )
             record_timing(timing_seconds, "eigendecomposition", section_started_at)
             return _TransitionGeometryCore(
@@ -417,9 +414,7 @@ class _TransitionGeometryModuleBase:
             )
             best_mode_abs_correlation = alignment.best_mode_abs_correlation
             best_mode_rank = alignment.best_mode_rank
-            best_mode_abs_correlation_per_mode = (
-                alignment.best_mode_abs_correlation_per_mode
-            )
+            best_mode_abs_correlation_per_mode = alignment.best_mode_abs_correlation_per_mode
             top_unit_scores = alignment.top_unit_scores
             top_k = alignment.top_k
 
@@ -427,12 +422,9 @@ class _TransitionGeometryModuleBase:
         if self.emit_panel:
             section_started_at = perf_counter()
             module_dir = output_dir / self.name
-            figure_path = (
-                module_dir
-                / (
-                    f"transition_geometry__{analysis_input.source_name}"
-                    f"__{analysis_input.split_name}.png"
-                )
+            figure_path = module_dir / (
+                f"transition_geometry__{analysis_input.source_name}"
+                f"__{analysis_input.split_name}.png"
             )
             figure_path.parent.mkdir(parents=True, exist_ok=True)
             columns = 2 if int(mode_maps.shape[0]) == 1 else min(3, int(mode_maps.shape[0]))

@@ -104,12 +104,15 @@ def accumulate_multi_split_correlations(
         safe_half_occupancies += [safe_first_occupancy, safe_second_occupancy]
         supported_half_bins += [support_mask, support_mask]
 
-    half_maps = smooth_flat_bin_maps(
-        np.stack(half_activity_sums),
-        num_bins_y=num_bins_y,
-        num_bins_x=num_bins_x,
-        smoothing_sigma=smoothing_sigma,
-    ) / np.stack(safe_half_occupancies)[:, None, :, :]
+    half_maps = (
+        smooth_flat_bin_maps(
+            np.stack(half_activity_sums),
+            num_bins_y=num_bins_y,
+            num_bins_x=num_bins_x,
+            smoothing_sigma=smoothing_sigma,
+        )
+        / np.stack(safe_half_occupancies)[:, None, :, :]
+    )
     half_maps = np.where(np.stack(supported_half_bins)[:, None, :, :], half_maps, np.nan)
 
     chunk_width = chunk_activity_sums.shape[0]

@@ -126,8 +126,7 @@ class CompositePlaceModel(nn.Module, PlaceModel):
             "encoder": encoder_parameters,
             "encoder_binding": binding_parameters,
             "predictor": (
-                list(self.predictor_temporal.parameters())
-                + list(self.predictor_head.parameters())
+                list(self.predictor_temporal.parameters()) + list(self.predictor_head.parameters())
             ),
             "sparsifier": list(self.predictor_sparsifier.parameters()),
             "embeddings": embedding_parameters,
@@ -195,9 +194,7 @@ class CompositePlaceModel(nn.Module, PlaceModel):
                 f"{sorted(selector_parameters)}."
             )
         return {
-            id(parameter)
-            for selector in selectors
-            for parameter in selector_parameters[selector]
+            id(parameter) for selector in selectors for parameter in selector_parameters[selector]
         }
 
     def _permanently_frozen_parameter_ids(self) -> set[int]:
@@ -239,7 +236,9 @@ class CompositePlaceModel(nn.Module, PlaceModel):
         config = self.components.config
         available_representations = base_representation_names(config)
         active_auxiliary_heads = sorted(self.auxiliary_heads.keys())
-        available_representations.extend(auxiliary_representation_names(self.auxiliary_heads.values()))
+        available_representations.extend(
+            auxiliary_representation_names(self.auxiliary_heads.values())
+        )
         tensor_shapes = base_representation_shapes(config)
         if "observation.backbone_output" not in available_representations:
             available_representations.append("observation.backbone_output")

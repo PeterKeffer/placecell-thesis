@@ -340,8 +340,7 @@ def _render_pages(
             left=0.055, right=0.985, bottom=0.075, top=0.92, wspace=0.28, hspace=0.36
         )
         path = (
-            output_dir
-            / f"heading_rate_map_overlay__{analysis_input.source_name}"
+            output_dir / f"heading_rate_map_overlay__{analysis_input.source_name}"
             f"__{analysis_input.split_name}__{start}_{start + len(page_units)}.png"
         )
         save_figure(figure, path, dpi=render_dpi)
@@ -611,8 +610,7 @@ def _write_table(
         for unit_index in range(overlay.activation_corridor_deg.shape[0])
     ]
     return write_csv(
-        output_dir
-        / f"heading_rate_map_overlay_per_unit__{analysis_input.source_name}"
+        output_dir / f"heading_rate_map_overlay_per_unit__{analysis_input.source_name}"
         f"__{analysis_input.split_name}.csv",
         [
             "unit_index",

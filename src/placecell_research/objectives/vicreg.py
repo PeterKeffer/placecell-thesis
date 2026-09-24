@@ -52,9 +52,7 @@ class VICRegObjective(ConfiguredObjective):
             dead_dim_fraction_values.append((std_per_dim <= 1.05e-2).float().mean())
         total_loss = torch.stack(losses).mean()
         mean_std = (
-            torch.stack(mean_std_values).mean()
-            if mean_std_values
-            else total_loss.detach() * 0.0
+            torch.stack(mean_std_values).mean() if mean_std_values else total_loss.detach() * 0.0
         )
         variance_loss = (
             torch.stack(variance_loss_values).mean()

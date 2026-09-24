@@ -67,8 +67,7 @@ def test_select_checkpoint_path_last_skips_stale_best_primary(tmp_path: Path) ->
 def test_select_checkpoint_path_last_falls_back_when_last_absent(tmp_path: Path) -> None:
     _touch_checkpoints(tmp_path, ["weights_best_primary.pt"])
     assert (
-        select_place_model_checkpoint(tmp_path, selection="last").name
-        == "weights_best_primary.pt"
+        select_place_model_checkpoint(tmp_path, selection="last").name == "weights_best_primary.pt"
     )
 
 
@@ -80,8 +79,7 @@ def test_select_checkpoint_path_raises_when_empty(tmp_path: Path) -> None:
 def test_explicit_best_overrides_the_last_default(tmp_path: Path) -> None:
     _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
     assert (
-        select_place_model_checkpoint(tmp_path, selection="best").name
-        == "weights_best_primary.pt"
+        select_place_model_checkpoint(tmp_path, selection="best").name == "weights_best_primary.pt"
     )
 
 

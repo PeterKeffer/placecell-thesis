@@ -157,9 +157,7 @@ def test_decorrelation_term_penalizes_duplicated_units() -> None:
         _bundle(duplicated, valid_mask), {}
     )
 
-    assert torch.allclose(
-        decorrelated_result.metrics["decorrelation"], torch.ones(()), rtol=1e-3
-    )
+    assert torch.allclose(decorrelated_result.metrics["decorrelation"], torch.ones(()), rtol=1e-3)
     assert torch.allclose(
         decorrelated_result.loss - plain_result.loss,
         0.25 * decorrelated_result.metrics["decorrelation"],

@@ -35,6 +35,7 @@ def _normalize_rate_map_colormap_mode(raw_value: object) -> str:
         return normalized_value
     return "reds"
 
+
 def normalize_panel_reliability_metric(raw_value: object) -> str:
     normalized_value = str(raw_value).strip().lower()
     if normalized_value in {
@@ -45,6 +46,7 @@ def normalize_panel_reliability_metric(raw_value: object) -> str:
     }:
         return normalized_value
     return "quantile_thresholded_reliability"
+
 
 def _field_center_xy(
     rate_map: np.ndarray,
@@ -62,6 +64,7 @@ def _field_center_xy(
     world_x = x_min + (column_center + 0.5) / num_columns * (x_max - x_min)
     world_y = y_min + (row_center + 0.5) / num_rows * (y_max - y_min)
     return world_x, world_y
+
 
 def _order_indices_by_field_position(
     selected_indices: np.ndarray,
@@ -89,6 +92,7 @@ def _order_indices_by_field_position(
     )
     ordered_centered = [centered_units[leaf] for leaf in leaves_list(linkage_matrix).tolist()]
     return np.asarray(ordered_centered + uncentered_units, dtype=np.int64)
+
 
 def select_high_activation_positions(
     analysis_input: AnalysisInput,
@@ -128,6 +132,7 @@ def select_high_activation_positions(
         selected_positions[int(unit_index)] = active_positions.astype(np.float32, copy=False)
     return selected_positions
 
+
 def use_shared_rate_map_color_scale(config: dict) -> bool:
     raw_value = config.get("rate_map_shared_color_scale", False)
     if isinstance(raw_value, str):
@@ -137,6 +142,7 @@ def use_shared_rate_map_color_scale(config: dict) -> bool:
 
 def resolve_rate_map_colormap_mode(config: dict) -> str:
     return _normalize_rate_map_colormap_mode(config.get("rate_map_colormap_mode", "reds"))
+
 
 @dataclass(frozen=True, slots=True)
 class PanelSettings:
@@ -191,6 +197,7 @@ class GridOutcome:
     first_clean_path: Path | None = None
     page_paths: list[str] = field(default_factory=list)
     clean_page_paths: list[str] = field(default_factory=list)
+
 
 METRIC_KEYS_BY_GROUP: dict[str, set[str]] = {
     "fields": {
@@ -316,6 +323,7 @@ PER_UNIT_KEYS_BY_GROUP: dict[str, set[str]] = {
     },
 }
 
+
 def panel_metric_family(
     bundle: RateMapMetricBundle,
     metric_name: str,
@@ -344,6 +352,7 @@ def panel_metric_family(
         bundle.fields.bin_consistency,
         bundle.fields.bin_consistency_supported_fraction,
     )
+
 
 def select_ranked_units(
     bundle: RateMapMetricBundle,
@@ -376,6 +385,7 @@ def select_ranked_units(
         render_all_grid_units=render_all_grid_units,
     )
 
+
 def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]:
     """Population headlines, before the module's metric groups filter them."""
     place_metrics = bundle.place_metrics
@@ -396,9 +406,7 @@ def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]
         ),
         "mean_spatial_information_bits": nanmean_or_nan(place_metrics.spatial_information_bits),
         "mean_spatial_coherence": nanmean_or_nan(place_metrics.spatial_coherence),
-        "mean_max_available_confound_score": nanmean_or_nan(
-            place_metrics.max_available_confound
-        ),
+        "mean_max_available_confound_score": nanmean_or_nan(place_metrics.max_available_confound),
         "mean_reliability_weighted_information": nanmean_or_nan(reliability_weighted),
         "max_reliability_weighted_information": nanmax_or_nan(reliability_weighted),
         "mean_reliability_weighted_information_all_units": (
@@ -424,9 +432,7 @@ def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]
         "fraction_passing_coherence": gate_summary["fraction_passing_coherence"],
         "fraction_passing_confound": gate_summary["fraction_passing_confound"],
         "place_cell_assessable_units": gate_summary["place_cell_assessable_units"],
-        "place_cell_gate_minimum_split_half": (
-            bundle.settings.place_cell_gate_minimum_split_half
-        ),
+        "place_cell_gate_minimum_split_half": (bundle.settings.place_cell_gate_minimum_split_half),
         "place_cell_gate_minimum_coherence": bundle.settings.place_cell_gate_minimum_coherence,
         "place_cell_gate_maximum_confound": bundle.settings.place_cell_gate_maximum_confound,
         "field_coverage_fraction": place_metrics.field_coverage_fraction,
@@ -437,9 +443,7 @@ def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]
             bundle.spatial_information_null.fraction_place_cells_strict
         ),
         "mean_reliability": (
-            float(np.mean(summaries.mean_reliability))
-            if len(summaries.mean_reliability)
-            else 0.0
+            float(np.mean(summaries.mean_reliability)) if len(summaries.mean_reliability) else 0.0
         ),
         "mean_reliability_lift": (
             float(np.mean(summaries.mean_reliability_lift))
@@ -462,18 +466,14 @@ def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]
         "mean_field_traversal_reliability_directional": nanmean_or_nan(
             fields.traversal_reliability_directional
         ),
-        "mean_field_core_traversal_reliability": nanmean_or_nan(
-            fields.core_traversal_reliability
-        ),
+        "mean_field_core_traversal_reliability": nanmean_or_nan(fields.core_traversal_reliability),
         "field_core_traversal_assessable_units": float(
             np.isfinite(fields.core_traversal_reliability).sum()
         ),
         "field_traversal_directional_assessable_units": float(
             np.isfinite(fields.traversal_reliability_directional).sum()
         ),
-        "field_traversal_assessable_units": float(
-            np.isfinite(fields.traversal_reliability).sum()
-        ),
+        "field_traversal_assessable_units": float(np.isfinite(fields.traversal_reliability).sum()),
         "mean_quantile_thresholded_reliability": (
             float(np.mean(summaries.mean_quantile_reliability))
             if len(summaries.mean_quantile_reliability)
@@ -517,6 +517,7 @@ def rate_map_population_metrics(bundle: RateMapMetricBundle) -> dict[str, float]
         "fraction_units_majority_negative": signed.fraction_units_majority_negative,
     }
 
+
 def rate_map_per_unit_metrics(bundle: RateMapMetricBundle) -> dict[str, np.ndarray]:
     """One vector per metric, before the module's metric groups filter them."""
     place_metrics = bundle.place_metrics
@@ -554,9 +555,7 @@ def rate_map_per_unit_metrics(bundle: RateMapMetricBundle) -> dict[str, np.ndarr
         "field_traversal_count": fields.traversal_counts.astype(np.float32, copy=False),
         "field_traversal_reliability_directional": fields.traversal_reliability_directional,
         "field_core_traversal_reliability": fields.core_traversal_reliability,
-        "field_core_traversal_count": fields.core_traversal_counts.astype(
-            np.float32, copy=False
-        ),
+        "field_core_traversal_count": fields.core_traversal_counts.astype(np.float32, copy=False),
         "field_traversal_directional_count": fields.traversal_directional_counts.astype(
             np.float32, copy=False
         ),

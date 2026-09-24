@@ -99,8 +99,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
 
     logger = WandbLogger(
         enabled=bool(
-            study_config.tracking.use_wandb
-            and study_config.tracking.wandb_mode != "disabled"
+            study_config.tracking.use_wandb and study_config.tracking.wandb_mode != "disabled"
         ),
         project=study_config.tracking.wandb_project,
         name=f"study__{study_config.name}__{run_identity.run_id}",
@@ -224,11 +223,9 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                         path,
                         [*propagated_tracking_overrides, *stage_overrides],
                     ),
-                    train_vision_encoder=lambda path, stage_overrides: (
-                        train_vision_encoder.run(
-                            path,
-                            [*propagated_tracking_overrides, *stage_overrides],
-                        )
+                    train_vision_encoder=lambda path, stage_overrides: train_vision_encoder.run(
+                        path,
+                        [*propagated_tracking_overrides, *stage_overrides],
                     ),
                     encode_dataset=lambda path, stage_overrides: encode_dataset.run(
                         path,

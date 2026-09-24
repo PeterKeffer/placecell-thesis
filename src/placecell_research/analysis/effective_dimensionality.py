@@ -27,7 +27,10 @@ class EffectiveDimensionalityModule:
         )
         if flat.shape[0] < 2 or flat.shape[1] < 1:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"effective_dim_skipped": "too few samples"},
             )
         max_samples = int(config.get("geometry_max_samples", 5000))
@@ -41,10 +44,13 @@ class EffectiveDimensionalityModule:
         total = eigenvalues.sum()
         if total <= 0:
             return AnalysisResult(
-                metrics={"participation_ratio": 0.0}, per_unit_metrics={}, figures={}, tables={},
+                metrics={"participation_ratio": 0.0},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"effective_dim_skipped": "zero variance"},
             )
-        participation_ratio = float(total ** 2 / (eigenvalues ** 2).sum())
+        participation_ratio = float(total**2 / (eigenvalues**2).sum())
         fraction = eigenvalues / total
         cumulative = np.cumsum(fraction)
         return AnalysisResult(

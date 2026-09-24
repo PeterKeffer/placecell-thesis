@@ -37,9 +37,7 @@ def _pillar_arena_walk(num_episodes: int, num_steps: int, *, seed: int) -> np.nd
     radius_x, radius_y = 0.5 * (max_x - min_x), 0.5 * (max_y - min_y)
 
     def is_walkable(x: float, y: float) -> bool:
-        normalized_radius = float(
-            np.hypot((x - center_x) / radius_x, (y - center_y) / radius_y)
-        )
+        normalized_radius = float(np.hypot((x - center_x) / radius_x, (y - center_y) / radius_y))
         return PILLAR_INNER_RADIUS_FRACTION <= normalized_radius <= 1.0
 
     positions = np.empty((num_episodes, num_steps, 2), dtype=np.float32)
@@ -78,9 +76,7 @@ def test_gate_counts_reachable_bins_not_the_whole_grid(tmp_path: Path) -> None:
 
     full_grid_coverage = (step_counts > 0).mean(axis=1)
     reachable_coverage = reachable_bin_visited_fractions(step_counts)
-    reachable_only_threshold = float(
-        0.5 * (full_grid_coverage.max() + reachable_coverage.min())
-    )
+    reachable_only_threshold = float(0.5 * (full_grid_coverage.max() + reachable_coverage.min()))
     assert full_grid_coverage.max() < reachable_only_threshold < reachable_coverage.min()
 
     codes = kwinners_place_codes(positions, num_units=GATE_TEST_UNITS, active_units=2)

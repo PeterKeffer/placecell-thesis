@@ -74,9 +74,9 @@ def _partial_spearman_controls(
     if controls:
         design = np.column_stack([np.ones(len(target_ranks))] + [rankdata(c) for c in controls])
         target_ranks = target_ranks - design @ np.linalg.lstsq(design, target_ranks, rcond=None)[0]
-        predictor_ranks = predictor_ranks - design @ np.linalg.lstsq(
-            design, predictor_ranks, rcond=None
-        )[0]
+        predictor_ranks = (
+            predictor_ranks - design @ np.linalg.lstsq(design, predictor_ranks, rcond=None)[0]
+        )
     target_centered = target_ranks - target_ranks.mean()
     predictor_centered = predictor_ranks - predictor_ranks.mean()
     denominator = np.sqrt(np.sum(target_centered**2) * np.sum(predictor_centered**2))
@@ -288,9 +288,7 @@ class CognitiveMapGeometryModule:
         euclidean_pairs = euclidean_all[finite]
         representational_pairs = representational_all[finite]
         if geodesic_pairs.size < 16:
-            spatial_pair_count = int(
-                (np.isfinite(geodesic_all) & np.isfinite(euclidean_all)).sum()
-            )
+            spatial_pair_count = int((np.isfinite(geodesic_all) & np.isfinite(euclidean_all)).sum())
             if spatial_pair_count < 16:
                 raise ValueError(
                     "Too few finite bin pairs for a cognitive-map geometry correlation."
@@ -508,24 +506,40 @@ class CognitiveMapGeometryModule:
         axis.scatter(
             euclidean_pairs[same_sample],
             representational_pairs[same_sample],
-            s=6, alpha=0.16, color="#7F7F7F", label="same region",
+            s=6,
+            alpha=0.16,
+            color="#7F7F7F",
+            label="same region",
         )
         axis.scatter(
             euclidean_pairs[separated_sample],
             representational_pairs[separated_sample],
-            s=6, alpha=0.22, color="#D62728", label="wall between",
+            s=6,
+            alpha=0.22,
+            color="#D62728",
+            label="wall between",
         )
         if per_bin:
             centers = [item[0] for item in per_bin]
             median_separated = [item[1] for item in per_bin]
             median_same = [item[2] for item in per_bin]
             axis.plot(
-                centers, median_same, color="#3F3F3F", marker="o", markersize=3,
-                linewidth=1.8, label="median, same region",
+                centers,
+                median_same,
+                color="#3F3F3F",
+                marker="o",
+                markersize=3,
+                linewidth=1.8,
+                label="median, same region",
             )
             axis.plot(
-                centers, median_separated, color="#B22222", marker="o", markersize=3,
-                linewidth=1.8, label="median, wall between",
+                centers,
+                median_separated,
+                color="#B22222",
+                marker="o",
+                markersize=3,
+                linewidth=1.8,
+                label="median, wall between",
             )
         axis.set_xlabel("Euclidean distance (world units)")
         axis.set_ylabel("representational distance (1 - corr)")
@@ -625,8 +639,12 @@ class CognitiveMapGeometryModule:
         for axis, (title, matrix, cmap) in zip(axes.flat, panels, strict=False):
             if matrix is None:
                 axis.text(
-                    0.5, 0.5, "AE-latent not collected\n(visual baseline off)",
-                    ha="center", va="center", fontsize=10,
+                    0.5,
+                    0.5,
+                    "AE-latent not collected\n(visual baseline off)",
+                    ha="center",
+                    va="center",
+                    fontsize=10,
                 )
                 axis.set_axis_off()
                 continue
@@ -677,8 +695,7 @@ class CognitiveMapGeometryModule:
         module_dir = output_dir / self.name
         module_dir.mkdir(parents=True, exist_ok=True)
         figure_name = (
-            f"cognitive_map_geometry__{analysis_input.source_name}"
-            f"__{analysis_input.split_name}.png"
+            f"cognitive_map_geometry__{analysis_input.source_name}__{analysis_input.split_name}.png"
         )
         figure_path = module_dir / figure_name
 

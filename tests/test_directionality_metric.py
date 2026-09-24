@@ -1,4 +1,5 @@
 """Directional-modulation analysis metric: separates omnidirectional from directional cells."""
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -314,14 +315,10 @@ def _build_random_walk_input(seed: int = 3) -> AnalysisInput:
     centers = rng.uniform(0.5, 5.5, size=(num_units, 2))
     preferred = rng.uniform(0.0, 2.0 * np.pi, size=num_units)
     heading_gain = np.tile([0.0, 0.9, 0.4, 0.0], num_units // 4)
-    place = np.exp(
-        -((flat_positions[:, None, :] - centers[None, :, :]) ** 2).sum(axis=2) / 2.0
-    )
+    place = np.exp(-((flat_positions[:, None, :] - centers[None, :, :]) ** 2).sum(axis=2) / 2.0)
     tuning = place * (
         1.0
-        - heading_gain[None, :]
-        * (1.0 - np.cos(flat_headings[:, None] - preferred[None, :]))
-        / 2.0
+        - heading_gain[None, :] * (1.0 - np.cos(flat_headings[:, None] - preferred[None, :])) / 2.0
     )
     tuning += rng.normal(0.0, 0.05, size=tuning.shape)
     cutoff = np.partition(tuning, -4, axis=1)[:, -4][:, None]
@@ -377,9 +374,7 @@ def _standalone_modulation_r_reference(
     quadrant_min = np.min(np.where(sampled, mean_per_quadrant, np.inf), axis=1)
     usable_bin_unit = field_mask & all_sampled_finite & (quadrant_max > _REFERENCE_EPS)
     with np.errstate(invalid="ignore"):
-        modulation = (quadrant_max - quadrant_min) / (
-            quadrant_max + quadrant_min + _REFERENCE_EPS
-        )
+        modulation = (quadrant_max - quadrant_min) / (quadrant_max + quadrant_min + _REFERENCE_EPS)
     weighted = np.where(usable_bin_unit, modulation, 0.0) * statistics.occupancy_bin[:, None]
     weight_sums = (usable_bin_unit * statistics.occupancy_bin[:, None]).sum(axis=0)
     r_values = np.full(statistics.rates.shape[1], np.nan, dtype=np.float32)
@@ -390,9 +385,9 @@ def _standalone_modulation_r_reference(
         & (usable_bin_unit.sum(axis=0) >= int(min_field_bins))
         & (weight_sums > 0.0)
     )
-    r_values[assessable] = (
-        weighted.sum(axis=0)[assessable] / weight_sums[assessable]
-    ).astype(np.float32)
+    r_values[assessable] = (weighted.sum(axis=0)[assessable] / weight_sums[assessable]).astype(
+        np.float32
+    )
     return r_values
 
 
@@ -406,9 +401,9 @@ def _dense_circular_shift_null_reference(statistics, num_shuffles: int) -> np.nd
     episode_bounds = np.concatenate(([0], np.cumsum(statistics.episode_lengths)))
     combined = statistics.bin_index * _NUM_QUADRANTS + statistics.quadrant
     num_units = statistics.rates.shape[1]
-    safe_occupancy_bin = np.where(
-        statistics.occupancy_bin > 0, statistics.occupancy_bin, np.nan
-    )[:, None]
+    safe_occupancy_bin = np.where(statistics.occupancy_bin > 0, statistics.occupancy_bin, np.nan)[
+        :, None
+    ]
 
     rows = []
     for offsets in shuffle_offsets:
@@ -515,9 +510,7 @@ def test_observed_modulation_r_matches_the_standalone_scorer() -> None:
                 "min_heading_quadrants": min_heading_quadrants,
                 "field_threshold_fraction": field_threshold_fraction,
             }
-            expected = _standalone_modulation_r_reference(
-                statistics, mean_per_quadrant, **kwargs
-            )
+            expected = _standalone_modulation_r_reference(statistics, mean_per_quadrant, **kwargs)
             actual = _modulation_r_from_quadrant_means(statistics, mean_per_quadrant, **kwargs)
             np.testing.assert_array_equal(actual, expected)
     assert np.isfinite(
@@ -534,7 +527,5 @@ def test_null_matrix_is_independent_of_the_unit_chunk_width(monkeypatch) -> None
         "min_fire_rate": _NULL_KWARGS["min_fire_rate"],
     }
     whole = _null_modulation_matrix(statistics, gates, **kwargs)
-    monkeypatch.setattr(
-        "placecell_research.analysis.directionality._NULL_CHUNK_NONZERO_BUDGET", 1
-    )
+    monkeypatch.setattr("placecell_research.analysis.directionality._NULL_CHUNK_NONZERO_BUDGET", 1)
     np.testing.assert_array_equal(_null_modulation_matrix(statistics, gates, **kwargs), whole)

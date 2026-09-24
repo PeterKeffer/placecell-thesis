@@ -46,14 +46,10 @@ class TemporalStabilityObjective(ConfiguredObjective):
             variance = centered.pow(2).sum(dim=(0, 1)) / total_count
             detached_variance = variance.detach()
             psi_variance = (
-                detached_variance
-                if self.config.detach_variance_denominator
-                else variance
+                detached_variance if self.config.detach_variance_denominator else variance
             )
             variance_means.append(detached_variance.mean())
-            mean_squared_activity = (target.pow(2) * step_weights).sum() / (
-                total_count * num_units
-            )
+            mean_squared_activity = (target.pow(2) * step_weights).sum() / (total_count * num_units)
             code_rms_terms.append(torch.sqrt(mean_squared_activity).detach())
             assessable = detached_variance > _DEAD_UNIT_VARIANCE_FLOOR * detached_variance.mean()
             dead_fractions.append(1.0 - assessable.to(target.dtype).mean())

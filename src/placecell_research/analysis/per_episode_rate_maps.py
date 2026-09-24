@@ -215,8 +215,7 @@ def _render_pages(
             left=0.04, right=0.99, bottom=0.04, top=0.9, wspace=0.12, hspace=0.22
         )
         path = (
-            output_dir
-            / f"per_episode_rate_maps__{analysis_input.source_name}"
+            output_dir / f"per_episode_rate_maps__{analysis_input.source_name}"
             f"__{analysis_input.split_name}__{start}_{start + len(page_units)}.png"
         )
         save_figure(figure, path, dpi=render_dpi)

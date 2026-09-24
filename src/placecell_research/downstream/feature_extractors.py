@@ -156,8 +156,7 @@ class PairedGridCodeExtractor(BaseFeaturesExtractor):
         goal_indices = _gather_indices(block_dims, frozenset({"goal_grid_code"}))
         other_indices = _gather_indices(
             block_dims,
-            frozenset(name for name, _ in block_dims)
-            - {"synthetic_grid_cells", "goal_grid_code"},
+            frozenset(name for name, _ in block_dims) - {"synthetic_grid_cells", "goal_grid_code"},
         )
         if not current_indices or len(current_indices) != len(goal_indices):
             raise ValueError(

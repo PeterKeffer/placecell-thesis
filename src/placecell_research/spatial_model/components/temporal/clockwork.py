@@ -42,9 +42,7 @@ class ClockworkTemporal(ProjectedTemporalBase):
         self.input_to_hidden = nn.Linear(hidden_size, hidden_size)
         self.recurrent = nn.Linear(hidden_size, hidden_size)
 
-        period_of_unit = torch.repeat_interleave(
-            torch.arange(group_count), self.module_width
-        )
+        period_of_unit = torch.repeat_interleave(torch.arange(group_count), self.module_width)
         destination = period_of_unit.unsqueeze(1)
         source = period_of_unit.unsqueeze(0)
         recurrent_mask = source >= destination
@@ -71,9 +69,7 @@ class ClockworkTemporal(ProjectedTemporalBase):
             state = self.initial_state(x_t.shape[0], x_t.device)
         hidden_prev, previous_timestep = state[0], state[1]
         timestep = (
-            previous_timestep + 1
-            if t is None
-            else torch.full_like(previous_timestep, int(t))
+            previous_timestep + 1 if t is None else torch.full_like(previous_timestep, int(t))
         )
 
         projected = self._project_inputs(x_t)
@@ -87,9 +83,7 @@ class ClockworkTemporal(ProjectedTemporalBase):
         )
         for module_index, period in enumerate(self.clock_periods):
             start = module_index * self.module_width
-            tick[:, start : start + self.module_width] = (
-                (timestep % period == 0).unsqueeze(1)
-            )
+            tick[:, start : start + self.module_width] = (timestep % period == 0).unsqueeze(1)
         hidden_new = torch.where(tick, candidate, hidden_prev)
         return hidden_new, [hidden_new, timestep]
 

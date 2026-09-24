@@ -161,9 +161,9 @@ class ViTBackbone(nn.Module):
         row_values = torch.linspace(
             -1.0, 1.0, patch_rows, device=device, dtype=dtype
         ).repeat_interleave(patch_cols)
-        col_values = torch.linspace(
-            -1.0, 1.0, patch_cols, device=device, dtype=dtype
-        ).repeat(patch_rows)
+        col_values = torch.linspace(-1.0, 1.0, patch_cols, device=device, dtype=dtype).repeat(
+            patch_rows
+        )
         row_width = self.output_dim // 2
         col_width = self.output_dim - row_width
         patch_positions = torch.cat(

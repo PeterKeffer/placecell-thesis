@@ -53,12 +53,8 @@ class AdaptiveStateGate(nn.Module):
             dim=-1,
         )
         open_probability = torch.sigmoid(self.logit(gate_features))
-        update_rate = self.minimum_update_rate + (
-            1.0 - self.minimum_update_rate
-        ) * open_probability
-        updated_state = (
-            (1.0 - update_rate) * previous_state + update_rate * candidate_state
-        )
+        update_rate = self.minimum_update_rate + (1.0 - self.minimum_update_rate) * open_probability
+        updated_state = (1.0 - update_rate) * previous_state + update_rate * candidate_state
         return updated_state, update_rate.squeeze(-1), open_probability.squeeze(-1)
 
 
@@ -129,13 +125,11 @@ class ProjectedTemporalBase(nn.Module):
             self.last_diagnostics = {}
             return
         self.last_auxiliary_outputs = {
-            "adaptive_state_update_rate": torch.stack(update_rates, dim=-1)
-            .unsqueeze(1),
+            "adaptive_state_update_rate": torch.stack(update_rates, dim=-1).unsqueeze(1),
             "adaptive_state_gate_open_probability": torch.stack(
                 open_probabilities,
                 dim=-1,
-            )
-            .unsqueeze(1),
+            ).unsqueeze(1),
         }
         self.last_diagnostics = {
             name: value.detach() for name, value in self.last_auxiliary_outputs.items()
@@ -143,9 +137,7 @@ class ProjectedTemporalBase(nn.Module):
 
     def _project_inputs(self, inputs: Tensor) -> Tensor:
         self._enforce_free_partition_recurrent_mask()
-        if (
-            self.encoder_input_mask is not None
-        ):
+        if self.encoder_input_mask is not None:
             projected = torch.nn.functional.linear(
                 inputs,
                 self.input_projection.weight * self.encoder_input_mask,
@@ -177,7 +169,8 @@ class ProjectedTemporalBase(nn.Module):
         with torch.no_grad():
             for recurrent, mask_name in zip(
                 self._recurrent_modules(),
-                self._free_partition_recurrent_input_mask_names, strict=False,
+                self._free_partition_recurrent_input_mask_names,
+                strict=False,
             ):
                 weight_ih = getattr(
                     recurrent,
@@ -200,9 +193,7 @@ class ProjectedTemporalBase(nn.Module):
         if num_free <= 0:
             return
         mask = torch.ones(out_features, in_features, device=self.input_projection.weight.device)
-        mask[out_features - num_free :, : int(code_dim)] = (
-            0.0
-        )
+        mask[out_features - num_free :, : int(code_dim)] = 0.0
         self.encoder_input_mask = mask
         recurrent_modules = self._recurrent_modules()
         if int(recurrent_modules[0].input_size) != out_features:  # type: ignore[attr-defined]
@@ -239,9 +230,7 @@ class ProjectedTemporalBase(nn.Module):
             mask_name = f"_free_partition_recurrent_input_mask_{layer_index}"
             self.register_buffer(mask_name, recurrent_mask, persistent=False)
             self._free_partition_recurrent_input_mask_names.append(mask_name)
-            weight_ih.register_hook(
-                lambda gradient, name=mask_name: gradient * getattr(self, name)
-            )
+            weight_ih.register_hook(lambda gradient, name=mask_name: gradient * getattr(self, name))
         self._enforce_free_partition_recurrent_mask()
 
     def _apply_dropout(self, layer_output: Tensor, layer_index: int) -> Tensor:

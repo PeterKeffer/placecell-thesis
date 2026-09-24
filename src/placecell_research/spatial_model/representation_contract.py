@@ -27,10 +27,7 @@ def representation_name(module_name: str, field_name: str) -> str:
 
 def equal_code_block_bounds(width: int, count: int) -> list[tuple[int, int]]:
     """Tile [0, width) into count contiguous floor-division blocks."""
-    return [
-        (index * width // count, (index + 1) * width // count)
-        for index in range(count)
-    ]
+    return [(index * width // count, (index + 1) * width // count) for index in range(count)]
 
 
 def representation_view_specs(config: SpatialModelConfig) -> dict[str, tuple[str, int, int]]:
@@ -139,7 +136,9 @@ def base_representation_shapes(config: SpatialModelConfig) -> dict[str, list[obj
     for head_config in config.cell_type_heads:
         if head_config.predictor_hidden_dim:
             shapes[representation_name(head_config.name, "place_logits")] = [
-                "B", "T", config.training.code_dim,
+                "B",
+                "T",
+                config.training.code_dim,
             ]
         for output_name in ("place_codes", "pre_sparsifier"):
             shapes[representation_name(head_config.name, output_name)] = [

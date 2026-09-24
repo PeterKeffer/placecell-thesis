@@ -511,7 +511,6 @@ class SpatialModelInputsConfig:
         return channels
 
 
-
 @dataclass(config=PYDANTIC_CONFIG)
 class TemporalFamilyConfig:
     family: Literal[
@@ -1010,9 +1009,7 @@ class SpatialTrainingConfig:
             predictor_side_names = {"predictor", "sparsifier", "embeddings"}
             for phase in self.phases:
                 phase_selectors = set(phase.train)
-                required_encoders = (
-                    {"encoder"} if phase_selectors & predictor_side_names else set()
-                )
+                required_encoders = {"encoder"} if phase_selectors & predictor_side_names else set()
                 missing_encoders = sorted(required_encoders - phase_selectors)
                 if missing_encoders:
                     raise ValueError(

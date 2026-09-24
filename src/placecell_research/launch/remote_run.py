@@ -104,9 +104,7 @@ def _spawn_subprocess(command: list[str]) -> subprocess.Popen[str]:
 
 
 def _ssh_command(remote_host: str, ssh_options: Iterable[str], remote_script: str) -> list[str]:
-    remote_command = " ".join(
-        ["bash", "--noprofile", "--norc", "-lc", shlex.quote(remote_script)]
-    )
+    remote_command = " ".join(["bash", "--noprofile", "--norc", "-lc", shlex.quote(remote_script)])
     return ["ssh", *ssh_options, remote_host, remote_command]
 
 

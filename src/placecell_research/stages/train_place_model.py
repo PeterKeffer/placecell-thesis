@@ -347,12 +347,8 @@ def _compute_region_winner_metrics(
         "validation.routing.rare_specialist_fraction": float(rare_specialist.mean()),
         "validation.routing.monopolist_fraction": float(monopolist.mean()),
         "validation.routing.occupied_region_count": float(occupancy.size),
-        "validation.routing.region_active_unit_fraction_mean": float(
-            region_active_fraction.mean()
-        ),
-        "validation.routing.region_active_unit_fraction_min": float(
-            region_active_fraction.min()
-        ),
+        "validation.routing.region_active_unit_fraction_mean": float(region_active_fraction.mean()),
+        "validation.routing.region_active_unit_fraction_min": float(region_active_fraction.min()),
         "validation.routing.region_win_entropy_mean": float(region_entropy.mean()),
         "validation.routing.region_win_entropy_min": float(region_entropy.min()),
     }
@@ -405,9 +401,9 @@ def _compute_noise_floor_region_agreement(
         axis=1,
     )[:, -k_active:]
     noisy_winners = np.argpartition(noisy_scores, -k_active, axis=1)[:, -k_active:]
-    agreement = (
-        deterministic_winners[:, :, None] == noisy_winners[:, None, :]
-    ).sum(axis=(1, 2)) / k_active
+    agreement = (deterministic_winners[:, :, None] == noisy_winners[:, None, :]).sum(
+        axis=(1, 2)
+    ) / k_active
     region_ids = _spatial_bin_ids(
         positions,
         num_bins_x=num_bins_x,
@@ -418,15 +414,11 @@ def _compute_noise_floor_region_agreement(
     )
     return {
         "validation.routing.noise_floor_winner_agreement": float(agreement.mean()),
-        "validation.routing.noise_floor_region_agreement_mean": float(
-            region_agreement.mean()
-        ),
+        "validation.routing.noise_floor_region_agreement_mean": float(region_agreement.mean()),
         "validation.routing.noise_floor_region_agreement_p10": float(
             np.quantile(region_agreement, 0.1)
         ),
-        "validation.routing.noise_floor_region_agreement_min": float(
-            region_agreement.min()
-        ),
+        "validation.routing.noise_floor_region_agreement_min": float(region_agreement.min()),
     }
 
 
@@ -615,9 +607,7 @@ def _track_duplicate_sources(
         if (
             source not in batch_representations
             or earlier_source not in batch_representations
-            or not torch.equal(
-                batch_representations[source], batch_representations[earlier_source]
-            )
+            or not torch.equal(batch_representations[source], batch_representations[earlier_source])
         ):
             del duplicate_sources[source]
 
@@ -687,9 +677,7 @@ def evaluate_place_model_online(
             metric_batches.append(snapshot_metric_values(metrics))
             primary_representation = bundle.get_representation(online_source)
             representation_chunks.append(_to_host(primary_representation))
-            batch_representations: dict[str, torch.Tensor] = {
-                online_source: primary_representation
-            }
+            batch_representations: dict[str, torch.Tensor] = {online_source: primary_representation}
             for source in list(extra_chunks):
                 try:
                     batch_representations[source] = bundle.get_representation(source)
@@ -815,9 +803,7 @@ def evaluate_place_model_online(
                     heading_array,
                     num_bins_x=int(config.analysis.num_bins_x),
                     num_bins_y=int(config.analysis.num_bins_y),
-                    field_threshold_fraction=float(
-                        config.analysis.place_field_threshold_fraction
-                    ),
+                    field_threshold_fraction=float(config.analysis.place_field_threshold_fraction),
                 )
             )
     primary_metric = config.spatial_model.training.selection.primary_metric
@@ -1302,8 +1288,7 @@ def run(
                     "dataset_artifact_id": config.dataset.artifact_id,
                     "split_artifact_id": config.splits.artifact_id,
                     "extra_worlds": _extra_world_records(config) or None,
-                    "vision_encoder_artifact_id": config.vision.artifact_id or None
-                    or None,
+                    "vision_encoder_artifact_id": config.vision.artifact_id or None or None,
                     "resume_from_artifact_reference": explicit_reuse_artifact_reference or None,
                     "resume_from_artifact_id": resume_artifact_id or None,
                     "resume_from_checkpoint_path": str(resume_checkpoint)
@@ -1332,8 +1317,7 @@ def run(
                     "dataset_artifact_id": config.dataset.artifact_id,
                     "split_artifact_id": config.splits.artifact_id,
                     "extra_worlds": _extra_world_records(config) or None,
-                    "vision_encoder_artifact_id": config.vision.artifact_id or None
-                    or None,
+                    "vision_encoder_artifact_id": config.vision.artifact_id or None or None,
                     "observation_source": config.spatial_model.inputs.observation_source,
                     "resume_from_artifact_reference": explicit_reuse_artifact_reference or None,
                     "resume_from_artifact_id": resume_artifact_id or None,
@@ -1399,11 +1383,7 @@ def run(
                 destination / "input_routes.json",
                 destination / "parameter_shapes.csv",
                 *([best_primary_checkpoint] if best_primary_checkpoint.exists() else []),
-                *(
-                    [selected_checkpoint]
-                    if selected_checkpoint != best_primary_checkpoint
-                    else []
-                ),
+                *([selected_checkpoint] if selected_checkpoint != best_primary_checkpoint else []),
             ],
         )
         return augment_stage_result(

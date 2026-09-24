@@ -42,9 +42,8 @@ def compute_heading_tuning_shape_eval_metrics(
         heading_mean = activity / occupancy[:, None]
 
     sampled = occupancy >= float(min_occupancy_per_bin)
-    heading_centers = (
-        (np.arange(num_heading_bins, dtype=np.float64) + 0.5)
-        * (2.0 * np.pi / num_heading_bins)
+    heading_centers = (np.arange(num_heading_bins, dtype=np.float64) + 0.5) * (
+        2.0 * np.pi / num_heading_bins
     )
     first_vectors = np.exp(1j * heading_centers)
     second_vectors = np.exp(2j * heading_centers)
@@ -112,9 +111,7 @@ def compute_heading_tuning_shape_eval_metrics(
                 "validation.heading_tuning_median_peak_to_mean": float(
                     np.median(peak_to_mean_values)
                 ),
-                "validation.heading_tuning_single_peak_fraction": float(
-                    np.mean(single_peak_flags)
-                ),
+                "validation.heading_tuning_single_peak_fraction": float(np.mean(single_peak_flags)),
             }
         )
     if opposite_peak_ratio:
@@ -215,7 +212,7 @@ def summarize_topk_scores(
         if usable.any():
             usable_indices = usable.nonzero()[0]
             order = np.argsort(selection_scores[usable_indices])
-            chosen = usable_indices[order[-max(1, min(top_k, len(usable_indices))):]]
+            chosen = usable_indices[order[-max(1, min(top_k, len(usable_indices))) :]]
             selected_mean = float(scores[chosen].mean())
 
     return {

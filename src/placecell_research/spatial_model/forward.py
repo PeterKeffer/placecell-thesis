@@ -173,12 +173,8 @@ def _accumulate_random_segments(
         generator=generator,
     )
     length_span = (caps - floors + 1).unsqueeze(0)
-    lengths = floors.unsqueeze(0) + torch.floor(
-        random_draws[:, 0] * length_span
-    ).long()
-    start_span = (
-        valid_lengths.unsqueeze(0) - lengths - start_offset + 1
-    ).clamp_min(1)
+    lengths = floors.unsqueeze(0) + torch.floor(random_draws[:, 0] * length_span).long()
+    start_span = (valid_lengths.unsqueeze(0) - lengths - start_offset + 1).clamp_min(1)
     starts = start_offset + torch.floor(random_draws[:, 1] * start_span).long()
     expanded_time_indices = time_indices.unsqueeze(0)
     in_block = (expanded_time_indices >= starts.unsqueeze(-1)) & (
@@ -320,11 +316,15 @@ def _sample_input_corruption(
 
 def _compute_temporal_offset(corruption_regime: Tensor, scale: float = 32.0) -> Tensor:
     batch_size, time_steps = corruption_regime.shape
-    time_indices = torch.arange(
-        time_steps,
-        device=corruption_regime.device,
-        dtype=torch.long,
-    ).unsqueeze(0).expand(batch_size, -1)
+    time_indices = (
+        torch.arange(
+            time_steps,
+            device=corruption_regime.device,
+            dtype=torch.long,
+        )
+        .unsqueeze(0)
+        .expand(batch_size, -1)
+    )
     clean_step_indices = torch.where(
         corruption_regime == 0,
         time_indices,
@@ -354,12 +354,8 @@ def _sample_training_corruption_plan(
     corruption_config = inputs_config.input_corruption
     empty_mask = torch.zeros_like(valid_steps, dtype=torch.bool)
     if corruption_config.enabled:
-        noise_is_enabled = (
-            corruption_config.noise_num_blocks > 0
-            and (
-                corruption_config.noise_sigma_abs > 0.0
-                or corruption_config.noise_sigma_rel > 0.0
-            )
+        noise_is_enabled = corruption_config.noise_num_blocks > 0 and (
+            corruption_config.noise_sigma_abs > 0.0 or corruption_config.noise_sigma_rel > 0.0
         )
         noise_mask, blackout_mask = _sample_input_corruption(
             valid_steps,
@@ -415,9 +411,9 @@ def _valid_feature_standard_deviation(
     reduction_dims = (0, 1)
     valid_count = valid_mask.sum(dim=reduction_dims, keepdim=True).clamp_min(1.0)
     mean = (observations * valid_mask).sum(dim=reduction_dims, keepdim=True) / valid_count
-    variance = (
-        (observations - mean).square() * valid_mask
-    ).sum(dim=reduction_dims, keepdim=True) / valid_count
+    variance = ((observations - mean).square() * valid_mask).sum(
+        dim=reduction_dims, keepdim=True
+    ) / valid_count
     return variance.sqrt().detach()
 
 
@@ -903,10 +899,7 @@ def _prepend_sequence(previous: Tensor | None, current: Tensor | None) -> Tensor
 
 
 def _validate_chunk_forward_runtime(model: CompositePlaceModel) -> None:
-    if (
-        model.training_regularizer is not None
-        and model.training_regularizer.has_active_site("")
-    ):
+    if model.training_regularizer is not None and model.training_regularizer.has_active_site(""):
         raise ValueError("Stateful BPTT does not support an active sequence regularizer.")
     if len(model.representation_heads) > 0:
         raise ValueError("Stateful BPTT does not support representation heads.")
@@ -972,9 +965,7 @@ def forward_chunk(
     )
     if contiguous:
         boundary_valid = state.previous_valid_step & resolved_batch.valid_steps[:, 0]
-        internal_valid = (
-            resolved_batch.valid_steps[:, :-1] & resolved_batch.valid_steps[:, 1:]
-        )
+        internal_valid = resolved_batch.valid_steps[:, :-1] & resolved_batch.valid_steps[:, 1:]
         bundle.masks["prediction_valid_steps"] = torch.cat(
             (boundary_valid.unsqueeze(1), internal_valid),
             dim=1,
@@ -987,9 +978,7 @@ def forward_chunk(
         previous_encoder_code=encoder_codes[:, -1],
         previous_action=resolved_batch.actions[:, -1:],
         previous_kinematics=(
-            None
-            if resolved_batch.kinematics is None
-            else resolved_batch.kinematics[:, -1:]
+            None if resolved_batch.kinematics is None else resolved_batch.kinematics[:, -1:]
         ),
         previous_corruption_regime=corruption.corruption_regime[:, -1:],
         previous_temporal_offset=(

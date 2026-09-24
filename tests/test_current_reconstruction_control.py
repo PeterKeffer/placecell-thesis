@@ -12,10 +12,7 @@ from placecell_research.config.validator import validate_experiment_config
 from placecell_research.objectives.reconstruction import LatentReconstructionObjective
 from placecell_research.spatial_model.types import RepresentationBundle
 
-RECIPE = (
-    Path(__file__).resolve().parents[1]
-    / "configs/experiment/wallgap.yaml"
-)
+RECIPE = Path(__file__).resolve().parents[1] / "configs/experiment/wallgap.yaml"
 RECONSTRUCTION_OVERRIDES = [
     "spatial_model.objectives.prediction_cosine.weight=0",
     "spatial_model.objectives.current_latent_reconstruction.type=latent_reconstruction",

@@ -90,9 +90,7 @@ def test_feature_source_reads_position_and_dim():
     )
 
     centers = np.array([[0.0, 0.0], [10.0, 0.0]], dtype=np.float32)
-    source = SyntheticPlaceCellsFeatureSource(
-        centers=centers, sigma_center=2.0, sigma_surround=4.0
-    )
+    source = SyntheticPlaceCellsFeatureSource(centers=centers, sigma_center=2.0, sigma_surround=4.0)
     assert source.name == "synthetic_place_cells"
     assert source.feature_dim == 2
     context = StepContext(

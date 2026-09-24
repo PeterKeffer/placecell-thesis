@@ -1,4 +1,5 @@
 """Unit tests for downstream place-code feature sources."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

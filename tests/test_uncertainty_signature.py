@@ -42,9 +42,9 @@ def _dataset_with_uncertainty_channel(
         size=(num_episodes, num_steps, 2)
     ).astype(np.float32)
     representation[..., 2] = 50.0 / noise_scale
-    representation[..., 3:] = 0.1 * rng.normal(
-        size=(num_episodes, num_steps, code_dim - 3)
-    ).astype(np.float32)
+    representation[..., 3:] = 0.1 * rng.normal(size=(num_episodes, num_steps, code_dim - 3)).astype(
+        np.float32
+    )
     valid_mask = np.ones((num_episodes, num_steps), dtype=bool)
     return representation, positions, valid_mask
 
@@ -88,9 +88,7 @@ def test_selection_between_the_two_tests_cannot_manufacture_significance(tmp_pat
     assert metrics["spearman_error_vs_magnitude_p_value"] < 0.05
     assert metrics["spearman_error_vs_entropy_p_value"] > 0.05
     assert result.metadata["uncertainty_signature_selected_statistic"] == "magnitude"
-    assert (
-        metrics["selected_by_larger_abs_rho_spearman"] == metrics["spearman_error_vs_magnitude"]
-    )
+    assert metrics["selected_by_larger_abs_rho_spearman"] == metrics["spearman_error_vs_magnitude"]
     assert metrics["selected_by_larger_abs_rho_p_value_bonferroni"] == pytest.approx(
         2.0 * metrics["spearman_error_vs_magnitude_p_value"]
     )
@@ -138,9 +136,7 @@ def test_correlation_drops_dead_rows_instead_of_ranking_them() -> None:
     entropy = _normalized_entropy(codes)
     blocks = [np.arange(6)]
 
-    rho, _ = _spearman_with_block_permutation_p(
-        errors, entropy, blocks, np.random.default_rng(0)
-    )
+    rho, _ = _spearman_with_block_permutation_p(errors, entropy, blocks, np.random.default_rng(0))
     rho_without_dead_row, _ = _spearman_with_block_permutation_p(
         errors[:5], entropy[:5], [np.arange(5)], np.random.default_rng(0)
     )

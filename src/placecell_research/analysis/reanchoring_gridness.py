@@ -1,4 +1,5 @@
 """Re-anchoring-aware grid-cell battery."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -404,7 +405,6 @@ class ReanchoringGridnessModule:
                 "reanchoring_signed_rectified": True,
             },
         )
-
 
     def _pooled_gridness(
         self,

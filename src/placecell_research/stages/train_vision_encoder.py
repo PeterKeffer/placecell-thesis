@@ -258,6 +258,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
             seed=config.seed.global_seed,
         ),
     ) as stage_run:
+
         def _reuse_existing_artifact(artifact_id: str, *, reuse_mode: str) -> dict[str, str]:
             reused_artifact = runtime.artifact_registry.load("vision_encoder", artifact_id)
             architecture_path = reused_artifact.path / "architecture.txt"

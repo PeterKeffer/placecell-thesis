@@ -268,7 +268,6 @@ def _choose_lane(
 def _write_state(state_file: Path, jobs: dict[str, _SubmittedJob]) -> None:
     state_file.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        name: {"job_id": job.job_id, "lane": job.lane, "gpu": job.gpu}
-        for name, job in jobs.items()
+        name: {"job_id": job.job_id, "lane": job.lane, "gpu": job.gpu} for name, job in jobs.items()
     }
     state_file.write_text(json.dumps(payload, indent=1, sort_keys=True))

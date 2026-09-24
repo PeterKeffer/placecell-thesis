@@ -106,10 +106,7 @@ class _SequenceDataset:
 
 
 def _collate(samples: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
-    return {
-        key: torch.stack([sample[key] for sample in samples], dim=0)
-        for key in samples[0]
-    }
+    return {key: torch.stack([sample[key] for sample in samples], dim=0) for key in samples[0]}
 
 
 def test_training_loop_optimizes_each_contiguous_chunk(tmp_path: Path) -> None:

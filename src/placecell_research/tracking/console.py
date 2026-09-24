@@ -57,7 +57,7 @@ def _group_rank(group_name: str) -> tuple[int, str]:
 
 
 def _chunked(items: list[str], chunk_size: int) -> list[list[str]]:
-    return [items[index:index + chunk_size] for index in range(0, len(items), chunk_size)]
+    return [items[index : index + chunk_size] for index in range(0, len(items), chunk_size)]
 
 
 def _preferred_compact_metric_width() -> int:
@@ -114,9 +114,7 @@ def _try_render_cross_tab(
     if len(grouped) < 2:
         return None
     ordered_group_names = [
-        group_name
-        for group_name in sorted(grouped, key=_group_rank)
-        if grouped[group_name]
+        group_name for group_name in sorted(grouped, key=_group_rank) if grouped[group_name]
     ]
     if len(ordered_group_names) < 2:
         return None
@@ -135,8 +133,7 @@ def _try_render_cross_tab(
     row_label_width = max(len(group_name) for group_name, _row_payload in row_payloads)
     formatted_columns = {
         metric_name: [
-            _format_value(row_payload[metric_name])
-            for _group_name, row_payload in row_payloads
+            _format_value(row_payload[metric_name]) for _group_name, row_payload in row_payloads
         ]
         for metric_name in metric_names
     }
@@ -147,9 +144,11 @@ def _try_render_cross_tab(
         )
         for metric_name in metric_names
     }
-    header = "  " + " " * row_label_width + "  " + "  ".join(
-        f"{metric_name:>{column_widths[metric_name]}}"
-        for metric_name in metric_names
+    header = (
+        "  "
+        + " " * row_label_width
+        + "  "
+        + "  ".join(f"{metric_name:>{column_widths[metric_name]}}" for metric_name in metric_names)
     )
     lines = [header]
     for group_name, row_payload in row_payloads:
@@ -214,8 +213,7 @@ def _render_grouped_block(
     lines = [f"=== {title} ==="]
     if metadata:
         metadata_text = " | ".join(
-            f"{key}={_format_value(value)}"
-            for key, value in metadata.items()
+            f"{key}={_format_value(value)}" for key, value in metadata.items()
         )
         if metadata_text:
             lines.append(metadata_text)
@@ -282,8 +280,7 @@ def render_text_block(
     lines = [f"=== {title} ==="]
     if metadata:
         metadata_text = " | ".join(
-            f"{key}={_format_value(value)}"
-            for key, value in metadata.items()
+            f"{key}={_format_value(value)}" for key, value in metadata.items()
         )
         if metadata_text:
             lines.append(metadata_text)
@@ -381,9 +378,7 @@ def render_stage_result_summary(result: dict[str, Any] | None) -> str:
 
     block = _render_grouped_block("result", grouped)
     omitted_metric_count = sum(
-        1
-        for key, value in result.items()
-        if _is_metric_result_entry(key, value)
+        1 for key, value in result.items() if _is_metric_result_entry(key, value)
     )
     if omitted_metric_count == 0:
         return block

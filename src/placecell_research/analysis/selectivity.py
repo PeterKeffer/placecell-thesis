@@ -105,7 +105,12 @@ def _per_output_r2(targets: np.ndarray, predictions: np.ndarray) -> np.ndarray:
 def _flatten_valid_rows(
     analysis_input: AnalysisInput,
 ) -> tuple[
-    np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None, np.ndarray, np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray | None,
+    np.ndarray | None,
+    np.ndarray,
+    np.ndarray,
     np.ndarray | None,
 ]:
     """Flatten to valid, finite per-step rows shared across every feature group."""
@@ -133,9 +138,7 @@ def _flatten_valid_rows(
     )
 
     keep = (
-        valid
-        & np.all(np.isfinite(representation), axis=1)
-        & np.all(np.isfinite(positions), axis=1)
+        valid & np.all(np.isfinite(representation), axis=1) & np.all(np.isfinite(positions), axis=1)
     )
     if heading is not None:
         keep &= np.isfinite(heading)
@@ -186,9 +189,7 @@ class SelectivityPartitionModule:
             _flatten_valid_rows(analysis_input)
         )
         if representation.shape[0] < 8 or len(np.unique(episode_ids)) < 2:
-            raise ValueError(
-                "Selectivity partition needs >=8 valid steps across >=2 episodes."
-            )
+            raise ValueError("Selectivity partition needs >=8 valid steps across >=2 episodes.")
         selection = _subsample_selection(representation.shape[0], max_samples, split_seed)
         if selection is not None:
             representation = representation[selection]
@@ -200,7 +201,8 @@ class SelectivityPartitionModule:
             latent = None if latent is None else latent[selection]
 
         bounds = _resolve_position_bounds(
-            str(analysis_input.metadata.get("env_id", "")), positions,
+            str(analysis_input.metadata.get("env_id", "")),
+            positions,
             analysis_input.metadata.get("env_kwargs"),
         )
         groups = self._build_groups(
@@ -565,9 +567,9 @@ class SpatialCodeTypeModule:
         }
         overlay = resolve_world_overlay(env_id, analysis_input.metadata.get("env_kwargs"))
         if overlay is not None and overlay.segments:
-            wall_distance = distance_to_segments(
-                positions[:, None, :], overlay.segments
-            ).reshape(-1)
+            wall_distance = distance_to_segments(positions[:, None, :], overlay.segments).reshape(
+                -1
+            )
             models["boundary_vector"] = _scalar_with_square(wall_distance)
             goal_points = _goal_or_landmark_points(overlay)
             if goal_points is not None:
@@ -608,9 +610,7 @@ class SpatialCodeTypeModule:
             sufficiency_fraction[name] = sufficient_count / spatial_count
             metrics[f"fraction_{name}_sufficient"] = sufficiency_fraction[name]
 
-        figures = self._render_figure(
-            output_dir, analysis_input, model_r2, sufficiency_fraction
-        )
+        figures = self._render_figure(output_dir, analysis_input, model_r2, sufficiency_fraction)
         tables = {
             "spatial_code_type": _write_code_type_table(
                 output_dir, analysis_input, model_r2, sufficiency, spatial
@@ -669,8 +669,12 @@ class SpatialCodeTypeModule:
             sufficiency_axis.grid(axis="y", alpha=0.3)
         else:
             sufficiency_axis.text(
-                0.5, 0.5, "no wall/goal geometry\n(place model only)",
-                ha="center", va="center", fontsize=10,
+                0.5,
+                0.5,
+                "no wall/goal geometry\n(place model only)",
+                ha="center",
+                va="center",
+                fontsize=10,
             )
             sufficiency_axis.set_axis_off()
 

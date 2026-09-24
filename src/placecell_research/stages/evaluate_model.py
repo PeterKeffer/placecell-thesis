@@ -216,7 +216,8 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         )
         stored_inference = (
             read_representation_manifest(representation_set_directory)
-            if representation_set_directory is not None else None
+            if representation_set_directory is not None
+            else None
         )
         available_evaluation_splits = available_split_names(split_artifact.path)
         requested_evaluation_split_names = _configured_evaluation_split_names(
@@ -286,9 +287,8 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             "evaluation_report",
             policies.artifact_reuse,
             config_fingerprint_value=stage_fingerprint,
-            input_artifact_ids=[model_id, dataset_id, split_id] + (
-                [representation_set_id] if representation_set_id else []
-            ),
+            input_artifact_ids=[model_id, dataset_id, split_id]
+            + ([representation_set_id] if representation_set_id else []),
         )
         if matching_report is not None:
             flattened_metrics = {}
@@ -344,7 +344,9 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         model = None
         if representation_set_directory is None:
             model, _ = load_model_checkpoint(
-                model_artifact.path, device, selection=config.policies.checkpoint_selection,
+                model_artifact.path,
+                device,
+                selection=config.policies.checkpoint_selection,
             )
         flattened_metrics: dict[str, float] = {}
         batch_size = config.evaluation.batch_size
@@ -352,23 +354,25 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         transfer_decoders: dict[str, RidgeDecoderState] = {}
         matched_decoders = {}
         ordered_split_names = sorted(
-            evaluation_split_names,
-            key=lambda name: {"train": 0, "validation": 1}.get(name, 2)
+            evaluation_split_names, key=lambda name: {"train": 0, "validation": 1}.get(name, 2)
         )
         for split_name in ordered_split_names:
             request = None
             if representation_set_directory is not None:
                 episode_ids = load_split_indices(split_artifact.path, split_name)
                 if config.evaluation.max_eval_episodes > 0:
-                    episode_ids = episode_ids[:config.evaluation.max_eval_episodes]
+                    episode_ids = episode_ids[: config.evaluation.max_eval_episodes]
                 request = RepresentationRequest(
-                    place_model_artifact_id=model_id, dataset_artifact_id=dataset_id,
-                    dataset_artifact_type=dataset_type, split_artifact_id=split_id,
+                    place_model_artifact_id=model_id,
+                    dataset_artifact_id=dataset_id,
+                    dataset_artifact_type=dataset_type,
+                    split_artifact_id=split_id,
                     checkpoint_selection=config.policies.checkpoint_selection,
                     device=stored_inference["device"],
                     batch_size=stored_inference["batch_size"],
                     allow_tf32=config.spatial_model.training.allow_tf32,
-                    torch_version=str(torch.__version__), episode_ids=episode_ids,
+                    torch_version=str(torch.__version__),
+                    episode_ids=episode_ids,
                 )
             representations, metadata = resolve_representations(
                 artifact_directory=representation_set_directory,
@@ -469,10 +473,15 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 )
             )
             if config.evaluation.matched_decode:
-                split_metrics.update(matched_decode_metrics(
-                    representations, metadata["position_xy"], metadata["valid_steps"],
-                    split_name, matched_decoders,
-                ))
+                split_metrics.update(
+                    matched_decode_metrics(
+                        representations,
+                        metadata["position_xy"],
+                        metadata["valid_steps"],
+                        split_name,
+                        matched_decoders,
+                    )
+                )
                 if split_name != "train":
                     for source_name in representations:
                         for metric in ("decode_rmse", "decode_r2"):
@@ -498,7 +507,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             }
             if config.evaluation.max_eval_episodes > 0:
                 episode_ids = {
-                    name: ids[:config.evaluation.max_eval_episodes]
+                    name: ids[: config.evaluation.max_eval_episodes]
                     for name, ids in episode_ids.items()
                 }
             protocol = {
@@ -506,7 +515,8 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 "implementation_fingerprint": package_source_fingerprint(),
                 "primary_decoder": (
                     "train_standardized_ridge_validation_selected_v1"
-                    if config.evaluation.matched_decode else "within_split_episode_holdout_v1"
+                    if config.evaluation.matched_decode
+                    else "within_split_episode_holdout_v1"
                 ),
                 "checkpoint_selection": config.policies.checkpoint_selection,
                 "model_artifact_id": model_id,
@@ -516,9 +526,12 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 "evaluation_config": config.to_dict()["evaluation"],
                 "representation_set_artifact_id": representation_set_id,
                 "representation_inference": (
-                    {key: stored_inference[key] for key in
-                     ("device", "batch_size", "allow_tf32", "torch_version")}
-                    if representation_set_directory is not None else None
+                    {
+                        key: stored_inference[key]
+                        for key in ("device", "batch_size", "allow_tf32", "torch_version")
+                    }
+                    if representation_set_directory is not None
+                    else None
                 ),
                 "implementation": run_directory.load_run_manifest().get("git_state", {}),
             }
@@ -553,9 +566,8 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             run_directory=run_directory,
             stage_name="evaluate_model",
             config_text=config_text,
-            input_artifact_ids=[model_id, dataset_id, split_id] + (
-                [representation_set_id] if representation_set_id else []
-            ),
+            input_artifact_ids=[model_id, dataset_id, split_id]
+            + ([representation_set_id] if representation_set_id else []),
             files_writer=_write_report,
             config_fingerprint_value=stage_fingerprint,
             raw_config=raw_config,

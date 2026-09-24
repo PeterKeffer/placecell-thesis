@@ -162,8 +162,6 @@ def test_nonlinear_decode_survives_a_unit_that_never_fires_in_train() -> None:
     assert codes[train_indices, 8].std() == 0.0, "unit must be constant in train"
     assert codes[validation_indices, 8].max() > 0.0, "unit must fire in validation"
 
-    result = nonlinear_decode_position(
-        codes, positions, episode_ids=episode_ids, max_epochs=30
-    )
+    result = nonlinear_decode_position(codes, positions, episode_ids=episode_ids, max_epochs=30)
     assert np.abs(result.predictions).max() < 1e3, "no prediction may explode"
     assert result.r2 > 0.5, f"decode must stay usable, got r2={result.r2}"

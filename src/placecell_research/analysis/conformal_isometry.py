@@ -29,7 +29,10 @@ class ConformalIsometryModule:
         max_points = int(config.get("conformal_max_points", 1500))
         if flat.shape[0] < 50:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"conformal_isometry_skipped": "too few samples"},
             )
         rng = np.random.default_rng(0)
@@ -47,7 +50,10 @@ class ConformalIsometryModule:
         positive = spatial_pairs > 1e-9
         if positive.sum() < 10:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"conformal_isometry_skipped": "degenerate positions"},
             )
         correlation = float(np.corrcoef(spatial_pairs[positive], neural_pairs[positive])[0, 1])

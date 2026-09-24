@@ -81,9 +81,7 @@ def _rgb_frame_to_hwc(rgb_frame: np.ndarray) -> np.ndarray:
 
 
 class _SharedAELatentRuntime:
-    def __init__(
-        self, vision_encoder_path: Path, device: str, projection_path: str = ""
-    ) -> None:
+    def __init__(self, vision_encoder_path: Path, device: str, projection_path: str = "") -> None:
         self.source = AELatentFeatureSource(
             vision_encoder_path=vision_encoder_path, device=device, projection_path=projection_path
         )

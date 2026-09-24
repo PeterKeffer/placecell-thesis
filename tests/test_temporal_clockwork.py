@@ -155,9 +155,7 @@ def test_clockwork_information_flows_slow_to_fast_not_reverse() -> None:
 
     out_base, _ = module.forward_sequence(inputs, [leaf.clone() for leaf in base_state])
     out_slow, _ = module.forward_sequence(inputs, perturbed_slow)
-    assert not torch.allclose(
-        out_base[:, :, fast_block], out_slow[:, :, fast_block], atol=1e-6
-    )
+    assert not torch.allclose(out_base[:, :, fast_block], out_slow[:, :, fast_block], atol=1e-6)
 
     perturbed_fast = _cold_state_with(fast_block)
     out_fast, _ = module.forward_sequence(inputs, perturbed_fast)

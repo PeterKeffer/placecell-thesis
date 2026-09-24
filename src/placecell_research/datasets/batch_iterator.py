@@ -34,9 +34,7 @@ class _EpisodeChunkReader:
             * int(np.prod(array.shape[1:]))
             * np.dtype(array.dtype).itemsize
         )
-        self._cache_enabled = (
-            self._episodes_per_chunk > 1 and chunk_bytes <= TARGET_CHUNK_RAW_BYTES
-        )
+        self._cache_enabled = self._episodes_per_chunk > 1 and chunk_bytes <= TARGET_CHUNK_RAW_BYTES
 
     def read(self, episode_ids: list[int]) -> np.ndarray:
         if not self._cache_enabled:
@@ -55,7 +53,8 @@ class _EpisodeChunkReader:
             if self._cached_chunk is None or self._cached_chunk[0] != start:
                 self._cached_chunk = None
                 self._cached_chunk = (
-                    int(start), self.array[int(start):int(start) + self._episodes_per_chunk]
+                    int(start),
+                    self.array[int(start) : int(start) + self._episodes_per_chunk],
                 )
             rows = np.flatnonzero(chunk_starts == start)
             output[rows] = self._cached_chunk[1][selection[rows] - start]
@@ -96,7 +95,7 @@ def iterate_dataset_batches(
     dataset_group = zarr.open(str(stage_dataset_dir(dataset_directory) / "dataset.zarr"), mode="r")
     episode_ids = load_split_indices(split_directory, split_name)
     if max_episodes is not None and max_episodes > 0:
-        episode_ids = episode_ids[:max(0, int(max_episodes))]
+        episode_ids = episode_ids[: max(0, int(max_episodes))]
     if not episode_ids:
         raise ValueError(
             f"Split '{split_name}' in {split_directory / 'split_indices.json'} "
@@ -137,7 +136,7 @@ def iterate_dataset_batches(
     }
 
     for start in range(0, len(episode_ids), batch_size):
-        batch_ids = episode_ids[start:start + batch_size]
+        batch_ids = episode_ids[start : start + batch_size]
         batch = {
             "actions": torch.as_tensor(
                 readers["actions"].read(batch_ids), dtype=torch.long, device=device

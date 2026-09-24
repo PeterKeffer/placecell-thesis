@@ -12,18 +12,15 @@ def find_repo_root_from_path(start_path: Path) -> Path:
     search_start = current if current.is_dir() else current.parent
     fallback_candidate: Path | None = None
     for candidate in [search_start, *search_start.parents]:
-        if (
-            (candidate / "pyproject.toml").exists()
-            and (candidate / "src" / "placecell_research").exists()
-        ):
+        if (candidate / "pyproject.toml").exists() and (
+            candidate / "src" / "placecell_research"
+        ).exists():
             return candidate
         if fallback_candidate is None and (candidate / "configs").exists():
             fallback_candidate = candidate
     if fallback_candidate is not None:
         return fallback_candidate
-    raise FileNotFoundError(
-        f"Could not locate the placecell_research repo root from {start_path}."
-    )
+    raise FileNotFoundError(f"Could not locate the placecell_research repo root from {start_path}.")
 
 
 def find_repo_root(config_path: Path) -> Path:

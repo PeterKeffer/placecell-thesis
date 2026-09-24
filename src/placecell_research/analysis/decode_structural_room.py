@@ -73,9 +73,7 @@ class DecodeStructuralRoomModule:
                 "structural_room_decode_balanced_accuracy": result.balanced_accuracy,
                 "structural_room_decode_macro_f1": result.macro_f1,
                 "structural_room_decode_majority_chance": result.majority_chance,
-                "structural_room_decode_class_count": float(
-                    len(np.unique(result.test_labels))
-                ),
+                "structural_room_decode_class_count": float(len(np.unique(result.test_labels))),
             },
             per_unit_metrics={},
             figures={},

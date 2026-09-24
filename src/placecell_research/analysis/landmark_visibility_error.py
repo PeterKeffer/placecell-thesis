@@ -40,8 +40,10 @@ def landmark_visibility(
     """Boolean visibility matrix [num_steps, num_landmarks]."""
     positions = np.asarray(positions_xy, dtype=np.float64).reshape(-1, 2)
     forward = np.stack(
-        [np.cos(np.asarray(headings, dtype=np.float64).reshape(-1)),
-         -np.sin(np.asarray(headings, dtype=np.float64).reshape(-1))],
+        [
+            np.cos(np.asarray(headings, dtype=np.float64).reshape(-1)),
+            -np.sin(np.asarray(headings, dtype=np.float64).reshape(-1)),
+        ],
         axis=1,
     )
     walls_a = np.asarray(wall_segments, dtype=np.float64)[:, 0, :]
@@ -68,12 +70,16 @@ def landmark_visibility(
         agent_from_a = agent - walls_a[None, :, :]
         landmark_from_a = landmark[None, :] - walls_a
         side_agent = _cross_z(
-            wall_direction[None, :, 0], wall_direction[None, :, 1],
-            agent_from_a[..., 0], agent_from_a[..., 1],
+            wall_direction[None, :, 0],
+            wall_direction[None, :, 1],
+            agent_from_a[..., 0],
+            agent_from_a[..., 1],
         )
         side_landmark = _cross_z(
-            wall_direction[:, 0], wall_direction[:, 1],
-            landmark_from_a[:, 0], landmark_from_a[:, 1],
+            wall_direction[:, 0],
+            wall_direction[:, 1],
+            landmark_from_a[:, 0],
+            landmark_from_a[:, 1],
         )
         blocked = np.any(
             (side_a * side_b < 0.0) & (side_agent * side_landmark[None, :] < 0.0), axis=1
@@ -204,8 +210,7 @@ class LandmarkVisibilityErrorModule:
 
         module_dir = output_dir / self.name
         figure_path = (
-            module_dir
-            / f"landmark_visibility_error__{analysis_input.source_name}"
+            module_dir / f"landmark_visibility_error__{analysis_input.source_name}"
             f"__{analysis_input.split_name}.png"
         )
         figure_path.parent.mkdir(parents=True, exist_ok=True)

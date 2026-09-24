@@ -180,9 +180,7 @@ def train_vision_overrides(
 ) -> list[str]:
     """Overrides that the train-vision command's reference and tag options stand for."""
     resolved = _with_force_recompute(list(overrides), force_recompute)
-    dataset_reference, _ = _resolve_dataset_reference(
-        config_path, resolved, dataset, "raw_dataset"
-    )
+    dataset_reference, _ = _resolve_dataset_reference(config_path, resolved, dataset, "raw_dataset")
     resolved = _with_value(resolved, "dataset.artifact_id", dataset_reference)
     resolved = _with_value(resolved, "reuse.vision_encoder_artifact_id", reuse)
     return _with_output_tags(resolved, "vision_encoder", tag_output)
@@ -236,13 +234,13 @@ def register(app: typer.Typer) -> None:
             None,
             "--dataset-type",
             help="Override dataset.artifact_type when using --dataset, for example "
-                 "encoded_dataset.",
+            "encoded_dataset.",
         ),
         split: str | None = typer.Option(
             None,
             "--split",
             help="Use this split artifact for downstream stages. Tags are accepted as tag:..., or "
-                 "use auto. Defaults to auto when --dataset is set.",
+            "use auto. Defaults to auto when --dataset is set.",
         ),
         vision_reuse: str | None = typer.Option(
             None,
@@ -299,9 +297,7 @@ def register(app: typer.Typer) -> None:
         """Collect a raw dataset of random-walk episodes."""
         from placecell_research.stages import collect_dataset
 
-        echo_stage_result(
-            collect_dataset.run(config, override or [])
-        )
+        echo_stage_result(collect_dataset.run(config, override or []))
 
     @app.command("create-split")
     def split_command(
@@ -311,9 +307,7 @@ def register(app: typer.Typer) -> None:
         """Split a dataset into train, validation and test episodes."""
         from placecell_research.stages import create_split
 
-        echo_stage_result(
-            create_split.run(config, override or [])
-        )
+        echo_stage_result(create_split.run(config, override or []))
 
     @app.command("train-vision")
     def train_vision_command(
@@ -366,9 +360,7 @@ def register(app: typer.Typer) -> None:
         """Encode a raw dataset with a trained visual encoder."""
         from placecell_research.stages import encode_dataset
 
-        echo_stage_result(
-            encode_dataset.run(config, override or [])
-        )
+        echo_stage_result(encode_dataset.run(config, override or []))
 
     @app.command("train-model")
     def train_place_command(
@@ -389,13 +381,13 @@ def register(app: typer.Typer) -> None:
             None,
             "--dataset-type",
             help="Override dataset.artifact_type when using --dataset, for example "
-                 "encoded_dataset.",
+            "encoded_dataset.",
         ),
         split: str | None = typer.Option(
             None,
             "--split",
             help="Use this split artifact for place-model training. Tags are accepted as tag:..., "
-                 "or use auto. Defaults to auto when --dataset is set.",
+            "or use auto. Defaults to auto when --dataset is set.",
         ),
         reuse: str | None = typer.Option(
             None,
@@ -436,11 +428,7 @@ def register(app: typer.Typer) -> None:
         """Store the forward pass of a trained model over the configured splits."""
         from placecell_research.stages import collect_representations
 
-        echo_stage_result(
-            collect_representations.run(
-                config, override or []
-            )
-        )
+        echo_stage_result(collect_representations.run(config, override or []))
 
     @app.command("evaluate")
     def evaluate_command(
@@ -450,9 +438,7 @@ def register(app: typer.Typer) -> None:
         """Decoding and spatial information of a trained model on each evaluation split."""
         from placecell_research.stages import evaluate_model
 
-        echo_stage_result(
-            evaluate_model.run(config, override or [])
-        )
+        echo_stage_result(evaluate_model.run(config, override or []))
 
     @app.command("analyze")
     def analyze_command(
@@ -462,6 +448,4 @@ def register(app: typer.Typer) -> None:
         """Run the configured analysis modules on a trained model."""
         from placecell_research.stages import analyze_model
 
-        echo_stage_result(
-            analyze_model.run(config, override or [])
-        )
+        echo_stage_result(analyze_model.run(config, override or []))

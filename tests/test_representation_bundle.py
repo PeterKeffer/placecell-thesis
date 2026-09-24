@@ -54,9 +54,7 @@ def test_get_representation_with_custom_modules() -> None:
 
 def test_get_representation_preserves_float64_values() -> None:
     bundle = RepresentationBundle(
-        modules={
-            "encoder": ModuleOutputs(place_codes=torch.randn(2, 5, 16, dtype=torch.float64))
-        }
+        modules={"encoder": ModuleOutputs(place_codes=torch.randn(2, 5, 16, dtype=torch.float64))}
     )
 
     assert bundle.get_representation("encoder.place_codes").dtype == torch.float64

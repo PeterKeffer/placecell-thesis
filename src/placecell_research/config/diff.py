@@ -29,9 +29,7 @@ COMPARISON_FIELDS = (
 SALIENT_PATHS = {field.path for field in COMPARISON_FIELDS}
 ACTIVE_OBJECTIVES_PATH = "spatial_model.objectives.active_names"
 
-INFRA_TOP_LEVEL_NAMESPACES = frozenset(
-    {"launcher", "tracking", "reuse", "policies", "pipeline"}
-)
+INFRA_TOP_LEVEL_NAMESPACES = frozenset({"launcher", "tracking", "reuse", "policies", "pipeline"})
 SCIENTIFIC_POLICY_PATHS = frozenset({"policies.checkpoint_selection"})
 
 
@@ -57,9 +55,7 @@ def extract_comparison_values(payload: dict[str, Any]) -> dict[str, Any]:
     """Return curated comparison values used for naming and summaries."""
     flattened = _flatten(payload)
     extracted = {
-        field.path: flattened[field.path]
-        for field in COMPARISON_FIELDS
-        if field.path in flattened
+        field.path: flattened[field.path] for field in COMPARISON_FIELDS if field.path in flattened
     }
     extracted[ACTIVE_OBJECTIVES_PATH] = _active_objective_names(payload)
     return extracted
@@ -114,7 +110,6 @@ def compute_config_diff(base: dict[str, Any], resolved: dict[str, Any]) -> dict[
         _flatten(base),
         _flatten(resolved),
         include=lambda key: (
-            key in SCIENTIFIC_POLICY_PATHS
-            or key.split(".", 1)[0] not in INFRA_TOP_LEVEL_NAMESPACES
+            key in SCIENTIFIC_POLICY_PATHS or key.split(".", 1)[0] not in INFRA_TOP_LEVEL_NAMESPACES
         ),
     )

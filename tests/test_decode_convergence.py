@@ -31,9 +31,9 @@ def _converging_dataset(num_episodes: int = 16, num_steps: int = 64, code_dim: i
     representation[..., :2] = positions + (
         noise_std[None, :, None] * rng.normal(size=(num_episodes, num_steps, 2))
     ).astype(np.float32)
-    representation[..., 2:] = rng.normal(
-        size=(num_episodes, num_steps, code_dim - 2)
-    ).astype(np.float32)
+    representation[..., 2:] = rng.normal(size=(num_episodes, num_steps, code_dim - 2)).astype(
+        np.float32
+    )
     valid_mask = np.ones((num_episodes, num_steps), dtype=bool)
     return representation, positions, valid_mask
 

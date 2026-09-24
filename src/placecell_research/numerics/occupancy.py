@@ -182,9 +182,9 @@ def gate_episodes_by_coverage(
         minlength=candidate_episodes.size * total_bins,
     ).reshape(candidate_episodes.size, total_bins)
     visited_fractions = reachable_bin_visited_fractions(candidate_bin_step_counts)
-    qualifying_episodes = candidate_episodes[
-        visited_fractions >= minimum_visited_fraction
-    ].astype(np.int64)
+    qualifying_episodes = candidate_episodes[visited_fractions >= minimum_visited_fraction].astype(
+        np.int64
+    )
     return EpisodeCoverageGate(
         qualifying_episodes=qualifying_episodes,
         episodes_skipped_short=episodes_skipped_short,

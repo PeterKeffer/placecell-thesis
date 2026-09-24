@@ -17,8 +17,10 @@ def test_coordinate_errors_are_pooled_before_square_root():
 
 def test_matched_decoder_selects_by_pooled_error():
     decoder = MatchedPositionDecoder(
-        mean=np.zeros(1), target_mean=np.zeros(2),
-        weights=np.array([[[0.0, 3.0]], [[1.6, 1.6]]]), alphas=(1.0, 10.0),
+        mean=np.zeros(1),
+        target_mean=np.zeros(2),
+        weights=np.array([[[0.0, 3.0]], [[1.6, 1.6]]]),
+        alphas=(1.0, 10.0),
     )
     codes = np.ones((7, 1))
     targets = np.zeros((7, 2))
@@ -32,8 +34,11 @@ def test_matched_decoder_selects_by_pooled_error():
 
 def test_rmse_weights_samples_across_unequal_chunks():
     decoder = MatchedPositionDecoder(
-        mean=np.zeros(1), target_mean=np.zeros(2),
-        weights=np.zeros((1, 1, 2)), alphas=(1.0,), selected=0,
+        mean=np.zeros(1),
+        target_mean=np.zeros(2),
+        weights=np.zeros((1, 1, 2)),
+        alphas=(1.0,),
+        selected=0,
     )
     targets = np.zeros((65537, 2))
     targets[-1] = [1.0, 3.0]

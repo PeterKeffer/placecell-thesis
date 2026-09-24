@@ -73,9 +73,7 @@ def _magnitude_support_ranking(predictor: Tensor, target: Tensor) -> Tensor:
     active_count = support.sum(dim=-1)
     inactive_count = (~support).sum(dim=-1)
     if bool((active_count == 0).any()) or bool((inactive_count == 0).any()):
-        raise ValueError(
-            "support ranking requires targets with active and inactive dimensions."
-        )
+        raise ValueError("support ranking requires targets with active and inactive dimensions.")
 
     support_scores = predictor.abs()
     negative_inactive = torch.where(

@@ -334,9 +334,7 @@ def run_comparative_modules(
                 if module_name not in COMPARATIVE_MODULES:
                     raise KeyError(f"Unknown comparative analysis module: {module_name}")
                 module = COMPARATIVE_MODULES[module_name]()
-                max_cost_tier = str(
-                    analysis_config.get("max_cost_tier", config["max_cost_tier"])
-                )
+                max_cost_tier = str(analysis_config.get("max_cost_tier", config["max_cost_tier"]))
                 if not _should_run_module(module.cost_tier, max_cost_tier):
                     continue
                 section_started_at = perf_counter()
@@ -360,9 +358,7 @@ def run_comparative_modules(
         if module_name not in COMPARATIVE_MODULES:
             raise KeyError(f"Unknown comparative analysis module: {module_name}")
         module = COMPARATIVE_MODULES[module_name]()
-        max_cost_tier = str(
-            analysis_config.get("max_cost_tier", config["max_cost_tier"])
-        )
+        max_cost_tier = str(analysis_config.get("max_cost_tier", config["max_cost_tier"]))
         if not _should_run_module(module.cost_tier, max_cost_tier):
             continue
         section_started_at = perf_counter()

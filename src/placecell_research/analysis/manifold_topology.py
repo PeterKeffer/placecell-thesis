@@ -36,7 +36,10 @@ class ManifoldTopologyModule:
             from ripser import ripser
         except ImportError:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"manifold_topology_skipped": "ripser not installed"},
             )
         flat, _positions = flatten_valid_steps(
@@ -44,7 +47,10 @@ class ManifoldTopologyModule:
         )
         if flat.shape[0] < 50:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"manifold_topology_skipped": "too few samples"},
             )
         max_points = int(config.get("topology_max_points", 700))
@@ -56,7 +62,10 @@ class ManifoldTopologyModule:
         points = points[:, std > 1e-9]
         if points.shape[1] < 2:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={"manifold_topology_skipped": "degenerate (no live units)"},
             )
         points = (points - points.mean(axis=0)) / points.std(axis=0)

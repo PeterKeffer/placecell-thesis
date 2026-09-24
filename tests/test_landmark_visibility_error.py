@@ -46,9 +46,7 @@ def test_visibility_geometry_hand_cases() -> None:
             [-12.0, 0.0],
         ]
     )
-    headings = np.asarray(
-        [0.0, np.pi, np.pi, 0.0, np.arctan2(4.0, 10.0)]
-    )
+    headings = np.asarray([0.0, np.pi, np.pi, 0.0, np.arctan2(4.0, 10.0)])
     landmarks = np.asarray(
         [
             [15.0, 21.0],
@@ -87,9 +85,7 @@ def _dataset_with_drift_after_losing_landmarks(num_episodes: int = 12, num_steps
     representation[..., :2] = positions + noise_scale[..., None] * rng.normal(
         size=(num_episodes, num_steps, 2)
     ).astype(np.float32)
-    representation[..., 2:] = 0.1 * rng.normal(size=(num_episodes, num_steps, 2)).astype(
-        np.float32
-    )
+    representation[..., 2:] = 0.1 * rng.normal(size=(num_episodes, num_steps, 2)).astype(np.float32)
     valid_mask = np.ones((num_episodes, num_steps), dtype=bool)
     return representation, positions, heading, valid_mask
 

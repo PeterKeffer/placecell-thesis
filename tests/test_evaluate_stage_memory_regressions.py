@@ -59,9 +59,7 @@ def test_summarize_code_sparsity_chunking_does_not_move_the_scalars(
         assert summary["fraction_active"] == expected["fraction_active"]
         assert summary["active_units_mean"] == expected["active_units_mean"]
         assert summary["active_units_std"] == expected["active_units_std"]
-        assert summary["mean_activation"] == pytest.approx(
-            expected["mean_activation"], rel=1e-6
-        )
+        assert summary["mean_activation"] == pytest.approx(expected["mean_activation"], rel=1e-6)
 
 
 def test_summarize_code_sparsity_reports_the_kwinner_budget() -> None:

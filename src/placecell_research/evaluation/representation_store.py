@@ -194,7 +194,11 @@ def resolve_representations(
         source_names=source_names,
         require_metadata_keys=require_metadata_keys,
         metadata_keys=[
-            "valid_steps", "position_xy", "heading", "kinematics", "actions",
+            "valid_steps",
+            "position_xy",
+            "heading",
+            "kinematics",
+            "actions",
             *(optional_metadata_keys or []),
         ],
         request=request,

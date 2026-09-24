@@ -306,9 +306,7 @@ def build_plan(
             if not condition.measures_only_parent and chain not in data_steps:
                 data_steps[chain] = f"data.{name}"
                 steps.append(_data_step(condition))
-            steps.extend(
-                _condition_steps(condition, seed, settings, data_steps, conditions, roots)
-            )
+            steps.extend(_condition_steps(condition, seed, settings, data_steps, conditions, roots))
             measures_steps.append(f"measures.{name}.s{seed}")
 
     navigation_steps: list[str] = []

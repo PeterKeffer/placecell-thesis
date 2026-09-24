@@ -562,5 +562,3 @@ def _ensure_mesh_fallbacks() -> None:
 
     miniworld_objmesh.ObjMesh.get = safe_get
     _MESH_FALLBACK_PATCHED = True
-
-

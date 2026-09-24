@@ -44,8 +44,14 @@ def test_umap_preserves_pytorch_thread_budget(monkeypatch, failure_stage):
 
 @pytest.mark.parametrize("threads", [1, 4])
 def test_slurm_numba_budget_matches_openmp(threads):
-    config = SimpleNamespace(launcher=SimpleNamespace(threading_safety=SimpleNamespace(
-        omp_num_threads=threads, mkl_num_threads=threads,
-        openblas_num_threads=threads, torch_num_threads=1,
-    )))
+    config = SimpleNamespace(
+        launcher=SimpleNamespace(
+            threading_safety=SimpleNamespace(
+                omp_num_threads=threads,
+                mkl_num_threads=threads,
+                openblas_num_threads=threads,
+                torch_num_threads=1,
+            )
+        )
+    )
     assert f"export NUMBA_NUM_THREADS={threads}" in _threading_exports(config.launcher)

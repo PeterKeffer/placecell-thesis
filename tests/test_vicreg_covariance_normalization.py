@@ -1,4 +1,5 @@
 """VICReg covariance term must use canonical per-dimension (1/d) normalization."""
+
 from __future__ import annotations
 
 import torch
@@ -119,5 +120,3 @@ def test_vicreg_reports_variance_covariance_and_dead_dim_metrics():
     assert torch.allclose(result.metrics["variance_loss"], variance_loss)
     assert torch.allclose(result.metrics["covariance_loss"], covariance_loss)
     assert torch.allclose(result.metrics["dead_dim_fraction"], dead_dim_fraction)
-
-

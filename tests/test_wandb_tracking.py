@@ -360,12 +360,7 @@ def test_run_study_propagates_wandb_and_study_name_to_child_runs(tmp_path, monke
     monkeypatch.setattr(run_study.train_place_model, "run", fake_train_place_model)
     monkeypatch.setattr(run_study, "run_sweep", fake_run_sweep)
 
-    config_path = (
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "study"
-        / "example_grid.yaml"
-    )
+    config_path = Path(__file__).resolve().parents[1] / "configs" / "study" / "example_grid.yaml"
     result = run_study.run(
         config_path,
         [
@@ -386,9 +381,7 @@ def test_run_study_propagates_wandb_and_study_name_to_child_runs(tmp_path, monke
     assert f"tracking.run_root={tmp_path / 'runs'}" in captured_overrides[0]
     assert f"tracking.artifact_root={tmp_path / 'artifacts'}" in captured_overrides[0]
     tags_override = next(
-        override
-        for override in captured_overrides[0]
-        if override.startswith("tracking.tags=")
+        override for override in captured_overrides[0] if override.startswith("tracking.tags=")
     )
     assert "study:example_grid" in tags_override
     assert "study_mode:sweep" in tags_override

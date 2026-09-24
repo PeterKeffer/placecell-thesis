@@ -72,10 +72,7 @@ def context_from_inputs(
     kinematics_transition_mask = None
     if kinematics is not None:
         kinematics_transition_mask = torch.tensor(
-            [
-                uses_implicit_transition_shift(channel)
-                for channel in selected_kinematics_channels
-            ],
+            [uses_implicit_transition_shift(channel) for channel in selected_kinematics_channels],
             device=kinematics.device,
             dtype=torch.bool,
         )
@@ -191,9 +188,7 @@ def assemble_predictor_input_sequence(
             model.predictor_input_assembler.output_dim,
         )
     previous_encoder_codes = encoder_codes[:, :-1]
-    previous_belief_codes = (
-        previous_encoder_codes if belief_codes is None else belief_codes[:, :-1]
-    )
+    previous_belief_codes = previous_encoder_codes if belief_codes is None else belief_codes[:, :-1]
     previous_action_embeddings = (
         None if context.embedded_actions is None else context.embedded_actions[:, :-1]
     )
@@ -410,7 +405,6 @@ class PredictorFeedback(Protocol):
         """Take the step's outputs, so the next step_codes can use them."""
 
 
-
 class TeacherForcedFeedback:
     """The predictor eats the OBSERVED code at t-1."""
 
@@ -459,9 +453,7 @@ class OpenLoopFeedback:
         return fed_code, fed_code
 
     def observe(self, timestep: int, pre_sparsifier: Tensor, codes: Tensor) -> None:
-        self._running_belief = (
-            codes.detach() if self._detach_intermediate_predictions else codes
-        )
+        self._running_belief = codes.detach() if self._detach_intermediate_predictions else codes
 
 
 def _run_stepwise_predictor_sequence(

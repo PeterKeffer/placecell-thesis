@@ -41,9 +41,7 @@ def _normalized_entropy(codes: np.ndarray) -> np.ndarray:
     totals = magnitudes.sum(axis=1, keepdims=True)
     has_activity = totals[:, 0] > _EPS
     probabilities = magnitudes / np.where(totals > _EPS, totals, np.nan)
-    entropy_terms = np.where(
-        probabilities > 0.0, probabilities * np.log(probabilities), 0.0
-    )
+    entropy_terms = np.where(probabilities > 0.0, probabilities * np.log(probabilities), 0.0)
     entropy = -entropy_terms.sum(axis=1) / np.log(codes.shape[1])
     return np.where(has_activity, entropy, np.nan)
 
@@ -66,9 +64,7 @@ def _spearman_with_block_permutation_p(
     kept_positions = np.flatnonzero(finite)
     new_position = np.full(len(errors), -1, dtype=np.int64)
     new_position[kept_positions] = np.arange(len(kept_positions))
-    blocks = [
-        new_position[block][new_position[block] >= 0] for block in episode_blocks
-    ]
+    blocks = [new_position[block][new_position[block] >= 0] for block in episode_blocks]
     blocks = [block for block in blocks if block.size > 0]
 
     error_ranks = _centered_ranks(errors[kept_positions])
@@ -168,8 +164,7 @@ class UncertaintySignatureModule:
 
         module_dir = output_dir / self.name
         figure_path = (
-            module_dir
-            / f"uncertainty_signature__{analysis_input.source_name}"
+            module_dir / f"uncertainty_signature__{analysis_input.source_name}"
             f"__{analysis_input.split_name}.png"
         )
         figure_path.parent.mkdir(parents=True, exist_ok=True)

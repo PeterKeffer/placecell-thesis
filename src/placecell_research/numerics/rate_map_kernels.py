@@ -66,7 +66,8 @@ def resolve_place_metric_settings(analysis_config: Any) -> PlaceMetricSettings:
     return PlaceMetricSettings(
         negative_tolerance=read_float_setting(
             analysis_config,
-            "place_metric_negative_tolerance", DEFAULT_PLACE_METRIC_SETTINGS.negative_tolerance
+            "place_metric_negative_tolerance",
+            DEFAULT_PLACE_METRIC_SETTINGS.negative_tolerance,
         ),
         max_negative_bin_fraction=read_float_setting(
             analysis_config,

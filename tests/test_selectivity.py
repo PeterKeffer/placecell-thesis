@@ -36,14 +36,12 @@ def _selectivity_input(
     noise_unit = rng.normal(size=(episodes, steps)).astype(np.float32)
 
     noise = 0.02 * rng.normal(size=(episodes, steps, 4)).astype(np.float32)
-    representation = np.stack(
-        [place_unit, heading_unit, speed_unit, noise_unit], axis=-1
-    ).astype(np.float32)
+    representation = np.stack([place_unit, heading_unit, speed_unit, noise_unit], axis=-1).astype(
+        np.float32
+    )
     representation = representation + noise
 
-    latent = (
-        rng.normal(size=(episodes, steps, 8)).astype(np.float32) if with_latent else None
-    )
+    latent = rng.normal(size=(episodes, steps, 8)).astype(np.float32) if with_latent else None
     return AnalysisInput(
         representation=representation,
         position_xy=positions,
@@ -75,19 +73,17 @@ def test_selectivity_modules_are_registered() -> None:
 def test_partition_recovers_planted_selectivity(tmp_path: Path) -> None:
     result = SelectivityPartitionModule().run(_selectivity_input(), tmp_path, _PARTITION_CONFIG)
 
-    categories = {
-        unit: category
-        for unit, category in enumerate(_read_categories(result))
-    }
+    categories = {unit: category for unit, category in enumerate(_read_categories(result))}
     assert categories[0] == "place_like"
     assert categories[1] == "hd_like"
     assert categories[2] == "speed_like"
     assert categories[3] == "untuned"
 
     assert result.per_unit_metrics["full_r2"][0] > 0.5
-    assert result.per_unit_metrics["unique_r2_position"][0] > result.per_unit_metrics[
-        "unique_r2_heading"
-    ][0]
+    assert (
+        result.per_unit_metrics["unique_r2_position"][0]
+        > result.per_unit_metrics["unique_r2_heading"][0]
+    )
     assert {"position", "heading", "speed", "angular_velocity", "time"} == set(
         result.metadata["selectivity_groups"]
     )

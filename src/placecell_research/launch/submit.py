@@ -48,9 +48,7 @@ def normalize_slurm_dependency(slurm_dependency: str | None) -> str | None:
 def normalize_slurm_job_name(job_name: str) -> str:
     normalized = str(job_name or "").strip()
     if not normalized or _SLURM_JOB_NAME_PATTERN.fullmatch(normalized) is None:
-        raise ValueError(
-            "SLURM job name must contain only letters, numbers, '_', '.', and '-'."
-        )
+        raise ValueError("SLURM job name must contain only letters, numbers, '_', '.', and '-'.")
     return normalized
 
 
@@ -159,11 +157,11 @@ def _render_launcher_payload(commands: list[str]) -> str:
     return "\n".join(
         [
             "set -euo pipefail",
-            "if [[ \"${PLACECELL_REQUESTED_GPUS:-0}\" -gt 0 ]]; then",
-            "  timeout_seconds=\"${PLACECELL_CUDA_SMOKE_TIMEOUT_SECONDS:-60}\"",
-            "  echo \"[placecell_research] running CUDA smoke check\"",
+            'if [[ "${PLACECELL_REQUESTED_GPUS:-0}" -gt 0 ]]; then',
+            '  timeout_seconds="${PLACECELL_CUDA_SMOKE_TIMEOUT_SECONDS:-60}"',
+            '  echo "[placecell_research] running CUDA smoke check"',
             "  if command -v timeout >/dev/null 2>&1; then",
-            "    timeout \"${timeout_seconds}s\" python -u -m placecell_research.utils.cuda_smoke",
+            '    timeout "${timeout_seconds}s" python -u -m placecell_research.utils.cuda_smoke',
             "  else",
             "    python -u -m placecell_research.utils.cuda_smoke",
             "  fi",
@@ -186,15 +184,13 @@ def _render_launch_provenance(
     fallback_run_id: str,
 ) -> list[str]:
     """Compact launch banner in the SLURM script header."""
-    override_lines = (
-        [f"  - {override}" for override in overrides] if overrides else ["  (none)"]
-    )
+    override_lines = [f"  - {override}" for override in overrides] if overrides else ["  (none)"]
     return [
         'echo "[placecell_research] launch provenance"',
         f'echo "[placecell_research]   entrypoint: {entrypoint}"',
         f'echo "[placecell_research]   config:     {resolved_config_path}"',
         f'echo "[placecell_research]   variant:    {config.name}"',
-        'printf \'%s\\n\' "[placecell_research]   run_id:     ${PLACECELL_RUN_ID:-<fallback>}"',
+        "printf '%s\\n' \"[placecell_research]   run_id:     ${PLACECELL_RUN_ID:-<fallback>}\"",
         f'echo "[placecell_research]   fallback_run_id: {fallback_run_id}"',
         'echo "[placecell_research]   overrides:"',
         *_render_printf_lines("\n".join(override_lines)),
@@ -322,22 +318,22 @@ def render_slurm_script(
         *_render_environment_lines(launcher, environment_kind),
         *(provenance_lines or []),
         "",
-        "launcher_pid=\"\"",
-        "launcher_pgid=\"\"",
+        'launcher_pid=""',
+        'launcher_pgid=""',
         "",
         "diagnose_job_state() {",
-        "  echo \"[placecell_research] post-job diagnostics\"",
-        "  if [[ -n \"${launcher_pgid:-}\" ]]; then",
-        "    echo \"[placecell_research] launcher process group\"",
+        '  echo "[placecell_research] post-job diagnostics"',
+        '  if [[ -n "${launcher_pgid:-}" ]]; then',
+        '    echo "[placecell_research] launcher process group"',
         (
             "    ps -o pid,ppid,pgid,sid,stat,etime,%cpu,%mem,command -g "
-            "\"${launcher_pgid}\" 2>/dev/null || true"
+            '"${launcher_pgid}" 2>/dev/null || true'
         ),
         "  fi",
-        "  echo \"[placecell_research] matching user processes\"",
+        '  echo "[placecell_research] matching user processes"',
         "  if command -v pgrep >/dev/null 2>&1; then",
         (
-            "    pgrep -a -u \"${USER:-$(id -un)}\" -f "
+            '    pgrep -a -u "${USER:-$(id -un)}" -f '
             "'placecell_research|python|miniworld|wandb|stable_baselines|gymnasium' "
             "2>/dev/null || true"
         ),
@@ -359,36 +355,36 @@ def render_slurm_script(
         "  current_pgid=\"$(ps -o pgid= $$ | tr -d ' ')\"",
         (
             "  ps -o pid,ppid,pgid,stat,etime,%cpu,%mem,command -g "
-            "\"${current_pgid}\" 2>/dev/null || true"
+            '"${current_pgid}" 2>/dev/null || true'
         ),
         "}",
         "launcher_tree_alive() {",
-        "  if [[ -n \"${launcher_pgid:-}\" ]]; then",
-        "    kill -0 -- \"-${launcher_pgid}\" 2>/dev/null && return 0",
+        '  if [[ -n "${launcher_pgid:-}" ]]; then',
+        '    kill -0 -- "-${launcher_pgid}" 2>/dev/null && return 0',
         "    if command -v pgrep >/dev/null 2>&1; then",
-        "      pgrep -s \"${launcher_pgid}\" >/dev/null 2>&1 && return 0",
+        '      pgrep -s "${launcher_pgid}" >/dev/null 2>&1 && return 0',
         "    fi",
         "  fi",
-        "  if [[ -n \"${launcher_pid:-}\" ]]; then",
-        "    kill -0 \"${launcher_pid}\" 2>/dev/null && return 0",
+        '  if [[ -n "${launcher_pid:-}" ]]; then',
+        '    kill -0 "${launcher_pid}" 2>/dev/null && return 0',
         "  fi",
         "  return 1",
         "}",
         "terminate_launcher_tree() {",
-        "  local signal_name=\"$1\"",
-        "  if [[ -n \"${launcher_pgid:-}\" ]]; then",
+        '  local signal_name="$1"',
+        '  if [[ -n "${launcher_pgid:-}" ]]; then',
         "    if command -v pkill >/dev/null 2>&1; then",
-        "      pkill \"-${signal_name}\" -s \"${launcher_pgid}\" 2>/dev/null || true",
+        '      pkill "-${signal_name}" -s "${launcher_pgid}" 2>/dev/null || true',
         "    fi",
-        "    kill \"-${signal_name}\" -- \"-${launcher_pgid}\" 2>/dev/null || true",
+        '    kill "-${signal_name}" -- "-${launcher_pgid}" 2>/dev/null || true',
         "    return",
         "  fi",
-        "  if [[ -n \"${launcher_pid:-}\" ]]; then",
-        "    kill \"-${signal_name}\" \"${launcher_pid}\" 2>/dev/null || true",
+        '  if [[ -n "${launcher_pid:-}" ]]; then',
+        '    kill "-${signal_name}" "${launcher_pid}" 2>/dev/null || true',
         "  fi",
         "}",
         "wait_for_launcher_tree() {",
-        "  local timeout_seconds=\"$1\"",
+        '  local timeout_seconds="$1"',
         "  local deadline=$((SECONDS + timeout_seconds))",
         "  while launcher_tree_alive; do",
         "    if (( SECONDS >= deadline )); then",
@@ -400,21 +396,21 @@ def render_slurm_script(
         "}",
         "shutdown_launcher() {",
         "  trap - TERM INT",
-        "  echo \"[placecell_research] forwarding SIGTERM to launcher tree\" >&2",
+        '  echo "[placecell_research] forwarding SIGTERM to launcher tree" >&2',
         "  terminate_launcher_tree TERM",
-        "  if ! wait_for_launcher_tree \"${PLACECELL_TERM_GRACE_SECONDS:-90}\"; then",
-        "    echo \"[placecell_research] launcher tree still alive; sending SIGKILL\" >&2",
+        '  if ! wait_for_launcher_tree "${PLACECELL_TERM_GRACE_SECONDS:-90}"; then',
+        '    echo "[placecell_research] launcher tree still alive; sending SIGKILL" >&2',
         "    terminate_launcher_tree KILL",
         "    wait_for_launcher_tree 10 || true",
         "  fi",
-        "  wait \"${launcher_pid}\" 2>/dev/null || true",
+        '  wait "${launcher_pid}" 2>/dev/null || true',
         "  exit 143",
         "}",
         "cleanup_on_exit() {",
         "  local status=$?",
         "  trap - EXIT",
         "  if launcher_tree_alive; then",
-        "    echo \"[placecell_research] cleanup found live launcher tree; killing it\" >&2",
+        '    echo "[placecell_research] cleanup found live launcher tree; killing it" >&2',
         "    terminate_launcher_tree TERM",
         "    sleep 5",
         "    terminate_launcher_tree KILL",
@@ -422,19 +418,19 @@ def render_slurm_script(
         "  fi",
         "  placecell_cleanup_hpc_env || true",
         "  diagnose_job_state || true",
-        "  exit \"${status}\"",
+        '  exit "${status}"',
         "}",
         "trap shutdown_launcher TERM INT",
         "trap cleanup_on_exit EXIT",
         "",
         f"setsid bash --noprofile --norc -c {launcher_command_string} &",
         "launcher_pid=$!",
-        "launcher_pgid=\"${launcher_pid}\"",
+        'launcher_pgid="${launcher_pid}"',
         "set +e",
-        "wait \"${launcher_pid}\"",
+        'wait "${launcher_pid}"',
         "launcher_status=$?",
         "set -e",
-        "exit \"${launcher_status}\"",
+        'exit "${launcher_status}"',
         "",
     ]
     return "\n".join(script_lines)

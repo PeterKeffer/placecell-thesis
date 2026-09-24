@@ -1,4 +1,5 @@
 """Directional modulation of place fields."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -92,9 +93,11 @@ def _prepare_directional_statistics(
     num_spatial_bins = num_bins_x * num_bins_y
     combined = bin_index * _NUM_QUADRANTS + quadrant
 
-    occupancy_bq = np.bincount(
-        combined, minlength=num_spatial_bins * _NUM_QUADRANTS
-    ).astype(np.float64).reshape(num_spatial_bins, _NUM_QUADRANTS)
+    occupancy_bq = (
+        np.bincount(combined, minlength=num_spatial_bins * _NUM_QUADRANTS)
+        .astype(np.float64)
+        .reshape(num_spatial_bins, _NUM_QUADRANTS)
+    )
     occupancy_bin = occupancy_bq.sum(axis=1)
     activity = scatter_add_over_units(combined, rates, num_spatial_bins * _NUM_QUADRANTS)
     activity = activity.reshape(num_spatial_bins, _NUM_QUADRANTS, num_units)
@@ -170,9 +173,8 @@ def _resolve_field_gates(
     field_threshold_fraction: float,
     min_heading_quadrants: int,
 ) -> _FieldGates:
-    shared_bin_gate = (
-        (statistics.sampled_quadrant_count >= int(min_heading_quadrants))
-        & (statistics.occupancy_bin > 0)
+    shared_bin_gate = (statistics.sampled_quadrant_count >= int(min_heading_quadrants)) & (
+        statistics.occupancy_bin > 0
     )
     bin_selection = np.flatnonzero(shared_bin_gate)
     field_mask, peak = _field_mask_and_peak(
@@ -206,9 +208,7 @@ def _modulation_r_from_field_gates(
         sampled = gates.sampled_quadrant[:, quadrant]
         np.maximum(quadrant_max, means, out=quadrant_max, where=sampled)
         np.minimum(quadrant_min, means, out=quadrant_min, where=sampled)
-    all_sampled_finite = np.all(
-        np.isfinite(mean_per_quadrant) | gates.unsampled_quadrant, axis=1
-    )
+    all_sampled_finite = np.all(np.isfinite(mean_per_quadrant) | gates.unsampled_quadrant, axis=1)
     usable_bin_unit = gates.field_mask & all_sampled_finite & (quadrant_max > _EPS)
 
     with np.errstate(invalid="ignore"):
@@ -225,9 +225,9 @@ def _modulation_r_from_field_gates(
         & (usable_bin_counts >= int(min_field_bins))
         & (weight_sums > 0.0)
     )
-    r_values[assessable] = (
-        weighted.sum(axis=0)[assessable] / weight_sums[assessable]
-    ).astype(np.float32)
+    r_values[assessable] = (weighted.sum(axis=0)[assessable] / weight_sums[assessable]).astype(
+        np.float32
+    )
     return r_values
 
 
@@ -324,10 +324,8 @@ def _null_modulation_matrix(
 ) -> np.ndarray:
     """[num_shuffles, num_units] R under episode-preserving circular shifts of the activity."""
     layout = _occupied_bin_layout(statistics, gates)
-    step_episode, episode_start, episode_length, step_within_episode = (
-        circular_shift_step_layout(
-            statistics.episode_lengths, np.arange(statistics.bin_index.size)
-        )
+    step_episode, episode_start, episode_length, step_within_episode = circular_shift_step_layout(
+        statistics.episode_lengths, np.arange(statistics.bin_index.size)
     )
     rng = np.random.default_rng(_NULL_RNG_SEED)
     shuffle_offsets = [
@@ -337,9 +335,7 @@ def _null_modulation_matrix(
 
     total_units = statistics.rates.shape[1]
     nonzeros_per_unit = max(1, int(np.count_nonzero(statistics.rates)) // total_units)
-    chunk_width = int(
-        np.clip(_NULL_CHUNK_NONZERO_BUDGET // nonzeros_per_unit, 1, total_units)
-    )
+    chunk_width = int(np.clip(_NULL_CHUNK_NONZERO_BUDGET // nonzeros_per_unit, 1, total_units))
 
     null_matrix = np.full((num_shuffles, total_units), np.nan, dtype=np.float32)
     chunk_starts = list(range(0, total_units, chunk_width))
@@ -356,9 +352,7 @@ def _null_modulation_matrix(
                 destination_step = episode_start + (
                     (step_within_episode + offsets[step_episode]) % episode_length
                 )
-                activity = _shifted_activity_sums(
-                    nonzero, layout, destination_step, chunk_units
-                )
+                activity = _shifted_activity_sums(nonzero, layout, destination_step, chunk_units)
                 with np.errstate(invalid="ignore", divide="ignore"):
                     marginal = activity.sum(axis=1) / layout.occupancy_bin[:, None]
                     mean_per_quadrant = (
@@ -450,9 +444,7 @@ class DirectionalityModule:
         world_bounds = overlay_bounds(world_overlay) if world_overlay is not None else None
 
         modulation_kwargs = {
-            "field_threshold_fraction": float(
-                config.get("place_field_threshold_fraction", 0.2)
-            ),
+            "field_threshold_fraction": float(config.get("place_field_threshold_fraction", 0.2)),
             "min_heading_quadrants": int(config.get("min_heading_quadrants", 3)),
             "min_field_bins": int(config.get("min_field_bins", 3)),
             "min_fire_rate": float(config.get("min_fire_rate", 0.01)),
@@ -500,9 +492,7 @@ class DirectionalityModule:
                 null_finite = np.isfinite(null_matrix)
                 draw_counts = null_finite.sum(axis=0)
                 calibrated = np.isfinite(r_values) & (draw_counts > 0)
-                exceed_counts = np.sum(
-                    null_finite & (null_matrix >= r_values[None, :]), axis=0
-                )
+                exceed_counts = np.sum(null_finite & (null_matrix >= r_values[None, :]), axis=0)
                 null_p[calibrated] = (
                     (1.0 + exceed_counts[calibrated]) / (1.0 + draw_counts[calibrated])
                 ).astype(np.float32)

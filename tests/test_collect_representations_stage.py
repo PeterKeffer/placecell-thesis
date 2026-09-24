@@ -55,7 +55,9 @@ def test_streamed_stage_can_feed_consumers_without_loading_the_model(
     ).write(model_path / "manifest.json")
     registry.register_directory("place_model", "model", model_path)
     for artifact_type, artifact_id in (
-        ("raw_dataset", "data"), ("split_set", "split"), ("place_model", "model"),
+        ("raw_dataset", "data"),
+        ("split_set", "split"),
+        ("place_model", "model"),
     ):
         registry.mark_artifact_completed(artifact_type, artifact_id)
 
@@ -151,15 +153,18 @@ def test_streamed_stage_can_feed_consumers_without_loading_the_model(
     monkeypatch.setattr(evaluate_model, "load_model_checkpoint", fail_load)
 
     evaluate = evaluate_model.evaluate_representations
+
     def check_cached_arrays(representations, *args, **kwargs):
-        np.testing.assert_array_equal(representations["encoder.place_codes"],
-                                      expected["encoder.place_codes"])
+        np.testing.assert_array_equal(
+            representations["encoder.place_codes"], expected["encoder.place_codes"]
+        )
         return evaluate(representations, *args, **kwargs)
 
     monkeypatch.setattr(evaluate_model, "evaluate_representations", check_cached_arrays)
     result = evaluate_model.run(Path("unused.yaml"), [])
-    protocol = json.loads((Path(result["evaluation_report_path"]) /
-                           "evaluation_protocol.json").read_text())
+    protocol = json.loads(
+        (Path(result["evaluation_report_path"]) / "evaluation_protocol.json").read_text()
+    )
     assert protocol["evaluation_config"]["batch_size"] == 16
     assert protocol["representation_inference"]["batch_size"] == 2
     assert protocol["representation_inference"]["device"] == cached_device

@@ -705,9 +705,7 @@ def _capture_slurm_runtime_metadata(
     repo_root: Path,
     run_root: Path,
 ) -> dict[str, str]:
-    job_id = str(
-        os.environ.get("SLURM_JOB_ID") or os.environ.get("SLURM_JOBID") or ""
-    ).strip()
+    job_id = str(os.environ.get("SLURM_JOB_ID") or os.environ.get("SLURM_JOBID") or "").strip()
     if not job_id:
         return {}
     job_name = str(os.environ.get("SLURM_JOB_NAME", "placecell_research")).strip()
@@ -912,9 +910,9 @@ def _write_results_index(
     linked_artifacts: list[RegisteredArtifact],
     completed_stages: list[str],
 ) -> None:
-    direct_artifact_types = ", ".join(
-        sorted({artifact.artifact_type for artifact in linked_artifacts})
-    ) or "none"
+    direct_artifact_types = (
+        ", ".join(sorted({artifact.artifact_type for artifact in linked_artifacts})) or "none"
+    )
     direct_links = sorted(
         path.name
         for path in run_directory.results_dir.iterdir()
@@ -1170,9 +1168,9 @@ def run(
 
     for stage_name in config.pipeline.stages:
         active_config = load_experiment_config(config_path, active_overrides)
-        if (
-            active_config.spatial_model.inputs.observation_source == "rgb"
-            and stage_name in ("train_vision_encoder", "encode_dataset")
+        if active_config.spatial_model.inputs.observation_source == "rgb" and stage_name in (
+            "train_vision_encoder",
+            "encode_dataset",
         ):
             skipped_stages.append(stage_name)
             stage_results[stage_name] = {"status": "skipped_rgb_observation_source"}

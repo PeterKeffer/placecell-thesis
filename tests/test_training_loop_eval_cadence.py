@@ -160,7 +160,11 @@ def test_online_validation_preserves_per_batch_metrics_and_snapshots_reused_scal
 
     monkeypatch.setattr(train_place_model, "compute_total_loss", capture_loss)
     actual = evaluate_place_model_online(
-        model, objectives.objectives, loader, config=config, device=torch.device("cpu"),
+        model,
+        objectives.objectives,
+        loader,
+        config=config,
+        device=torch.device("cpu"),
         online_source="encoder.place_codes",
     )
     assert batch_count == 2

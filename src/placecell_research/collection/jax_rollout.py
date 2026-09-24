@@ -194,9 +194,9 @@ def _package_episodes(trajectory, *, num_envs, base_seed, keep_rgb_on_device):
                 "observations/rgb": rgb[env_index],
                 "position_xy": position_xy[env_index],
                 "heading": heading[env_index],
-                "kinematics": compute_kinematics(
-                    position_xy[env_index], heading[env_index]
-                ).astype(np.float32),
+                "kinematics": compute_kinematics(position_xy[env_index], heading[env_index]).astype(
+                    np.float32
+                ),
                 "actions": actions[env_index],
                 "valid_steps": valid[env_index],
                 "length": length,

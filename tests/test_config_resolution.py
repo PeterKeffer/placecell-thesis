@@ -15,10 +15,7 @@ from placecell_research.config.schema import ExperimentConfig
 
 def test_default_groups_materialize_under_expected_top_level_keys() -> None:
     config = load_experiment_config(
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "experiment"
-        / "wallgap.yaml"
+        Path(__file__).resolve().parents[1] / "configs" / "experiment" / "wallgap.yaml"
     )
     assert config.environment.env_id == "MiniWorld-WallGapAsymLarge-v0"
     assert config.dataset.artifact_type == "raw_dataset"
@@ -32,12 +29,7 @@ def test_default_groups_materialize_under_expected_top_level_keys() -> None:
 
 
 def test_explicit_reuse_summary_distinguishes_reuse_from_resume() -> None:
-    config_path = (
-        Path(__file__).resolve().parents[1]
-        / "configs"
-        / "experiment"
-        / "wallgap.yaml"
-    )
+    config_path = Path(__file__).resolve().parents[1] / "configs" / "experiment" / "wallgap.yaml"
     reuse_config = load_experiment_config(
         config_path,
         [

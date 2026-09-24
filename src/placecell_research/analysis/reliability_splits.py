@@ -82,9 +82,9 @@ def _compute_global_unit_thresholds(
         quantile_source = np.array(flat_values[:, start:stop].T, dtype=np.float64, order="C")
         if use_absolute_activations:
             np.abs(quantile_source, out=quantile_source)
-        block_thresholds = np.quantile(
-            quantile_source, np.float64(level), axis=1, overwrite_input=True
-        ) * scale
+        block_thresholds = (
+            np.quantile(quantile_source, np.float64(level), axis=1, overwrite_input=True) * scale
+        )
         thresholds[start:stop] = np.maximum(block_thresholds, float(epsilon))
         del quantile_source
     return thresholds

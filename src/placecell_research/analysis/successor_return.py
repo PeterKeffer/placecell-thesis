@@ -38,12 +38,16 @@ def _fit_metrics(prediction: np.ndarray, target: np.ndarray) -> dict[str, float]
     prediction_norm = np.linalg.norm(prediction, axis=-1)
     target_norm = np.linalg.norm(target, axis=-1)
     nonzero = (prediction_norm > 0.0) & (target_norm > 0.0)
-    cosine = float(
-        np.mean(
-            np.sum(prediction[nonzero] * target[nonzero], axis=-1)
-            / (prediction_norm[nonzero] * target_norm[nonzero])
+    cosine = (
+        float(
+            np.mean(
+                np.sum(prediction[nonzero] * target[nonzero], axis=-1)
+                / (prediction_norm[nonzero] * target_norm[nonzero])
+            )
         )
-    ) if np.any(nonzero) else float("nan")
+        if np.any(nonzero)
+        else float("nan")
+    )
     mean_target_norm = float(target_norm.mean())
     norm_ratio = (
         float(prediction_norm.mean()) / mean_target_norm
@@ -134,8 +138,7 @@ def successor_return_metrics(
     transition_valid = valid[:, :-1] & valid[:, 1:]
     if np.any(transition_valid):
         bellman_target = (
-            feature_weight * feature_array[:, :-1]
-            + discount_gamma * successor_array[:, 1:]
+            feature_weight * feature_array[:, :-1] + discount_gamma * successor_array[:, 1:]
         )[transition_valid]
         bellman_fit = _fit_metrics(successor_array[:, :-1][transition_valid], bellman_target)
     else:
@@ -187,9 +190,7 @@ class SuccessorReturnComparisonModule:
     ) -> AnalysisResult:
         del output_dir
         if len(inputs) != 2:
-            raise ValueError(
-                f"successor_return requires exactly two inputs, got {len(inputs)}."
-            )
+            raise ValueError(f"successor_return requires exactly two inputs, got {len(inputs)}.")
         successor_input, feature_input = inputs
         for metadata_key in ("dataset_artifact_id", "split_artifact_id"):
             successor_reference = successor_input.metadata.get(metadata_key)
@@ -249,9 +250,7 @@ class SuccessorReturnComparisonModule:
                 "successor_return_discount_gamma": discount_gamma,
                 "successor_return_normalized": normalized,
                 "successor_return_valid_steps": int(valid.sum()),
-                "successor_return_valid_transitions": int(
-                    np.sum(valid[:, :-1] & valid[:, 1:])
-                ),
+                "successor_return_valid_transitions": int(np.sum(valid[:, :-1] & valid[:, 1:])),
                 "successor_label": labels[0] if labels else successor_input.label,
                 "feature_label": labels[1] if len(labels) > 1 else feature_input.label,
             },

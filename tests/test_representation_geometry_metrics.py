@@ -78,12 +78,16 @@ def test_effective_dimensionality_low_for_2d_manifold_high_for_noise() -> None:
     positions = rng.uniform(0, BOX, (2000, 2))
     manifold = np.concatenate([positions, 1e-3 * rng.standard_normal((2000, 30))], axis=1)
     noise = rng.standard_normal((2000, 32))
-    pr_manifold = EffectiveDimensionalityModule().run(
-        _make_input(manifold, positions), Path("/tmp"), {}
-    ).metrics["participation_ratio"]
-    pr_noise = EffectiveDimensionalityModule().run(
-        _make_input(noise, positions), Path("/tmp"), {}
-    ).metrics["participation_ratio"]
+    pr_manifold = (
+        EffectiveDimensionalityModule()
+        .run(_make_input(manifold, positions), Path("/tmp"), {})
+        .metrics["participation_ratio"]
+    )
+    pr_noise = (
+        EffectiveDimensionalityModule()
+        .run(_make_input(noise, positions), Path("/tmp"), {})
+        .metrics["participation_ratio"]
+    )
     assert pr_manifold < 4.0
     assert pr_noise > 10.0
     assert pr_manifold < pr_noise
@@ -95,9 +99,9 @@ def test_conformal_isometry_high_for_position_code_low_for_scramble() -> None:
     isometric = positions + 1e-2 * rng.standard_normal((800, 2))
     scrambled = rng.standard_normal((800, 8))
     iso = ConformalIsometryModule().run(_make_input(isometric, positions), Path("/tmp"), {}).metrics
-    scram = ConformalIsometryModule().run(
-        _make_input(scrambled, positions), Path("/tmp"), {}
-    ).metrics
+    scram = (
+        ConformalIsometryModule().run(_make_input(scrambled, positions), Path("/tmp"), {}).metrics
+    )
     assert iso["metric_distance_correlation"] > 0.95
     assert iso["metric_distance_correlation"] > scram["metric_distance_correlation"]
     assert iso["metric_scale_cv"] < scram["metric_scale_cv"]

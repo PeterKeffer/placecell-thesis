@@ -78,11 +78,7 @@ def seed_overrides(seed: int) -> list[str]:
 
 
 def _format_sweep_values(row: dict[str, object], *, exclude_keys: set[str]) -> str:
-    parts = [
-        f"{key}={value}"
-        for key, value in row.items()
-        if key not in exclude_keys
-    ]
+    parts = [f"{key}={value}" for key, value in row.items() if key not in exclude_keys]
     return " ".join(parts)
 
 

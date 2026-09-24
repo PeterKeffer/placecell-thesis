@@ -83,10 +83,7 @@ def _raise_if_downstream_memory_watchdog_exceeded(limit_mb: int) -> None:
     rss_mb = _read_current_rss_mb()
     if rss_mb is None or rss_mb <= limit_mb:
         return
-    raise MemoryError(
-        "Downstream RSS watchdog exceeded "
-        f"{limit_mb} MB (current={rss_mb:.1f} MB)."
-    )
+    raise MemoryError(f"Downstream RSS watchdog exceeded {limit_mb} MB (current={rss_mb:.1f} MB).")
 
 
 def _default_summary_metrics() -> dict[str, float]:
@@ -362,11 +359,14 @@ def train_downstream_agent(
                 receipt_path = checkpoint_path.with_suffix(".json")
                 temporary_receipt = receipt_path.with_suffix(".tmp")
                 temporary_receipt.write_text(
-                    json.dumps({
-                        "requested_timestep": self._next_checkpoint_timestep,
-                        "actual_timestep": int(self.num_timesteps),
-                        "model_path": str(checkpoint_path),
-                    }) + "\n"
+                    json.dumps(
+                        {
+                            "requested_timestep": self._next_checkpoint_timestep,
+                            "actual_timestep": int(self.num_timesteps),
+                            "model_path": str(checkpoint_path),
+                        }
+                    )
+                    + "\n"
                 )
                 temporary_receipt.replace(receipt_path)
                 self._next_checkpoint_timestep = (
@@ -769,6 +769,7 @@ def train_downstream_agent(
             vector_eval_env.close()
         train_env.close()
         raise
+
     class _HeartbeatCallback(BaseCallback):
         """Reports num_timesteps to the parent so its no-progress watchdog can detect a hang."""
 
@@ -885,8 +886,7 @@ def train_downstream_agent(
                 status="completed",
             )
         final_eval_started_at = _print_blocking_stage(
-            "[downstream] running final evaluation "
-            f"episodes={final_eval_episodes}"
+            f"[downstream] running final evaluation episodes={final_eval_episodes}"
         )
         report_progress_phase(
             progress_reporter,
@@ -906,8 +906,7 @@ def train_downstream_agent(
         )
         final_diagnostics_payload: dict[str, Any] = {}
         deterministic_final_eval_started_at = _print_blocking_stage(
-            "[downstream] running final deterministic evaluation "
-            f"episodes={final_eval_episodes}"
+            f"[downstream] running final deterministic evaluation episodes={final_eval_episodes}"
         )
         try:
             final_metrics = _evaluate_policy(
@@ -917,9 +916,7 @@ def train_downstream_agent(
                 max_steps_per_episode=int(config.environment.episode_length),
                 vector_env=vector_eval_env,
                 observers=(
-                    []
-                    if final_eval_diagnostics is None
-                    else final_eval_diagnostics.observers()
+                    [] if final_eval_diagnostics is None else final_eval_diagnostics.observers()
                 ),
                 progress_label="final deterministic evaluation",
                 progress_callback=lambda: report_progress_heartbeat(
@@ -945,8 +942,7 @@ def train_downstream_agent(
         final_stochastic_metrics = None
         if config.training.final_eval_stochastic:
             stochastic_final_eval_started_at = _print_blocking_stage(
-                "[downstream] running final stochastic evaluation "
-                f"episodes={final_eval_episodes}"
+                f"[downstream] running final stochastic evaluation episodes={final_eval_episodes}"
             )
             final_stochastic_metrics = _evaluate_policy(
                 model,
@@ -969,8 +965,7 @@ def train_downstream_agent(
         final_curriculum_metrics = None
         if curriculum_scheduler is not None:
             curriculum_final_eval_started_at = _print_blocking_stage(
-                "[downstream] running final curriculum evaluation "
-                f"episodes={final_eval_episodes}"
+                f"[downstream] running final curriculum evaluation episodes={final_eval_episodes}"
             )
             final_curriculum_metrics = _evaluate_policy(
                 model,

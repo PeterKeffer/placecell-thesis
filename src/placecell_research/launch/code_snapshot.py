@@ -105,7 +105,7 @@ def build_code_snapshot_script(
             f"snapshot_root={quoted_repo_root}/{SNAPSHOT_DIR_NAME}",
             'mkdir -p "${snapshot_root}"',
             f"manifest=$({file_list} | xargs -0 -r sha256sum)",
-            'file_count=$(printf \'%s\\n\' "${manifest}" | grep -c . || true)',
+            "file_count=$(printf '%s\\n' \"${manifest}\" | grep -c . || true)",
             f"total_bytes=$({file_list} | xargs -0 -r cat | wc -c | tr -d ' ')",
             f'if [[ "${{file_count}}" -gt {MAX_SNAPSHOT_FILES} ]]; then',
             (
@@ -125,10 +125,7 @@ def build_code_snapshot_script(
             '  echo "[code-snapshot] refusing: no files selected" >&2',
             "  exit 1",
             "fi",
-            (
-                'content_hash=$(printf \'%s\\n\' "${manifest}" '
-                "| sha256sum | cut -c1-8)"
-            ),
+            ("content_hash=$(printf '%s\\n' \"${manifest}\" | sha256sum | cut -c1-8)"),
             'existing=$(ls -1d "${snapshot_root}"/*_"${content_hash}" 2>/dev/null '
             "| LC_ALL=C sort | tail -n 1 || true)",
             'if [[ -n "${existing}" && -f "${existing}/.snapshot_hash" ]]; then',
@@ -170,7 +167,7 @@ def build_code_snapshot_script(
             'echo "[code-snapshot] bytes=${total_bytes}"',
             'echo "[code-snapshot] reused=${reused}"',
             "kept=0",
-            'while read -r candidate; do',
+            "while read -r candidate; do",
             '  [[ -n "${candidate}" ]] || continue',
             '  candidate="${candidate%/}"',
             '  name="${candidate##*/}"',

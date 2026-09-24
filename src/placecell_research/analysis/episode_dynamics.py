@@ -272,9 +272,7 @@ class EpisodeDynamicsModule:
 
         top_k = int(config.get("example_episode_top_k", 0))
         episode_representation = analysis_input.representation[episode_index, :episode_length]
-        selected_unit_indices = select_unit_indices(
-            episode_representation, requested_top_k=top_k
-        )
+        selected_unit_indices = select_unit_indices(episode_representation, requested_top_k=top_k)
         selected_activations = episode_representation[:, selected_unit_indices]
         activation_grid_rows, activation_grid_columns = choose_unit_grid_shape(
             len(selected_unit_indices)
@@ -303,8 +301,7 @@ class EpisodeDynamicsModule:
             / f"example_episode__{analysis_input.source_name}__{analysis_input.split_name}.gif"
         )
         summary_path = (
-            module_dir
-            / f"example_episode_summary__{analysis_input.source_name}"
+            module_dir / f"example_episode_summary__{analysis_input.source_name}"
             f"__{analysis_input.split_name}.png"
         )
 

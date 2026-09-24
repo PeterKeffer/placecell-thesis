@@ -42,9 +42,7 @@ def test_segment_blocks_cover_every_segment_once() -> None:
         blocks = _segment_blocks(segment_bounds, budget)
         assert [first for first, _ in blocks] == [0] + [last for _, last in blocks[:-1]]
         assert blocks[-1][1] == segment_sizes.size
-        oversized = [
-            rows for rows in _block_rows(segment_bounds, blocks) if rows > budget
-        ]
+        oversized = [rows for rows in _block_rows(segment_bounds, blocks) if rows > budget]
         assert all(
             end - start == 1
             for rows, (start, end) in zip(_block_rows(segment_bounds, blocks), blocks, strict=False)

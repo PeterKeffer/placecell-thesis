@@ -45,9 +45,7 @@ def test_kwinners_k_from_fraction_matches_sparsifier_rounding() -> None:
 def test_active_unit_indices_kwinners_k_overrides_max_cells() -> None:
     step_activation = np.array([0.1, 0.9, 0.5, 0.3, 0.7], dtype=np.float32)
 
-    kept, dropped = _active_unit_indices(
-        step_activation, threshold=0.0, max_cells=20, kwinners_k=2
-    )
+    kept, dropped = _active_unit_indices(step_activation, threshold=0.0, max_cells=20, kwinners_k=2)
 
     np.testing.assert_array_equal(kept, np.array([1, 4]))
     assert dropped == 3
@@ -127,9 +125,7 @@ def test_composite_additive_blend_sums_overlapping_layers() -> None:
     fields = np.stack([field_red, field_blue])
     colors = np.array([[1, 0, 0], [0, 0, 1]], dtype=float)
 
-    image = _composite_active_fields(
-        fields, colors, blend_mode="additive", background=np.zeros(3)
-    )
+    image = _composite_active_fields(fields, colors, blend_mode="additive", background=np.zeros(3))
 
     np.testing.assert_allclose(image[1, 1], [0.5, 0.0, 0.5])
 

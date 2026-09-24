@@ -101,9 +101,13 @@ def test_module_run_reports_metrics_and_table(tmp_path, analysis_settings):
         label="encoder_place_cells",
         split_name="test",
     )
-    result = WithinHeadingReliabilityModule().run(analysis_input, tmp_path, analysis_settings(
-        num_bins=1,
-    ))
+    result = WithinHeadingReliabilityModule().run(
+        analysis_input,
+        tmp_path,
+        analysis_settings(
+            num_bins=1,
+        ),
+    )
 
     assert set(result.metrics) >= {
         "mean_pooled_reliability",

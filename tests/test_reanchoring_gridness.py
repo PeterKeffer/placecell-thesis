@@ -1,4 +1,5 @@
 """Tests for the re-anchoring-aware grid-cell battery."""
+
 from __future__ import annotations
 
 from pathlib import Path

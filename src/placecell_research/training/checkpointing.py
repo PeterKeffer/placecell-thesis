@@ -96,10 +96,7 @@ def _compatible_recovery_checkpoints(
         if summary.get("place_model_resume_fingerprint") != resume_fingerprint:
             continue
         checkpoint_path = (
-            run_dir
-            / "results"
-            / "place_model_training_checkpoints"
-            / "weights_last.pt"
+            run_dir / "results" / "place_model_training_checkpoints" / "weights_last.pt"
         )
         if not checkpoint_path.is_file():
             continue
@@ -295,9 +292,7 @@ def optimizer_parameter_identity(
     auxiliary_heads: nn.ModuleDict,
 ) -> list[dict[str, Any]]:
     """Identity of every optimizer parameter, in torch's flat state-key order."""
-    names_by_identity = {
-        id(parameter): name for name, parameter in model.named_parameters()
-    }
+    names_by_identity = {id(parameter): name for name, parameter in model.named_parameters()}
     names_by_identity.update(
         (id(parameter), f"auxiliary_heads.{name}")
         for name, parameter in auxiliary_heads.named_parameters()
@@ -485,9 +480,7 @@ def load_checkpoint(
             and current_auxiliary_state[key].shape == checkpoint_value.shape
         }
         missing_keys = sorted(current_auxiliary_state.keys() - checkpoint_auxiliary_state.keys())
-        unexpected_keys = sorted(
-            checkpoint_auxiliary_state.keys() - current_auxiliary_state.keys()
-        )
+        unexpected_keys = sorted(checkpoint_auxiliary_state.keys() - current_auxiliary_state.keys())
         shape_mismatches = sorted(
             key
             for key in checkpoint_auxiliary_state.keys() & current_auxiliary_state.keys()

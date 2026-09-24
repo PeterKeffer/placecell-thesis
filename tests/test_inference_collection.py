@@ -39,16 +39,26 @@ class _FakeModel(torch.nn.Module):
 
 def test_streaming_is_lazy_and_restores_mode_when_consumer_stops(monkeypatch, tmp_path):
     reads = []
+
     def batches(*args, **kwargs):
         for index in range(3):
             reads.append(index)
             yield {"valid_steps": torch.ones((2, 4), dtype=torch.bool)}
+
     monkeypatch.setattr(inference, "iterate_dataset_batches", batches)
     monkeypatch.setattr(inference, "load_split_indices", lambda *a: list(range(6)))
     model = _FakeModel()
-    with closing(iter_representation_batches(
-        model, tmp_path, tmp_path, "test", ["encoder.place_codes"], torch.device("cpu"), 2,
-    )) as stream:
+    with closing(
+        iter_representation_batches(
+            model,
+            tmp_path,
+            tmp_path,
+            "test",
+            ["encoder.place_codes"],
+            torch.device("cpu"),
+            2,
+        )
+    ) as stream:
         representations, metadata = next(stream)
         assert reads == [0]
         assert representations["encoder.place_codes"].shape == (2, 4, 3)

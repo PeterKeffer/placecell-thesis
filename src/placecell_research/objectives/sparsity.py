@@ -62,9 +62,12 @@ class NormalizedL1CapacityObjective(ConfiguredObjective):
                 changes = (activity[:, 1:] - activity[:, :-1]).square().mean(-1)
                 step_change.append(masked_mean(changes, mask[:, 1:] & mask[:, :-1]).sqrt())
         score = torch.stack(scores).mean()
-        return ObjectiveResult(loss=-score, metrics={
-            "normalized_l1": score.detach(),
-            "activity_rms": torch.stack(rms).mean(),
-            "activity_population_std": torch.stack(population_std).mean(),
-            "activity_step_change_rms": torch.stack(step_change).mean(),
-        })
+        return ObjectiveResult(
+            loss=-score,
+            metrics={
+                "normalized_l1": score.detach(),
+                "activity_rms": torch.stack(rms).mean(),
+                "activity_population_std": torch.stack(population_std).mean(),
+                "activity_step_change_rms": torch.stack(step_change).mean(),
+            },
+        )

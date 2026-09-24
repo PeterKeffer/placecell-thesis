@@ -156,13 +156,16 @@ class JaxensteinAdapter:
         tile_key, jitter_key, theta_key = self._jax.random.split(key, 3)
         pick = self._jax.random.randint(tile_key, (), 0, int(free_rows.shape[0]))
         jitter = self._jax.random.uniform(jitter_key, (2,), minval=-0.25, maxval=0.25)
-        centre = jnp.stack(
-            [jnp.asarray(free_cols)[pick], jnp.asarray(free_rows)[pick]]
-        ).astype(jnp.float32) + 0.5
+        centre = (
+            jnp.stack([jnp.asarray(free_cols)[pick], jnp.asarray(free_rows)[pick]]).astype(
+                jnp.float32
+            )
+            + 0.5
+        )
         new_pos = (centre + jitter).astype(state.pos.dtype)
-        new_theta = self._jax.random.uniform(
-            theta_key, (), minval=-jnp.pi, maxval=jnp.pi
-        ).astype(state.theta.dtype)
+        new_theta = self._jax.random.uniform(theta_key, (), minval=-jnp.pi, maxval=jnp.pi).astype(
+            state.theta.dtype
+        )
         state = state.replace(pos=new_pos, theta=new_theta)
         observation = self._jit_render(state)
         return observation, state

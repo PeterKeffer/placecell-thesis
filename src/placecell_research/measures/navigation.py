@@ -233,9 +233,11 @@ def expand_navigation_runs(paths: list[Path]) -> list[Path]:
             config = yaml.safe_load(config_path.read_text())
             key = (str(config["name"]), int(config["seed"]))
             previous = newest.get(key)
-            if previous is None or metrics.stat().st_mtime > (
-                previous / "results/downstream_train/metrics.json"
-            ).stat().st_mtime:
+            if (
+                previous is None
+                or metrics.stat().st_mtime
+                > (previous / "results/downstream_train/metrics.json").stat().st_mtime
+            ):
                 newest[key] = run
         runs.extend(newest[key] for key in sorted(newest))
     return runs

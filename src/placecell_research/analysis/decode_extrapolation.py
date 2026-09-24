@@ -50,7 +50,10 @@ class DecodeExtrapolationModule:
         targets = sampled_steps.positions
         if features.shape[0] < 50:
             return AnalysisResult(
-                metrics={}, per_unit_metrics={}, figures={}, tables={},
+                metrics={},
+                per_unit_metrics={},
+                figures={},
+                tables={},
                 metadata={
                     "decode_extrapolation_skipped": "too few samples",
                     "sampled_valid_steps": int(features.shape[0]),
