@@ -12,7 +12,7 @@ import torch
 from torch import nn
 
 from placecell_research.config import artifact_match_fingerprint
-from placecell_research.config.schema import ExperimentConfig
+from placecell_research.config.schema import ExperimentConfig, SeedBundleConfig
 from placecell_research.spatial_model.loading import select_place_model_checkpoint
 from placecell_research.stages.train_place_model import (
     _place_model_resume_fingerprint_payload,
@@ -152,17 +152,15 @@ def test_last_checkpoint_fallback_matches_canonical_validation_preference(
 
 
 def test_recovery_fingerprint_includes_seed_contract() -> None:
-    config = ExperimentConfig()
-    raw_config = {
-        "spatial_model": {"training": {"epochs": 2}},
-        "seed": {"global_seed": 1, "training_seed": 2},
-    }
     first = artifact_match_fingerprint(
-        _place_model_resume_fingerprint_payload(config, raw_config)
+        _place_model_resume_fingerprint_payload(
+            ExperimentConfig(seed=SeedBundleConfig(global_seed=1, training_seed=2))
+        )
     )
-    raw_config["seed"] = {"global_seed": 3, "training_seed": 4}
     second = artifact_match_fingerprint(
-        _place_model_resume_fingerprint_payload(config, raw_config)
+        _place_model_resume_fingerprint_payload(
+            ExperimentConfig(seed=SeedBundleConfig(global_seed=3, training_seed=4))
+        )
     )
 
     assert first != second

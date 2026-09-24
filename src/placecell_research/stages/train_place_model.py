@@ -116,7 +116,6 @@ def _extra_world_records(config: ExperimentConfig) -> list[dict[str, str]]:
 
 def _place_model_input_artifact_ids(
     config: ExperimentConfig,
-    raw_config: dict[str, object],
     *,
     resume_artifact_id: str = "",
 ) -> list[str]:
@@ -171,14 +170,11 @@ def _place_model_compatibility_references(
     return references
 
 
-def _place_model_resume_fingerprint_payload(
-    config: ExperimentConfig,
-    raw_config: dict[str, object],
-) -> dict[str, object]:
+def _place_model_resume_fingerprint_payload(config: ExperimentConfig) -> dict[str, object]:
     """Inputs that must agree before adopting another run's optimizer and random state."""
     payload: dict[str, object] = {
-        "spatial_model": raw_config.get("spatial_model", {}),
-        "seed": raw_config.get("seed", {}),
+        "spatial_model": asdict(config.spatial_model),
+        "seed": asdict(config.seed),
         "dataset_artifact_id": config.dataset.artifact_id,
         "split_artifact_id": config.splits.artifact_id,
         "vision_encoder_artifact_id": config.vision.artifact_id,
@@ -885,10 +881,10 @@ def run(
             {"reuse_summary": summarize_reuse(config, artifact_registry=runtime.artifact_registry)}
         )
         input_artifact_ids = _place_model_input_artifact_ids(
-            config, raw_config, resume_artifact_id=explicit_reuse_artifact_id
+            config, resume_artifact_id=explicit_reuse_artifact_id
         )
         allow_domain_transfer = config.reuse.allow_domain_transfer
-        fingerprint_payload = _place_model_resume_fingerprint_payload(config, raw_config)
+        fingerprint_payload = _place_model_resume_fingerprint_payload(config)
         stage_fingerprint = artifact_match_fingerprint(fingerprint_payload)
         runtime.run_directory.update_run_manifest(
             {"summary": {"place_model_resume_fingerprint": stage_fingerprint}}
