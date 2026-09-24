@@ -17,7 +17,7 @@ _MESH_FLOOR_OFFSET_FRACTIONS = {
 _DEFAULT_GOAL_POSITION_XY = np.asarray([18.0, -22.0], dtype=np.float32)
 _GOAL_BOX_SIZE = 1.2
 _GOAL_RADIUS = math.sqrt(_GOAL_BOX_SIZE * _GOAL_BOX_SIZE + _GOAL_BOX_SIZE * _GOAL_BOX_SIZE) / 2.0
-_ALLOWED_REGION_BOUNDS_BY_NAME = {
+ALLOWED_REGION_BOUNDS_BY_NAME = {
     "courtyard_north": (-13.5, 13.5, 18.0, 33.0),
     "courtyard_south": (-13.5, 13.5, 9.0, 15.0),
     "corridor_indoor": (-3.0, 3.0, -3.0, 3.0),
@@ -114,7 +114,7 @@ class WallGapAsymLarge(MiniWorldEnv, utils.EzPickle):
             if spawn_regions is not None
             else default_regions
         )
-        self.allowed_spawn_bounds_by_name = dict(_ALLOWED_REGION_BOUNDS_BY_NAME)
+        self.allowed_spawn_bounds_by_name = dict(ALLOWED_REGION_BOUNDS_BY_NAME)
         self.full_room_bounds_by_name = dict(FULL_ROOM_BOUNDS_BY_NAME)
 
         MiniWorldEnv.__init__(self, max_episode_steps=max_episode_steps, **init_kwargs)

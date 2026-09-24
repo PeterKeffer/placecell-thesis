@@ -5,7 +5,9 @@ compresses each frame to a visual latent. An LSTM encoder and a k-winners compet
 latents into a place code, and a GRU predictor, given the action and the self-motion, predicts
 the code that an EMA target encoder assigns to the next latent. The script prints the linear
 position decoding error, the spatial information above a circular-shift null and the share of
-silent units, and saves rate maps of 16 units and the training curves in --output-dir.
+silent units. In --output-dir it saves the rate maps of the 16 most informative units and of all
+units, the place code along one test episode, the training curves, and all rate maps as an npz.
+--condition switches to one of the simple thesis conditions; explicit flags still win.
 
     python minimal/place_cells.py --smoke    about a minute on a laptop
     python minimal/place_cells.py            thesis baseline: a GPU, 50 GB disk, 32 GB memory
@@ -13,14 +15,25 @@ silent units, and saves rate maps of 16 units and the training curves in --outpu
 
 import argparse
 import copy
+import functools
 import math
+import multiprocessing
+import os
 import random
+import sys
 from itertools import islice, pairwise
 from pathlib import Path
+
+if sys.platform == "darwin":
+    os.environ.setdefault("PYGLET_SHADOW_WINDOW", "0")
+elif sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+    os.environ.setdefault("PYGLET_HEADLESS", "1")
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from matplotlib import colormaps
+from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 from miniworld.entity import MeshEnt
 from miniworld.miniworld import MiniWorldEnv
@@ -30,6 +43,45 @@ from torch import nn
 
 SMOKE = dict(episodes=20, episode_length=256, frames_per_episode=32, vision_epochs=2, epochs=3)
 SMOKE.update(encoder_width=64, predictor_width=64, batch_size=4, null_shuffles=19)
+THESIS_CONDITIONS = {
+    "baseline": {},
+    **{f"winners_{winners}": dict(winners=winners) for winners in (1, 5, 26, 51, 128)},
+    "no_competition": dict(winners=512),
+    "no_competition_no_weight_decay": dict(winners=512, weight_decay=0.0),
+    "variance_regularizer_off": dict(variance_weight=0.0),
+    "covariance_regularizer_off": dict(covariance_weight=0.0),
+    "both_regularizers_off": dict(variance_weight=0.0, covariance_weight=0.0),
+    "both_regularizers_off_no_weight_decay": dict(
+        variance_weight=0.0, covariance_weight=0.0, weight_decay=0.0
+    ),
+    "weight_decay_0": dict(weight_decay=0.0),
+    "weight_decay_1e-6": dict(weight_decay=1e-6),
+    "weight_decay_1e-5": dict(weight_decay=1e-5),
+    "weight_decay_1e-4": dict(weight_decay=1e-4),
+    "no_ema": dict(ema_decay=0.0),
+    "no_prediction": dict(prediction_weight=0.0),
+    "no_prediction_no_weight_decay": dict(prediction_weight=0.0, weight_decay=0.0),
+    "same_step_with_predictor": dict(target_offset=0),
+    "same_step_no_predictor": dict(target_offset=0, prediction_from="encoder"),
+    "actions_only": dict(motion_inputs=["action"]),
+    "self_motion_only": dict(motion_inputs=["self_motion"]),
+    "no_motion_input": dict(motion_inputs=[]),
+    **{
+        f"encoder_{encoder}_predictor_{predictor}": dict(
+            encoder_width=encoder, predictor_width=predictor
+        )
+        for encoder in (256, 512, 1024)
+        for predictor in (256, 512, 1024)
+        if (encoder, predictor) != (1024, 512)
+    },
+    "encoder_gru_predictor_gru": dict(encoder_cell="gru"),
+    "encoder_gru_predictor_lstm": dict(encoder_cell="gru", predictor_cell="lstm"),
+    "encoder_lstm_predictor_lstm": dict(predictor_cell="lstm"),
+    "code_128": dict(code_dim=128),
+    "code_256": dict(code_dim=256),
+    "untrained": dict(epochs=1, learning_rate=1e-12, weight_decay=0.0),
+    "objects_removed": dict(objects=False),
+}
 
 
 def parse_args(argv=None):
@@ -38,22 +90,31 @@ def parse_args(argv=None):
     )
     parser.add_argument("--output-dir", type=Path, default=Path("place_cells_run"))
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--workers", type=int, default=min(8, os.cpu_count()))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--episodes", type=int, default=8192)
     parser.add_argument("--episode-length", type=int, default=2048)
+    parser.add_argument("--no-objects", dest="objects", action="store_false")
     parser.add_argument("--frames-per-episode", type=int, default=128)
     parser.add_argument("--latent-dim", type=int, default=64)
     parser.add_argument("--vision-epochs", type=int, default=16)
     parser.add_argument("--vision-batch-size", type=int, default=256)
     parser.add_argument("--vision-learning-rate", type=float, default=1e-3)
+    parser.add_argument("--encoder-cell", choices=["lstm", "gru"], default="lstm")
     parser.add_argument("--encoder-width", type=int, default=1024)
     parser.add_argument("--encoder-layers", type=int, default=3)
     parser.add_argument("--code-dim", type=int, default=512)
     parser.add_argument("--winners", type=int, default=10)
+    parser.add_argument("--predictor-cell", choices=["gru", "lstm"], default="gru")
     parser.add_argument("--predictor-width", type=int, default=512)
     parser.add_argument("--predictor-layers", type=int, default=2)
+    parser.add_argument("--motion-inputs", nargs="*", choices=["action", "self_motion"])
+    parser.set_defaults(motion_inputs=["action", "self_motion"])
     parser.add_argument("--action-embedding-dim", type=int, default=32)
     parser.add_argument("--ema-decay", type=float, default=0.995)
+    parser.add_argument("--prediction-from", choices=["predictor", "encoder"], default="predictor")
+    parser.add_argument("--target-offset", type=int, choices=[0, 1], default=1)
+    parser.add_argument("--prediction-weight", type=float, default=1.0)
     parser.add_argument("--variance-weight", type=float, default=5.0)
     parser.add_argument("--covariance-weight", type=float, default=1.0)
     parser.add_argument("--minimum-std", type=float, default=0.1)
@@ -64,10 +125,11 @@ def parse_args(argv=None):
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--measure-episodes", type=int, default=512)
     parser.add_argument("--null-shuffles", type=int, default=999)
+    parser.add_argument("--condition", choices=THESIS_CONDITIONS, default="baseline")
     parser.add_argument("--smoke", action="store_true", help="shrink everything to about a minute")
-    args = parser.parse_args(argv)
-    if args.smoke:
-        vars(args).update(SMOKE)
+    chosen = parser.parse_args(argv)
+    presets = {**(SMOKE if chosen.smoke else {}), **THESIS_CONDITIONS[chosen.condition]}
+    args = parser.parse_args(argv, namespace=argparse.Namespace(**presets))
     args.device = torch.device(args.device)
     return args
 
@@ -89,6 +151,7 @@ SPAWN_REGIONS = {
 }
 ARENA = ((-24.0, 24.0), (-30.0, 36.0))
 LANDMARKS = """
+mesh, then height x z direction of each object
 tree 3.0 -15 9 0.5  3.5 -14 14 1.2  2.8 -16 19 0.8  3.2 -13 23 2.1  3.0 -15 28 1.7  3.6 -17 33 0.3
 tree 2.9 -5 11 2.5  3.3 -8 18 1.9  3.1 -3 25 0.6  2.7 2 13 2.8  3.4 7 22 1.1  3.0 4 31 2.3
 cone 0.75 12 8 0  0.9 14 12 0  0.7 13 17 0  0.85 15 21 0  0.8 12 25 0  0.95 14 29 0
@@ -105,22 +168,23 @@ barrier 1.1 -13 -3 0.9  1.1 -20 -16 -1.6  1.1 -9 -26 2.5
 barrel 1.2 9 -6 0.4  1.2 15 -11 -1.1  1.2 12 -18 1.9  1.2 18 -22 2.7  1.2 10 -27 -2.2
 barrier 1.0 8 -3 1.8  1.0 20 -14 -0.5  1.0 14 -25 2.2
 medkit 0.6 21 -10 0
-building 40 60 54 -1.5707963267948966
 """
+BACKDROP = ("building", 40.0, 60.0, 54.0, -math.pi / 2)
 FLOOR_OFFSET = {"duckie": -0.07, "medkit": -0.545}
 FORWARD_STEP = 0.26
 TURN_STEP_DEGREES = 20.0
 
 
 def landmarks():
-    for line in LANDMARKS.strip().splitlines():
+    for line in LANDMARKS.strip().splitlines()[1:]:
         mesh, *numbers = line.split()
         for height, x, z, direction in np.array(numbers, dtype=float).reshape(-1, 4):
             yield mesh, height, x, z, direction
 
 
 class WallGap(MiniWorldEnv):
-    def __init__(self, episode_length):
+    def __init__(self, episode_length, objects=True):
+        self.objects = objects
         super().__init__(max_episode_steps=episode_length, render_mode="rgb_array")
         self.params.set("forward_step", FORWARD_STEP, FORWARD_STEP, FORWARD_STEP)
         self.params.set("turn_step", TURN_STEP_DEGREES, TURN_STEP_DEGREES, TURN_STEP_DEGREES)
@@ -135,7 +199,8 @@ class WallGap(MiniWorldEnv):
         self.connect_rooms(north, corridor, min_x=-3.0, max_x=3.0)
         self.connect_rooms(corridor, yard_left, min_z=-3.0, max_z=3.0)
         self.connect_rooms(corridor, yard_right, min_z=-3.0, max_z=3.0)
-        for mesh, height, x, z, direction in landmarks():
+        placed = [*landmarks(), BACKDROP] if self.objects else [BACKDROP]
+        for mesh, height, x, z, direction in placed:
             position = np.array([x, FLOOR_OFFSET.get(mesh, 0.0) * height, z])
             self.place_entity(MeshEnt(mesh_name=mesh, height=height), pos=position, dir=direction)
         self.place_agent_in_spawn_region()
@@ -160,16 +225,25 @@ class WallGap(MiniWorldEnv):
 # Data collection
 
 ACTION_PROBABILITIES = {"turn_left": 0.3, "turn_right": 0.3, "move_forward": 0.4}
+TENDENCY_RANGE = (-2.0, 2.0)
+TENDENCY_START_SCALE, TENDENCY_DECAY, TENDENCY_NOISE_SCALE = 0.3, 0.85, 0.4
+ACTIONS = MiniWorldEnv.Actions
 
 
 def ou_actions(seed):
     rng = np.random.default_rng(seed)
-    left_threshold = -2.0 + 4.0 * ACTION_PROBABILITIES["turn_left"]
-    right_threshold = left_threshold + 4.0 * ACTION_PROBABILITIES["move_forward"]
-    tendency = rng.standard_normal() * 0.3
+    low, high = TENDENCY_RANGE
+    turn_left_below = low + (high - low) * ACTION_PROBABILITIES["turn_left"]
+    turn_right_above = turn_left_below + (high - low) * ACTION_PROBABILITIES["move_forward"]
+    tendency = rng.standard_normal() * TENDENCY_START_SCALE
     while True:
-        yield 0 if tendency < left_threshold else 1 if tendency > right_threshold else 2
-        tendency = tendency * 0.85 + rng.standard_normal() * 0.4
+        if tendency < turn_left_below:
+            yield ACTIONS.turn_left
+        elif tendency > turn_right_above:
+            yield ACTIONS.turn_right
+        else:
+            yield ACTIONS.move_forward
+        tendency = tendency * TENDENCY_DECAY + rng.standard_normal() * TENDENCY_NOISE_SCALE
 
 
 def collect_episode(env, seed, steps):
@@ -195,15 +269,25 @@ def episode_path(args, episode):
     return args.output_dir / "episodes" / f"{episode:05d}.npz"
 
 
+@functools.cache
+def worker_env(episode_length, objects):
+    return WallGap(episode_length, objects)
+
+
+def collect_and_save(args, episode):
+    env = worker_env(args.episode_length, args.objects)
+    arrays = collect_episode(env, args.seed + episode, args.episode_length)
+    np.savez_compressed(episode_path(args, episode), **arrays)
+    if (episode + 1) % 64 == 0 or episode + 1 == args.episodes:
+        print(f"collected episode {episode + 1}/{args.episodes}", flush=True)
+    return env.wall_segs[:, :, [0, 2]]
+
+
 def collect_dataset(args):
     episode_path(args, 0).parent.mkdir(parents=True, exist_ok=True)
-    env = WallGap(args.episode_length)
-    for episode in range(args.episodes):
-        arrays = collect_episode(env, args.seed + episode, args.episode_length)
-        np.savez_compressed(episode_path(args, episode), **arrays)
-        if (episode + 1) % 64 == 0 or episode + 1 == args.episodes:
-            print(f"collected {episode + 1}/{args.episodes} episodes", flush=True)
-    env.close()
+    with multiprocessing.get_context("spawn").Pool(args.workers) as pool:
+        walls = pool.map(functools.partial(collect_and_save, args), range(args.episodes))
+    return walls[0]
 
 
 def split_episodes(episodes, seed):
@@ -284,7 +368,7 @@ def train_autoencoder(args, train_frames, validation_frames):
             loss.mean().backward()
             optimizer.step()
         autoencoder.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             validation_loss = sum(
                 reconstruction_error(autoencoder, as_frames(frames, args.device)).sum().item()
                 for frames in chunks(validation_frames, args.vision_batch_size)
@@ -298,17 +382,19 @@ def train_autoencoder(args, train_frames, validation_frames):
 
 def encode_dataset(args, autoencoder):
     data = {"visual_latent": [], "actions": [], "self_motion": [], "position": []}
-    with torch.no_grad():
+    with torch.inference_mode():
         for episode in range(args.episodes):
-            arrays = np.load(episode_path(args, episode))
+            arrays = dict(np.load(episode_path(args, episode)))
             visual_latent = autoencoder.encode(as_frames(arrays["rgb"], args.device))
-            data["visual_latent"].append(visual_latent.cpu().numpy())
-            for key in ("actions", "self_motion", "position"):
-                data[key].append(arrays[key])
+            arrays["visual_latent"] = visual_latent.cpu().numpy()
+            for key, values in data.items():
+                values.append(arrays[key])
     return {key: np.stack(values) for key, values in data.items()}
 
 
 # Place-cell model
+
+RECURRENT_CELLS = {"lstm": nn.LSTM, "gru": nn.GRU}
 
 
 def competition(pre_competition, winners):
@@ -321,28 +407,40 @@ class Encoder(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.winners = args.winners
-        width = args.encoder_width
+        width, cell = args.encoder_width, RECURRENT_CELLS[args.encoder_cell]
         self.input_layer = nn.Linear(args.latent_dim, width)
-        self.lstm = nn.LSTM(width, width, num_layers=args.encoder_layers, batch_first=True)
+        self.recurrent = cell(width, width, num_layers=args.encoder_layers, batch_first=True)
         self.head = nn.Linear(width, args.code_dim)
 
     def forward(self, visual_latent):
-        hidden_state, _ = self.lstm(torch.tanh(self.input_layer(visual_latent)))
+        hidden_state, _ = self.recurrent(torch.tanh(self.input_layer(visual_latent)))
         return competition(self.head(hidden_state), self.winners)
 
 
 class Predictor(nn.Module):
     def __init__(self, args, num_actions):
         super().__init__()
-        width, embedding_dim = args.predictor_width, args.action_embedding_dim
-        self.action_embedding = nn.Embedding(num_actions, embedding_dim)
-        self.input_layer = nn.Linear(args.code_dim + embedding_dim + 2, width)
-        self.gru = nn.GRU(width, width, num_layers=args.predictor_layers, batch_first=True)
+        self.motion_inputs = args.motion_inputs
+        width, cell = args.predictor_width, RECURRENT_CELLS[args.predictor_cell]
+        input_dim = args.code_dim
+        if "action" in self.motion_inputs:
+            self.action_embedding = nn.Embedding(num_actions, args.action_embedding_dim)
+            input_dim += args.action_embedding_dim
+        if "self_motion" in self.motion_inputs:
+            input_dim += 2
+        self.input_layer = nn.Linear(input_dim, width)
+        self.recurrent = cell(width, width, num_layers=args.predictor_layers, batch_first=True)
         self.head = nn.Linear(width, args.code_dim)
 
     def forward(self, place_code, actions, self_motion):
-        inputs = [place_code[:, :-1], self.action_embedding(actions[:, :-1]), self_motion[:, 1:]]
-        hidden_state, _ = self.gru(torch.tanh(self.input_layer(torch.cat(inputs, dim=-1))))
+        code_at_step, action_at_step = place_code[:, :-1], actions[:, :-1]
+        self_motion_to_next_step = self_motion[:, 1:]
+        inputs = [code_at_step]
+        if "action" in self.motion_inputs:
+            inputs.append(self.action_embedding(action_at_step))
+        if "self_motion" in self.motion_inputs:
+            inputs.append(self_motion_to_next_step)
+        hidden_state, _ = self.recurrent(torch.tanh(self.input_layer(torch.cat(inputs, dim=-1))))
         return self.head(hidden_state)
 
 
@@ -363,8 +461,9 @@ def forward(model, target_encoder, batch):
 # Losses
 
 
-def prediction_loss(predicted_code, target_code):
-    return 1.0 - F.cosine_similarity(predicted_code, target_code[:, 1:], dim=-1).mean()
+def prediction_loss(prediction, target_code, target_offset):
+    target_at_offset = target_code[:, target_offset : target_offset + prediction.shape[1]]
+    return 1.0 - F.cosine_similarity(prediction, target_at_offset, dim=-1).mean()
 
 
 def centered_units(place_code):
@@ -385,15 +484,16 @@ def covariance_regularizer(place_code):
 
 
 def compute_losses(place_code, predicted_code, target_code, args):
+    prediction = predicted_code if args.prediction_from == "predictor" else place_code
     losses = {
-        "prediction": prediction_loss(predicted_code, target_code),
+        "prediction": prediction_loss(prediction, target_code, args.target_offset),
         "variance": variance_regularizer(place_code, args.minimum_std),
         "covariance": covariance_regularizer(place_code),
     }
     regularizers = (
         args.variance_weight * losses["variance"] + args.covariance_weight * losses["covariance"]
     )
-    losses["total"] = losses["prediction"] + regularizers
+    losses["total"] = args.prediction_weight * losses["prediction"] + regularizers
     return losses
 
 
@@ -447,12 +547,14 @@ def train_place_cell_model(args, data, train_ids):
     return model, history
 
 
-# Evaluation
+# Measures
+
+SPATIAL_BINS = 60
 
 
 def place_codes(model, data, episode_ids, device):
     model.eval()
-    with torch.no_grad():
+    with torch.inference_mode():
         latents = [
             torch.as_tensor(data["visual_latent"][ids], device=device)
             for ids in chunks(episode_ids, 8)
@@ -460,20 +562,20 @@ def place_codes(model, data, episode_ids, device):
         return torch.cat([model["encoder"](latent).cpu() for latent in latents]).numpy()
 
 
-def arena_edges(bins=60):
+def arena_edges():
     edges = []
     for low, high in ARENA:
         padding = (high - low) * 0.04
-        edges.append(np.linspace(low - padding, high + padding, bins + 1, dtype=np.float32))
+        edges.append(np.linspace(low - padding, high + padding, SPATIAL_BINS + 1, dtype=np.float32))
     return edges
 
 
-def spatial_bins(position, bins=60):
+def spatial_bins(position):
     column, row = (
-        np.clip(np.searchsorted(edges, position[..., axis], side="right") - 1, 0, bins - 1)
-        for axis, edges in enumerate(arena_edges(bins))
+        np.clip(np.searchsorted(edges, position[..., axis], side="right") - 1, 0, SPATIAL_BINS - 1)
+        for axis, edges in enumerate(arena_edges())
     )
-    return row * bins + column
+    return row * SPATIAL_BINS + column
 
 
 def smooth(maps, sigma=0.3):
@@ -495,19 +597,21 @@ def skaggs_information(activity, occupancy):
     return np.where(active, information, 0.0), rate_maps
 
 
-def spatial_information_above_null(codes, position, shuffles, seed=0, bins=60):
+def rate_maps_and_spatial_information(codes, position, shuffles, seed=0):
     positive = np.maximum(codes, 0.0)
     episodes, steps, units = positive.shape
-    step_bins = spatial_bins(position, bins)
-    occupancy = np.bincount(step_bins.ravel(), minlength=bins * bins).reshape(bins, bins)
-    occupancy = smooth(occupancy.astype(np.float64))
+    bins = SPATIAL_BINS * SPATIAL_BINS
+    step_bins = spatial_bins(position)
+    visits = np.bincount(step_bins.ravel(), minlength=bins).reshape(SPATIAL_BINS, SPATIAL_BINS)
+    occupancy = smooth(visits.astype(np.float64))
     episode, step, unit = np.nonzero(positive)
     values = positive[episode, step, unit]
 
     def information(shifts):
         shifted_bins = step_bins[episode, (step + shifts[episode]) % steps]
-        activity = np.bincount(unit * bins * bins + shifted_bins, values, units * bins * bins)
-        return skaggs_information(smooth(activity.reshape(units, bins, bins)), occupancy)
+        activity = np.bincount(unit * bins + shifted_bins, values, units * bins)
+        activity = smooth(activity.reshape(units, SPATIAL_BINS, SPATIAL_BINS))
+        return skaggs_information(activity, occupancy)
 
     observed, rate_maps = information(np.zeros(episodes, dtype=np.int64))
     rng = np.random.default_rng(seed)
@@ -516,7 +620,13 @@ def spatial_information_above_null(codes, position, shuffles, seed=0, bins=60):
     for _ in range(shuffles):
         shifts = [rng.integers(minimum_shift, steps - minimum_shift + 1) for _ in range(episodes)]
         null.append(information(np.array(shifts))[0])
-    return np.maximum(observed - np.percentile(null, 95, axis=0), 0.0), rate_maps
+    return {
+        "rate_maps": rate_maps.astype(np.float32),
+        "visits": visits,
+        "occupancy": occupancy,
+        "spatial_information": observed,
+        "spatial_information_above_null": np.maximum(observed - np.percentile(null, 95, 0), 0.0),
+    }
 
 
 def decoding_rows(codes, position, first_step=15):
@@ -525,17 +635,19 @@ def decoding_rows(codes, position, first_step=15):
 
 
 def ridge_decoding_rmse(train, validation, test):
-    codes, position = train
-    code_mean, position_mean = codes.mean(0, dtype=np.float64), position.mean(0, dtype=np.float64)
+    train_codes, train_position = train
+    code_mean = train_codes.mean(0, dtype=np.float64)
+    position_mean = train_position.mean(0, dtype=np.float64)
     gram, cross = 0.0, 0.0
-    for block, targets in zip(chunks(codes), chunks(position), strict=True):
+    for block, targets in zip(chunks(train_codes), chunks(train_position), strict=True):
         block = block - code_mean
         gram, cross = gram + block.T @ block, cross + block.T @ (targets - position_mean)
-    scale = np.sqrt(gram.diagonal() / len(codes))
+    scale = np.sqrt(gram.diagonal() / len(train_codes))
     scale[scale == 0] = 1.0
     gram, cross = gram / np.outer(scale, scale), cross / scale[:, None]
 
-    def rmse(weights, codes, position):
+    def rmse(weights, split):
+        codes, position = split
         squared = sum(
             (((block - code_mean) @ weights + position_mean - targets) ** 2).sum()
             for block, targets in zip(chunks(codes), chunks(position), strict=True)
@@ -546,19 +658,72 @@ def ridge_decoding_rmse(train, validation, test):
         np.linalg.solve(gram + alpha * np.eye(len(gram)), cross) / scale[:, None]
         for alpha in 10.0 ** np.arange(-6, 4)
     ]
-    best = min(candidates, key=lambda weights: rmse(weights, *validation))
-    return rmse(best, *test)
+    best = min(candidates, key=lambda weights: rmse(weights, validation))
+    return rmse(best, test)
 
 
-def save_figures(output_dir, rate_maps, above_null, history):
-    x_edges, y_edges = arena_edges()
-    extent = (x_edges[0], x_edges[-1], y_edges[0], y_edges[-1])
-    figure = Figure(figsize=(8, 9), layout="constrained")
-    for axis, unit in zip(figure.subplots(4, 4).flat, np.argsort(-above_null)[:16], strict=True):
-        axis.imshow(rate_maps[unit], origin="lower", extent=extent, cmap="magma", vmin=0)
-        axis.set_title(f"unit {unit}, {above_null[unit]:.2f} bits above null", fontsize=7)
+# Figures
+
+RATE_MAP_COLORS = colormaps["viridis"].with_extremes(bad="#eee4cc")
+
+
+def draw_rate_map(axis, rate_map, visits, walls, title, fontsize):
+    x_edges, z_edges = arena_edges()
+    extent = (x_edges[0], x_edges[-1], z_edges[0], z_edges[-1])
+    if rate_map is not None:
+        image = np.ma.masked_where(visits == 0, rate_map)
+        axis.imshow(image, origin="lower", extent=extent, cmap=RATE_MAP_COLORS, vmin=0)
+    axis.add_collection(LineCollection(walls, colors="0.45", linewidths=0.6))
+    axis.set(xlim=extent[:2], ylim=extent[2:], aspect="equal")
+    axis.set_title(title, fontsize=fontsize, pad=2)
+    axis.set_axis_off()
+
+
+def save_rate_map_grid(path, units, columns, tile_inches, fontsize, measures, silent, walls):
+    rows = math.ceil(len(units) / columns)
+    height = rows * tile_inches * 1.5 + 0.8
+    figure = Figure(figsize=(columns * tile_inches, height))
+    figure.subplots_adjust(left=0.01, right=0.99, bottom=0.1 / height, top=1 - 0.7 / height)
+    title = "Rate maps by spatial information above the shift null (bits); beige: never visited"
+    figure.suptitle(title, y=1 - 0.25 / height, fontsize=11)
+    axes = figure.subplots(rows, columns, gridspec_kw=dict(wspace=0.08, hspace=0.3)).flat
+    for axis, unit in zip(axes, units, strict=False):
+        above_null = measures["spatial_information_above_null"][unit]
+        title = f"unit {unit}: silent" if silent[unit] else f"unit {unit}: {above_null:.2f}"
+        rate_map = None if silent[unit] else measures["rate_maps"][unit]
+        draw_rate_map(axis, rate_map, measures["visits"], walls, title, fontsize)
+    for axis in axes[len(units) :]:
         axis.set_axis_off()
-    figure.savefig(output_dir / "rate_maps.png", dpi=150)
+    figure.savefig(path, dpi=120)
+
+
+def save_activity_figure(output_dir, episode, code, position, rate_maps, walls):
+    active_units = np.flatnonzero(np.any(code != 0, axis=0))
+    peak_row = np.nanargmax(rate_maps.reshape(len(rate_maps), -1), axis=1) // SPATIAL_BINS
+    order = active_units[np.argsort(peak_row[active_units], kind="stable")]
+    z_edges = arena_edges()[1]
+    peak_z = (z_edges[:-1] + z_edges[1:])[peak_row[order]] / 2
+    figure = Figure(figsize=(12, 7), layout="constrained")
+    axes = figure.subplot_mosaic(
+        [["raster", "floor"], ["position", "floor"]], width_ratios=[4, 1], height_ratios=[3, 1]
+    )
+    raster = (code[:, order] != 0).T
+    extent = (0, len(code), -0.5, len(order) - 0.5)
+    axes["raster"].imshow(raster, aspect="auto", origin="lower", extent=extent, cmap="Greys")
+    ticks = np.linspace(0, len(order) - 1, 6).round().astype(int)
+    axes["raster"].set_yticks(ticks, [f"{peak_z[tick]:.0f}" for tick in ticks])
+    axes["raster"].set(title=f"Active units along test episode {episode}")
+    axes["raster"].set(ylabel="units, by north-south position of their rate-map peak")
+    axes["position"].plot(position[:, 1], color="black", linewidth=0.8)
+    axes["position"].set(xlim=(0, len(code)), xlabel="step", ylabel="agent, north-south")
+    axes["floor"].add_collection(LineCollection(walls, colors="0.4", linewidths=0.8))
+    axes["floor"].scatter(*position.T, c=np.arange(len(position)), s=2, cmap="viridis")
+    axes["floor"].set(aspect="equal", title="path, colored by step")
+    axes["floor"].set_axis_off()
+    figure.savefig(output_dir / "activity_episode.png", dpi=150)
+
+
+def save_training_curves(output_dir, history):
     figure = Figure(figsize=(12, 3), layout="constrained")
     for axis, name in zip(figure.subplots(1, len(history[0])), history[0], strict=True):
         axis.plot(np.arange(1, len(history) + 1), [epoch[name] for epoch in history])
@@ -573,7 +738,7 @@ def main():
     args = parse_args()
     torch.manual_seed(args.seed)
     torch.backends.cuda.matmul.allow_tf32 = torch.backends.cudnn.allow_tf32 = True
-    collect_dataset(args)
+    walls = collect_dataset(args)
     split = split_episodes(args.episodes, args.seed)
     autoencoder = train_autoencoder(
         args, vision_frames(args, split["train"]), vision_frames(args, split["validation"])
@@ -584,14 +749,24 @@ def main():
     codes = {name: place_codes(model, data, ids, args.device) for name, ids in measured.items()}
     positions = {name: data["position"][ids] for name, ids in measured.items()}
     rows = [decoding_rows(codes[name], positions[name]) for name in ("train", "validation", "test")]
-    above_null, rate_maps = spatial_information_above_null(
+    measures = rate_maps_and_spatial_information(
         codes["test"], positions["test"], args.null_shuffles
     )
     silent = ~np.any(codes["test"] != 0, axis=(0, 1))
+    above_null = measures["spatial_information_above_null"]
     print(f"linear decoding RMSE: {ridge_decoding_rmse(*rows):.3f} world units")
     print(f"spatial information above null: {above_null.mean():.3f} bits, mean over all units")
     print(f"silent units: {silent.mean():.1%} of {len(silent)}")
-    save_figures(args.output_dir, rate_maps, above_null, history)
+    x_edges, z_edges = arena_edges()
+    extras = dict(silent=silent, x_edges=x_edges, z_edges=z_edges, walls=walls)
+    np.savez_compressed(args.output_dir / "rate_maps.npz", **measures, **extras)
+    order = np.lexsort((-above_null, silent))
+    grids = {"rate_maps.png": (order[:16], 4, 2.0, 9), "rate_maps_all.png": (order, 16, 1.0, 6)}
+    for name, grid in grids.items():
+        save_rate_map_grid(args.output_dir / name, *grid, measures, silent, walls)
+    first_test_episode = (measured["test"][0], codes["test"][0], positions["test"][0])
+    save_activity_figure(args.output_dir, *first_test_episode, measures["rate_maps"], walls)
+    save_training_curves(args.output_dir, history)
 
 
 if __name__ == "__main__":

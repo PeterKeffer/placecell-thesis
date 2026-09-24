@@ -55,6 +55,7 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/placecell_research/launch/commands/*.py" = ["B008"]
+"minimal/place_cells.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

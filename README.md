@@ -7,12 +7,38 @@ trained to predict its own next code. Its place code then carries position, and 
 behave like place cells. The repository trains every model variant of the thesis, computes the
 measures the thesis reports, and trains the navigation agents that use the frozen codes.
 
+## The whole model in one file
+
+`minimal/place_cells.py` holds the baseline model and its pipeline in one file, to be read from top
+to bottom: the WallGap environment, the random walk, the autoencoder, the encoder with the
+competition, the predictor, the target encoder, the losses, the training loop and three measures.
+It needs torch, numpy, gymnasium, miniworld 2.1.0 and matplotlib, and not this package.
+
+```bash
+python minimal/place_cells.py --smoke                  # about a minute on a laptop
+python minimal/place_cells.py --condition winners_5    # a thesis condition at thesis size
+```
+
+It prints the ridge decoding error of position, the spatial information above the shift null and
+the share of silent units. In `--output-dir` (default `place_cells_run/`) it writes the episodes,
+`rate_maps.png` (the 16 most informative units), `rate_maps_all.png` (all units),
+`activity_episode.png` (the place code along one test episode), `training_curves.png` and
+`rate_maps.npz` (every rate map with occupancy and per-unit measures). The defaults are the values
+of `configs/thesis/baseline.yaml`. `--condition` selects winners_1/5/26/51/128, no_competition,
+the regularizer and weight-decay variants, no_ema, no_prediction, same_step_with_predictor,
+same_step_no_predictor, actions_only, self_motion_only, no_motion_input, the
+encoder_<width>_predictor_<width> and encoder_<cell>_predictor_<cell> variants, code_128,
+code_256, untrained or objects_removed; flags given on the command line override `--condition` and
+`--smoke`. At thesis size it needs a GPU, about 50 GB of disk and 32 GB of memory, and it collects
+episodes in `--workers` processes (default 8). On Linux without a display it renders through EGL;
+on a cluster, source `scripts/slurm/env_miniworld.sh` first for the EGL library paths.
+
+## Install
+
 Three guides list every command from a fresh clone to the results:
 [your own computer](docs/guide_local.md), [the lab cluster hpc3](docs/guide_hpc3.md) and
 [any other SLURM cluster](docs/guide_slurm.md). [QUICKSTART.md](QUICKSTART.md) says which to pick
 and shows a first run.
-
-## Install
 
 ```bash
 bash scripts/setup_env.sh        # --dry-run prints the steps, --help lists the options
@@ -24,7 +50,7 @@ pc doctor
 (`--prefix`, default `~/miniforge3`), with PyTorch and JAX builds for the machine (CUDA on Linux GPU
 machines and clusters, MPS or CPU on a Mac), MiniWorld, and this package with the extras `rl`
 (Stable-Baselines3), `jax` (JAX and the JAXenstein simulator at a pinned commit) and `dev` (pytest,
-ruff). Conda installs only Python; pip installs the rest, pinned to the tested set in
+ruff). Conda installs only Python; pip installs the rest, pinned to the versions in
 `constraints.txt`. It installs Miniforge first if no conda is found. On a cluster that provides
 conda and other tools through spack or modules, `--site <name>` sources
 `scripts/slurm/site/<name>.sh` first and uses the conda it provides; Miniforge is never installed
@@ -52,32 +78,6 @@ The first line runs the thesis chain at toy size: data, visual encoder, three mo
 starts from the second), their stored forward passes and measures, one navigation policy and the
 summaries, in about ten minutes on a laptop. Without `--only` the smoke runs all 154 jobs of the
 plan in about 90 minutes and 1.7 GB on an M-series Mac. Everything goes to `smoke/`, which git ignores.
-
-## Minimal one-file version
-
-`minimal/place_cells.py` is the baseline model and its pipeline in one file of about 600 lines, to
-be read from top to bottom: the WallGap environment, the random walk, the autoencoder, the encoder
-with the competition, the predictor, the target encoder, the losses, the training loop and three
-measures. It needs torch, numpy, gymnasium, miniworld and matplotlib, and not this package.
-
-```bash
-python minimal/place_cells.py --smoke    # about a minute on a laptop
-python minimal/place_cells.py            # the baseline at thesis size
-```
-
-It prints the ridge decoding error of position, the spatial information above the shift null
-averaged over all 512 units and the share of silent units, and writes the episodes,
-`rate_maps.png` and `training_curves.png` to `--output-dir` (default `place_cells_run/`). The
-defaults are the values of `configs/thesis/baseline.yaml`. At thesis size it needs a GPU, about
-50 GB of disk and 32 GB of memory. It was run on macOS; on headless Linux, MiniWorld needs the EGL
-settings of `scripts/slurm/env_miniworld.sh`.
-
-`tests/test_minimal_matches_package.py` gives both models the same weights and batch and checks
-that place codes, predicted and target codes, each loss term, one optimizer step and the target
-encoder update agree, and that the defaults, the spatial information and the ridge decoder match
-the package. The environment renders the same frames as the package's collector for the same seed.
-The file leaves out parallel collection, Zarr storage, validation during training (the thesis
-measures read the last weights) and all other measures; the episode order within an epoch differs.
 
 ## How a run works
 
