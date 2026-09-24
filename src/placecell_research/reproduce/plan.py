@@ -122,11 +122,10 @@ def _smoke_model_overrides(raw: dict, smoke: dict) -> list[str]:
         smoke_code_dim = max(8, int(code_dim) // int(smoke["code_dim_divisor"]))
         overrides.append(f"spatial_model.training.code_dim={smoke_code_dim}")
         sparsifier = _nested(raw, "spatial_model.sparsifier") or {}
-        if (
-            sparsifier.get("type") in HARD_K_SPARSIFIER_TYPES
-            and float(sparsifier["k_fraction"]) * smoke_code_dim < 1
-        ):
-            overrides.append(f"spatial_model.sparsifier.k_fraction={1 / smoke_code_dim}")
+        k_fraction = float(sparsifier.get("k_fraction", 0))
+        if sparsifier.get("type") in HARD_K_SPARSIFIER_TYPES and k_fraction * smoke_code_dim < 1:
+            winners = k_fraction * int(code_dim)
+            overrides.append(f"spatial_model.sparsifier.k_fraction={winners / smoke_code_dim}")
     for index, _phase in enumerate(_nested(raw, "spatial_model.training.phases") or []):
         overrides.append(f"spatial_model.training.phases.{index}.epochs=1")
     return overrides

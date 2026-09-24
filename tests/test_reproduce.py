@@ -126,6 +126,19 @@ def test_every_smoke_job_config_resolves_and_validates() -> None:
             validate_experiment_config(load_experiment_config(config_path, overrides))
 
 
+def test_smoke_trainings_of_different_conditions_never_share_a_model() -> None:
+    trained: dict[tuple, str] = {}
+    for step in build_plan(CONFIG_ROOT, smoke=True):
+        if step.kind != "train":
+            continue
+        config = load_experiment_config(step.config, _overrides(step))
+        if config.policies.artifact_reuse == "force_recompute":
+            continue
+        model = (step.dependencies, str(config.to_dict()["spatial_model"]), str(config.seed))
+        assert model not in trained, f"{step.name} would reuse the model of {trained[model]}"
+        trained[model] = step.name
+
+
 def _dry_run(steps, tmp_path, monkeypatch, profile="hpc3") -> list[str]:
     def refuse(_path):
         raise AssertionError("a dry run must not call sbatch")
