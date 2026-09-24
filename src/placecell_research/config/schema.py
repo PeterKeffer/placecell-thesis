@@ -1232,9 +1232,6 @@ class EvaluationConfig:
     split_names: list[str] = field(default_factory=lambda: ["validation", "test"])
     online_decode_source: str = "encoder.place_codes"
     sources: list[str] = field(default_factory=lambda: ["encoder.place_codes"])
-    action_future_horizons: list[int] = field(default_factory=lambda: [1, 2, 4, 8, 16])
-    action_ngram_orders: list[int] = field(default_factory=lambda: [0, 1, 2, 4, 8])
-    action_persistence_lags: list[int] = field(default_factory=lambda: [1, 2, 4, 8, 16, 32])
     eval_every_n_epochs: int = Field(default=1, ge=1)
     eval_schedule: Literal["uniform", "front_loaded"] = "uniform"
     max_eval_episodes: int = Field(default=0, ge=0)
@@ -1255,23 +1252,6 @@ class EvaluationConfig:
     compute_gridness: bool = False
     evaluate_training_split: bool = False
     eval_directionality: bool = True
-
-    @model_validator(mode="after")
-    def _validate_action_temporal_settings(self) -> EvaluationConfig:
-        positive_fields = (
-            ("action_future_horizons", self.action_future_horizons),
-            ("action_persistence_lags", self.action_persistence_lags),
-        )
-        for field_name, values in positive_fields:
-            if not values or any(value <= 0 for value in values):
-                raise ValueError(f"{field_name} must contain positive integers.")
-            if len(values) != len(set(values)):
-                raise ValueError(f"{field_name} must not contain duplicates.")
-        if not self.action_ngram_orders or any(value < 0 for value in self.action_ngram_orders):
-            raise ValueError("action_ngram_orders must contain non-negative integers.")
-        if len(self.action_ngram_orders) != len(set(self.action_ngram_orders)):
-            raise ValueError("action_ngram_orders must not contain duplicates.")
-        return self
 
 
 class AnalysisTargetConfig(BaseModel):
