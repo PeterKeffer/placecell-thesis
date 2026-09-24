@@ -292,7 +292,7 @@ def test_rate_map_module_writes_summary_panel_grid_and_field_reliability(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -600,7 +600,7 @@ def test_rate_map_module_can_switch_panel_back_to_thresholded_reliability(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -656,7 +656,7 @@ def test_rate_map_module_can_switch_panel_to_quantile_thresholded_reliability(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -713,7 +713,7 @@ def test_rate_map_module_can_render_split_half_agreement_panel(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -761,7 +761,7 @@ def test_rate_map_module_can_disable_extra_thresholded_reliability_panel(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -819,7 +819,7 @@ def test_rate_map_metrics_export_peak_rate_ignores_unvisited_nan_bins(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -871,7 +871,7 @@ def test_rate_map_module_marks_place_field_metrics_unsupported_for_signed_rate_m
         source_name="encoder.hidden_state",
         label="encoder_hidden_state",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -950,7 +950,7 @@ def test_rate_map_module_supports_near_nonnegative_units_with_tiny_negative_bins
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -973,7 +973,7 @@ def test_rate_map_module_supports_near_nonnegative_units_with_tiny_negative_bins
 
 
 def test_world_overlay_for_wallgap_asym_exposes_segments_and_landmarks() -> None:
-    overlay = resolve_world_overlay("MiniWorld-WallGapAsym-v0")
+    overlay = resolve_world_overlay("MiniWorld-WallGapAsymLarge-v0")
 
     assert overlay is not None
     assert len(overlay.segments) > 0
@@ -1012,7 +1012,7 @@ def test_rate_map_grid_show_all_units_overrides_grid_top_k(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(
@@ -1067,7 +1067,7 @@ def test_rate_map_panel_show_all_units_overrides_panel_top_k(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
     result = _RateMapModuleBase().run(

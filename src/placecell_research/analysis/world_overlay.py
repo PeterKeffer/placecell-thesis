@@ -42,44 +42,6 @@ class WorldOverlay:
     y_down: bool = False
 
 
-def _rectangle_segments(
-    min_x: float, max_x: float, min_y: float, max_y: float
-) -> tuple[WorldSegment, ...]:
-    return (
-        ((min_x, min_y), (max_x, min_y)),
-        ((max_x, min_y), (max_x, max_y)),
-        ((max_x, max_y), (min_x, max_y)),
-        ((min_x, max_y), (min_x, min_y)),
-    )
-
-
-def _wall_gap_asym_segments() -> tuple[WorldSegment, ...]:
-    return (
-        ((-6.0, 2.0), (-6.0, 12.0)),
-        ((6.0, 2.0), (6.0, 12.0)),
-        ((-6.0, 12.0), (6.0, 12.0)),
-        ((-6.0, 2.0), (-1.0, 2.0)),
-        ((1.0, 2.0), (6.0, 2.0)),
-        ((-2.0, 2.0), (-1.0, 2.0)),
-        ((1.0, 2.0), (2.0, 2.0)),
-        ((-2.0, -2.0), (2.0, -2.0)),
-        ((-2.0, 2.0), (-2.0, 1.0)),
-        ((-2.0, -1.0), (-2.0, -2.0)),
-        ((2.0, 2.0), (2.0, 1.0)),
-        ((2.0, -1.0), (2.0, -2.0)),
-        ((-8.0, -10.0), (-2.0, -10.0)),
-        ((-8.0, 1.5), (-2.0, 1.5)),
-        ((-8.0, -10.0), (-8.0, 1.5)),
-        ((-2.0, 1.5), (-2.0, 1.0)),
-        ((-2.0, -1.0), (-2.0, -10.0)),
-        ((2.0, -10.0), (8.0, -10.0)),
-        ((2.0, 1.5), (8.0, 1.5)),
-        ((8.0, -10.0), (8.0, 1.5)),
-        ((2.0, 1.5), (2.0, 1.0)),
-        ((2.0, -1.0), (2.0, -10.0)),
-    )
-
-
 def _wall_gap_asym_large_segments() -> tuple[WorldSegment, ...]:
     return (
         ((-18.0, 6.0), (-18.0, 36.0)),
@@ -105,44 +67,6 @@ def _wall_gap_asym_large_segments() -> tuple[WorldSegment, ...]:
         ((6.0, 4.5), (6.0, 3.0)),
         ((6.0, -3.0), (6.0, -30.0)),
     )
-
-
-WALLGAP_ASYM_OVERLAY = WorldOverlay(
-    env_id="MiniWorld-WallGapAsym-v0",
-    segments=_wall_gap_asym_segments(),
-    landmarks=(
-        LandmarkLayer(
-            label="trees",
-            marker="^",
-            color="#2E8B57",
-            positions=((-5.0, 3.0), (-5.0, 7.0), (-5.0, 11.0)),
-        ),
-        LandmarkLayer(
-            label="cones",
-            marker="o",
-            color="#FF8C00",
-            positions=((4.5, 3.0), (4.5, 5.2), (4.5, 7.4), (4.5, 9.6)),
-        ),
-        LandmarkLayer(
-            label="pines",
-            marker="v",
-            color="#006400",
-            positions=((-7.0, -4.0), (-6.0, -7.5)),
-        ),
-        LandmarkLayer(
-            label="barrels",
-            marker="s",
-            color="#8B4513",
-            positions=((3.0, -5.0), (6.0, -6.5)),
-        ),
-        LandmarkLayer(
-            label="goal",
-            marker="P",
-            color="#D62728",
-            positions=((6.0, -8.5),),
-        ),
-    ),
-)
 
 
 WALLGAP_ASYM_LARGE_OVERLAY = WorldOverlay(
@@ -265,20 +189,7 @@ WALLGAP_ASYM_LARGE_OVERLAY = WorldOverlay(
 
 
 _WORLD_OVERLAYS: dict[str, WorldOverlay] = {
-    "MiniWorld-WallGapAsym-v0": WALLGAP_ASYM_OVERLAY,
     "MiniWorld-WallGapAsymLarge-v0": WALLGAP_ASYM_LARGE_OVERLAY,
-    "MiniWorld-WallGap-v0": WorldOverlay(
-        env_id="MiniWorld-WallGap-v0",
-        segments=_rectangle_segments(-7.0, 7.0, 0.5, 8.0)
-        + _rectangle_segments(-7.0, 7.0, -8.0, -0.5)
-        + (((-7.0, 0.0), (-1.5, 0.0)), ((1.5, 0.0), (7.0, 0.0))),
-    ),
-    "MiniWorld-WallGapExplore-v0": WorldOverlay(
-        env_id="MiniWorld-WallGapExplore-v0",
-        segments=_rectangle_segments(-7.0, 7.0, 0.5, 8.0)
-        + _rectangle_segments(-7.0, 7.0, -8.0, -0.5)
-        + (((-7.0, 0.0), (-1.5, 0.0)), ((1.5, 0.0), (7.0, 0.0))),
-    ),
 }
 
 

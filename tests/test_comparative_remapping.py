@@ -102,7 +102,7 @@ def test_remapping_uses_world_overlay_bounds_for_matching_environments(
     tmp_path,
 ) -> None:
     captured_bounds: list[tuple[tuple[float, float], tuple[float, float]] | None] = []
-    env_id = "MiniWorld-WallGapAsym-v0"
+    env_id = "MiniWorld-WallGapAsymLarge-v0"
     expected_bounds = overlay_bounds(resolve_world_overlay(env_id))
 
     def fake_rate_maps(source, *, bounds, num_bins_x, num_bins_y, smoothing_sigma, min_occupancy):
@@ -185,7 +185,7 @@ def test_remapping_normalizes_known_environments_with_different_bounds(
                 representation=representation,
                 position_xy=positions,
                 valid_mask=valid_mask,
-                env_id="MiniWorld-WallGapAsym-v0",
+                env_id="museum-gallery",
             ),
             _analysis_input(
                 label="large",

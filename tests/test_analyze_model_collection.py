@@ -85,7 +85,7 @@ def test_build_analysis_input_collects_all_sources_for_shared_dataset_pass(
     )
     monkeypatch.setattr(
         "placecell_research.stages.analyze_model.load_dataset_manifest",
-        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsym-v0"),
+        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
     encoder_reference = _AnalysisSourceReference(
@@ -137,8 +137,8 @@ def test_build_analysis_input_collects_all_sources_for_shared_dataset_pass(
     assert calls[0]["include_batch_keys"] == ["rgb"]
     assert encoder_input.representation.shape == (2, 3, 4)
     assert predictor_input.representation.shape == (2, 3, 5)
-    assert encoder_input.metadata["env_id"] == "MiniWorld-WallGapAsym-v0"
-    assert predictor_input.metadata["env_id"] == "MiniWorld-WallGapAsym-v0"
+    assert encoder_input.metadata["env_id"] == "MiniWorld-WallGapAsymLarge-v0"
+    assert predictor_input.metadata["env_id"] == "MiniWorld-WallGapAsymLarge-v0"
 
 
 def test_build_analysis_input_can_request_layerwise_hidden_state_sources(
@@ -200,7 +200,7 @@ def test_build_analysis_input_can_request_layerwise_hidden_state_sources(
     )
     monkeypatch.setattr(
         "placecell_research.stages.analyze_model.load_dataset_manifest",
-        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsym-v0"),
+        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
     layer_reference = _AnalysisSourceReference(
@@ -287,7 +287,7 @@ def test_dataset_coverage_analysis_input_reads_positions_without_model_inference
     monkeypatch.setattr(
         analyze_model_stage,
         "load_dataset_manifest",
-        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsym-v0"),
+        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
     reference = _AnalysisSourceReference(
@@ -307,7 +307,7 @@ def test_dataset_coverage_analysis_input_reads_positions_without_model_inference
     np.testing.assert_array_equal(analysis_input.position_xy, positions[[2, 0]])
     np.testing.assert_array_equal(analysis_input.valid_mask, valid_steps[[2, 0]])
     assert analysis_input.representation.shape == (2, 2, 1)
-    assert analysis_input.metadata["env_id"] == "MiniWorld-WallGapAsym-v0"
+    assert analysis_input.metadata["env_id"] == "MiniWorld-WallGapAsymLarge-v0"
 
 
 def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypatch) -> None:
@@ -465,7 +465,7 @@ def test_build_analysis_input_populates_latent_when_collected(monkeypatch, tmp_p
     )
     monkeypatch.setattr(
         "placecell_research.stages.analyze_model.load_dataset_manifest",
-        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsym-v0"),
+        lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
     reference = _AnalysisSourceReference(

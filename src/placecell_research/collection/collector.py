@@ -58,12 +58,8 @@ class CollectionResult:
 
 
 CollectionProgressCallback = Callable[[ProgressUpdate], None]
-_PASSIVE_COLLECTION_GOAL_TASK_ENV_IDS = {
-    "MiniWorld-WallGapAsym-v0",
-    "MiniWorld-WallGapAsymLarge-v0",
-}
+_PASSIVE_COLLECTION_GOAL_TASK_ENV_IDS = {"MiniWorld-WallGapAsymLarge-v0"}
 _DEFAULT_COLLECTION_GOAL_POSITION_BY_ENV_ID = {
-    "MiniWorld-WallGapAsym-v0": np.asarray([6.0, -8.5], dtype=np.float32),
     "MiniWorld-WallGapAsymLarge-v0": np.asarray([18.0, -22.0], dtype=np.float32),
 }
 

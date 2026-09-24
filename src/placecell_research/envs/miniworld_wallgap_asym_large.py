@@ -3,18 +3,12 @@
 from __future__ import annotations
 
 import math
-import sys
 from collections.abc import Iterable
 
 import numpy as np
 from gymnasium import spaces, utils
-
-try:
-    from miniworld.envs.miniworld_env import MiniWorldEnv
-except ModuleNotFoundError:
-    from miniworld.miniworld import MiniWorldEnv  # type: ignore
-
 from miniworld.entity import Box, MeshEnt
+from miniworld.miniworld import MiniWorldEnv
 
 _MESH_FLOOR_OFFSET_FRACTIONS = {
     "duckie": -0.07,
@@ -516,28 +510,7 @@ class WallGapAsymLarge(MiniWorldEnv, utils.EzPickle):
         )
 
     def step(self, action):
-        base_step = getattr(super(), "step", None)
-        if base_step is not None:
-            observation, reward, terminated, truncated, info = base_step(action)
-        else:
-            miniworld_env_module = sys.modules.get("miniworld.envs.miniworld_env")
-            if miniworld_env_module is None:
-                miniworld_env_module = sys.modules.get("miniworld.miniworld")
-            miniworld_env_class = (
-                None
-                if miniworld_env_module is None
-                else getattr(
-                    miniworld_env_module,
-                    "MiniWorldEnv",
-                    None,
-                )
-            )
-            fallback_step = (
-                None if miniworld_env_class is None else getattr(miniworld_env_class, "step", None)
-            )
-            if fallback_step is None:
-                raise AttributeError("MiniWorldEnv.step is unavailable for WallGapAsymLarge.step.")
-            observation, reward, terminated, truncated, info = fallback_step(self, action)
+        observation, reward, terminated, truncated, info = super().step(action)
         if self._goal_reached():
             if self.reward_on_goal:
                 reward += self._reward()

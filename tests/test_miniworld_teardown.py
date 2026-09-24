@@ -92,7 +92,7 @@ def test_init_closes_partial_env_when_reset_fails(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(ValueError, match="reset failed"):
         MiniWorldAdapter(
-            env_id="MiniWorld-WallGapAsym-v0",
+            env_id="MiniWorld-WallGapAsymLarge-v0",
             seed=0,
             episode_length=1,
         )

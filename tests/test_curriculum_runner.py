@@ -125,7 +125,7 @@ def test_curriculum_collects_named_sources_then_reuses_them_for_shared_vision_an
             item for item in overrides if item.startswith("environment.env_id=")
         )
         source_name = (
-            "env_a" if environment_override.endswith("MiniWorld-WallGapAsym-v0") else "env_b"
+            "env_a" if environment_override.endswith("museum-gallery") else "env_b"
         )
         return {"dataset.artifact_id": f"raw_{source_name}"}
 
@@ -161,7 +161,7 @@ def test_curriculum_collects_named_sources_then_reuses_them_for_shared_vision_an
         base_experiment="smoke_museum",
         sources={
             "env_a": CurriculumSourceConfig(
-                environment={"env_id": "MiniWorld-WallGapAsym-v0"},
+                environment={"env_id": "museum-gallery"},
                 collection={"episodes": 8},
             ),
             "env_b": CurriculumSourceConfig(

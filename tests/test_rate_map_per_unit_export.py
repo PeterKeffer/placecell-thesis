@@ -43,7 +43,7 @@ def _wallgap_analysis_input() -> AnalysisInput:
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
 

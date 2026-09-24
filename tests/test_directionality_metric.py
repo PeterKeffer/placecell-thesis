@@ -178,7 +178,7 @@ def test_directionality_marks_unassessable_units_when_heading_missing(
 
 
 def test_directionality_uses_known_world_bounds(monkeypatch, tmp_path, analysis_settings) -> None:
-    env_id = "MiniWorld-WallGapAsym-v0"
+    env_id = "MiniWorld-WallGapAsymLarge-v0"
     expected_bounds = overlay_bounds(resolve_world_overlay(env_id))
     analysis_input = _build_input()
     analysis_input.metadata["env_id"] = env_id

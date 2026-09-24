@@ -136,7 +136,7 @@ class KWinnersSparsifier(nn.Module):
         if k_anneal_start < 0 or k_anneal_steps < 0:
             raise ValueError("k-Winners k annealing values must be nonnegative.")
         if boost_strength > 0.0 and balance_bias_rate > 0.0:
-            raise ValueError("Legacy k-winners boost and balance bias cannot both be enabled.")
+            raise ValueError("k-Winners boost and balance bias cannot both be enabled.")
         if balance_bias_strategy not in {"age_liveness", "load_sign"}:
             raise ValueError(
                 "k-Winners balance bias strategy must be 'age_liveness' or 'load_sign'; "

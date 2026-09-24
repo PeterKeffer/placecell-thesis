@@ -11,12 +11,6 @@ import numpy as np
 from .base import AnalysisInput, AnalysisResult
 
 _WALLGAP_ROOM_BOUNDS = {
-    "MiniWorld-WallGapAsym-v0": {
-        "northern_courtyard": (-6.0, 6.0, 2.0, 12.0),
-        "central_corridor": (-2.0, 2.0, -2.0, 2.0),
-        "southern_yard_left": (-8.0, -2.0, -10.0, 1.5),
-        "southern_yard_right": (2.0, 8.0, -10.0, 1.5),
-    },
     "MiniWorld-WallGapAsymLarge-v0": {
         "northern_courtyard": (-18.0, 18.0, 6.0, 36.0),
         "central_corridor": (-6.0, 6.0, -6.0, 6.0),

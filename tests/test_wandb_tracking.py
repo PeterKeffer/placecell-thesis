@@ -27,12 +27,12 @@ from placecell_research.tracking.wandb_logger import (
 def test_flatten_wandb_config_builds_compare_friendly_dotted_keys() -> None:
     flattened = flatten_wandb_config(
         {
-            "environment": {"env_id": "MiniWorld-WallGapAsym-v0"},
+            "environment": {"env_id": "MiniWorld-WallGapAsymLarge-v0"},
             "tracking": {"tags": ["local", "debug"]},
             "path": Path("artifacts"),
         }
     )
-    assert flattened["environment.env_id"] == "MiniWorld-WallGapAsym-v0"
+    assert flattened["environment.env_id"] == "MiniWorld-WallGapAsymLarge-v0"
     assert flattened["tracking.tags"] == ["local", "debug"]
     assert flattened["path"] == "artifacts"
 
@@ -214,7 +214,7 @@ def test_wandb_logger_finish_has_bounded_timeout(monkeypatch, capsys) -> None:
 def test_structured_wandb_tags_are_compare_friendly() -> None:
     assert stage_tags(
         "train_place_model",
-        "MiniWorld-WallGapAsym-v0",
+        "MiniWorld-WallGapAsymLarge-v0",
         base_tags=["local"],
         study_name="wallgap",
         variant_slug="wallgap__gru",
@@ -222,7 +222,7 @@ def test_structured_wandb_tags_are_compare_friendly() -> None:
     ) == [
         "local",
         "stage:train_place_model",
-        "env:MiniWorld-WallGapAsym-v0",
+        "env:MiniWorld-WallGapAsymLarge-v0",
         "study:wallgap",
         "variant_slug:wallgap__gru",
         "seed:7",

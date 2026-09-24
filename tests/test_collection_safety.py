@@ -41,7 +41,7 @@ def test_collection_config_has_no_unused_teleport_threshold() -> None:
 def test_topdown_worker_and_arguments_are_spawn_picklable() -> None:
     assert "<locals>" not in _render_topdown_worker.__qualname__
     pickle.dumps(_render_topdown_worker)
-    pickle.dumps(EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"))
+    pickle.dumps(EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"))
     pickle.dumps(CollectionSafetyConfig())
 
 
@@ -72,7 +72,7 @@ def test_topdown_worker_skips_env_close_on_slurm_when_configured(monkeypatch) ->
     safety = CollectionSafetyConfig(skip_env_close_on_slurm=True)
 
     _render_topdown_worker(
-        EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"),
+        EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"),
         11,
         safety,
         FakeConnection(),
@@ -134,7 +134,7 @@ def test_collect_episode_batch_reuses_one_environment_for_multiple_episodes(monk
     monkeypatch.setattr(collector, "build_environment", fake_build_environment)
 
     episodes, num_actions = collector._collect_episode_batch(
-        EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"),
+        EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"),
         CollectionConfig(episodes=3, episode_length=4),
         [11, 12, 13],
     )
@@ -192,7 +192,7 @@ def test_collect_episode_batch_skips_env_close_on_slurm_when_configured(monkeypa
     collection_config.safety.skip_env_close_on_slurm = True
 
     episodes, num_actions = collector._collect_episode_batch(
-        EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"),
+        EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"),
         collection_config,
         [11],
     )
@@ -335,7 +335,7 @@ def test_collect_raw_dataset_forwards_collection_spawn_regions_without_mutating_
 
 def test_collection_environment_config_forces_passive_goal_task_for_wallgap_envs() -> None:
     environment = EnvironmentConfig(
-        env_id="MiniWorld-WallGapAsym-v0",
+        env_id="MiniWorld-WallGapAsymLarge-v0",
         env_kwargs={"forward_step": 0.3, "reward_on_goal": True, "terminate_on_goal": True},
     )
     collection_config = CollectionConfig(episodes=1, episode_length=1)
@@ -1137,7 +1137,7 @@ def test_collect_raw_dataset_allows_coordinate_only_collection_when_rgb_is_disab
     collection_config = CollectionConfig(episodes=1, episode_length=2, save_rgb=False)
     collection_config.safety.isolate_cuda_miniworld = False
     collector.collect_raw_dataset(
-        EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"),
+        EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"),
         collection_config,
         tmp_path,
         collection_seed=5,
@@ -1225,7 +1225,7 @@ def test_collect_raw_dataset_writes_previews_after_dataset_finalize(
     collection_config = CollectionConfig(episodes=1, episode_length=1, save_rgb=False)
     collection_config.safety.isolate_cuda_miniworld = False
     collector.collect_raw_dataset(
-        EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"),
+        EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"),
         collection_config,
         tmp_path,
         collection_seed=5,
@@ -1328,7 +1328,7 @@ def test_collect_raw_dataset_serial_path_skips_env_close_on_slurm_when_configure
     collection_config.safety.skip_env_close_on_slurm = True
 
     collector.collect_raw_dataset(
-        EnvironmentConfig(env_id="MiniWorld-WallGapAsym-v0"),
+        EnvironmentConfig(env_id="MiniWorld-WallGapAsymLarge-v0"),
         collection_config,
         tmp_path,
         collection_seed=5,

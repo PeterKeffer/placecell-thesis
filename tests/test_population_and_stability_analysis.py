@@ -50,7 +50,7 @@ def _analysis_input(
         source_name="encoder.place_codes",
         label="encoder_place_cells",
         split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+        metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
 
@@ -575,8 +575,8 @@ def _two_visited_bins_input() -> AnalysisInput:
     """Two far-apart bins, one of them covered by the single unit's field."""
     steps = 40
     positions = np.zeros((2, steps, 2), dtype=np.float32)
-    positions[:, ::2, :] = np.asarray([-1.0, -1.0], dtype=np.float32)
-    positions[:, 1::2, :] = np.asarray([1.0, 1.0], dtype=np.float32)
+    positions[:, ::2, :] = np.asarray([-3.0, -3.0], dtype=np.float32)
+    positions[:, 1::2, :] = np.asarray([3.0, 3.0], dtype=np.float32)
     representation = np.zeros((2, steps, 1), dtype=np.float32)
     representation[:, ::2, 0] = 1.0
     return _analysis_input(representation, positions)

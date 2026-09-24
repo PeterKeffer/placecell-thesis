@@ -38,11 +38,7 @@ def _mirror_builtin_miniworld_envs_into_gymnasium() -> None:
         from gymnasium.envs import registration as gymnasium_registration
         from gymnasium.error import Error as GymnasiumError
         from miniworld import envs as miniworld_envs
-
-        try:
-            from miniworld.envs.miniworld_env import MiniWorldEnv
-        except ModuleNotFoundError:
-            from miniworld.miniworld import MiniWorldEnv  # type: ignore
+        from miniworld.miniworld import MiniWorldEnv
     except ModuleNotFoundError:
         return
 
