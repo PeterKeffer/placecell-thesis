@@ -28,23 +28,3 @@ class PlaceModel(Protocol):
     def model_contract(self) -> dict:
         ...
 
-
-class AuxiliaryHead(Protocol):
-    """Trainable, stateless-between-batches auxiliary computation."""
-
-    @property
-    def name(self) -> str:
-        ...
-
-    def required_representations(self) -> set[str]:
-        ...
-
-    def output_names(self) -> set[str]:
-        ...
-
-    @property
-    def target_module(self) -> str:
-        ...
-
-    def forward(self, bundle: RepresentationBundle, batch: dict[str, Tensor]) -> dict[str, Tensor]:
-        ...
