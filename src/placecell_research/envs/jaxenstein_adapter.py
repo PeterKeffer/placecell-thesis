@@ -56,7 +56,7 @@ class JaxensteinAdapter:
         except ModuleNotFoundError as exc:  # pragma: no cover
             raise RuntimeError(
                 "jax and jaxenstein are required for JaxensteinAdapter; install the '[jax]' "
-                "extra on a Python >=3.11 interpreter."
+                "extra on Python 3.11 or 3.12."
             ) from exc
 
         self._jax = jax

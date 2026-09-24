@@ -16,9 +16,11 @@ usage() {
 Usage: scripts/setup_env.sh [options]
 
 Creates your own conda environment for this repository and checks it with pc doctor.
+The environment goes to --prefix/envs/NAME, also when conda comes from a cluster module.
 If no conda or mamba is found, Miniforge is installed into --prefix first.
+Package versions are pinned to the tested set in constraints.txt.
 
-  --prefix DIR        where to install Miniforge if no conda is found
+  --prefix DIR        Miniforge (if no conda is found) and the environment go here
                       (default: $PLACECELL_CONDA_PREFIX or ~/miniforge3)
   --env NAME          environment name (default: $PLACECELL_ENV_NAME or placecell)
   --gpu MODE          auto, cuda or cpu (auto: cuda on Linux with nvidia-smi or sbatch,
@@ -99,7 +101,8 @@ else
   CONDA_BIN="${CONDA_INSTALL_PREFIX}/bin/conda"
   CONDA_BASE="${CONDA_INSTALL_PREFIX}"
 fi
-ENV_PREFIX="${CONDA_BASE}/envs/${ENV_NAME}"
+ENV_PREFIX="${CONDA_INSTALL_PREFIX}/envs/${ENV_NAME}"
+CONSTRAINTS=(-c "${REPO_ROOT}/constraints.txt")
 PYTHON_BIN="${ENV_PREFIX}/bin/python"
 
 step "2. create the environment ${ENV_PREFIX}"
@@ -117,18 +120,18 @@ if [[ -n "${TORCH_INDEX_URL}" ]]; then
 elif [[ "${OS_NAME}" == "Linux" && "${GPU_MODE}" == "cpu" ]]; then
   TORCH_ARGS+=(--index-url https://download.pytorch.org/whl/cpu)
 fi
-run "${PYTHON_BIN}" -m pip install "${TORCH_ARGS[@]}"
+run "${PYTHON_BIN}" -m pip install "${TORCH_ARGS[@]}" "${CONSTRAINTS[@]}"
 
 step "4. this package (editable, extras ${EXTRAS}), MiniWorld, pyglet, JAX and JAXenstein"
 PACKAGE_ARGS=(-e "${REPO_ROOT}[${EXTRAS}]")
 if [[ "${OS_NAME}" == "Linux" && "${GPU_MODE}" == "cuda" ]]; then
-  PACKAGE_ARGS+=("jax[cuda12]>=0.6.2")
+  PACKAGE_ARGS+=("jax[cuda12]")
 fi
-run "${PYTHON_BIN}" -m pip install "${PACKAGE_ARGS[@]}"
+run "${PYTHON_BIN}" -m pip install "${PACKAGE_ARGS[@]}" "${CONSTRAINTS[@]}"
 
 step "5. OpenGL/EGL for headless MiniWorld"
 if [[ "${OS_NAME}" == "Darwin" ]]; then
-  echo "macOS renders through the window system: keep the display awake (caffeinate -d -i)."
+  echo "macOS renders through the window system: wake the display (caffeinate -u -t 5) and keep it awake (caffeinate -d -i) while MiniWorld runs."
 else
   EGL_FOUND=""
   for library in /usr/lib64/libEGL.so.1 /usr/lib/x86_64-linux-gnu/libEGL.so.1 /usr/lib/aarch64-linux-gnu/libEGL.so.1; do
