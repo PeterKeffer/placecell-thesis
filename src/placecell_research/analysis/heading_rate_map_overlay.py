@@ -77,12 +77,8 @@ class HeadingRateMapOverlayModule:
                 metadata={"reason": "heading_missing"},
             )
 
-        num_bins_x = int(
-            config.get("heading_rate_map_overlay_num_bins_x", config.get("num_bins_x", 60))
-        )
-        num_bins_y = int(
-            config.get("heading_rate_map_overlay_num_bins_y", config.get("num_bins_y", 60))
-        )
+        num_bins_x = int(config["heading_rate_map_overlay_num_bins_x"])
+        num_bins_y = int(config["heading_rate_map_overlay_num_bins_y"])
         world_overlay = resolve_world_overlay(
             str(analysis_input.metadata.get("env_id", "")),
             analysis_input.metadata.get("env_kwargs"),
@@ -92,16 +88,8 @@ class HeadingRateMapOverlayModule:
             analysis_input,
             num_bins_x=num_bins_x,
             num_bins_y=num_bins_y,
-            smoothing_sigma=float(
-                config.get(
-                    "heading_rate_map_overlay_smoothing_sigma", config.get("smoothing_sigma", 0.3)
-                )
-            ),
-            min_occupancy=float(
-                config.get(
-                    "heading_rate_map_overlay_min_occupancy", config.get("min_occupancy", 1e-6)
-                )
-            ),
+            smoothing_sigma=float(config["heading_rate_map_overlay_smoothing_sigma"]),
+            min_occupancy=float(config["heading_rate_map_overlay_min_occupancy"]),
             bounds=world_bounds,
         )
         overlay = _compute_heading_rate_map_overlay_metrics(
@@ -111,9 +99,7 @@ class HeadingRateMapOverlayModule:
         )
 
         ranked_units = _rank_units(rate_maps.rate_maps, overlay.activation_corridor_deg)
-        top_k = int(
-            config.get("heading_rate_map_overlay_top_k", config.get("rate_map_grid_top_k", 24))
-        )
+        top_k = int(config["heading_rate_map_overlay_top_k"])
         ranked_units = ranked_units[:top_k] if top_k > 0 else ranked_units
         module_dir = output_dir / self.name
         figures = _render_pages(
@@ -125,9 +111,7 @@ class HeadingRateMapOverlayModule:
             overlay=overlay,
             unit_indices=ranked_units,
             page_size=int(config.get("heading_rate_map_overlay_page_size", 8)),
-            render_dpi=int(
-                config.get("heading_rate_map_overlay_render_dpi", config.get("render_dpi", 160))
-            ),
+            render_dpi=int(config["heading_rate_map_overlay_render_dpi"]),
         )
         table_path = _write_table(module_dir, analysis_input, overlay)
         rendered_corridors = overlay.activation_corridor_deg[ranked_units]
@@ -164,14 +148,8 @@ def _compute_heading_rate_map_overlay_metrics(
     bounds: tuple[tuple[float, float], tuple[float, float]] | None,
 ) -> HeadingRateMapOverlayMetrics:
     num_units = int(analysis_input.representation.shape[-1])
-    backdrop_num_bins_x = int(
-        config.get("heading_rate_map_overlay_num_bins_x", config.get("num_bins_x", 60))
-    )
-    backdrop_num_bins_y = int(
-        config.get("heading_rate_map_overlay_num_bins_y", config.get("num_bins_y", 60))
-    )
-    num_bins_x = int(config.get("heading_rate_map_overlay_local_num_bins_x", backdrop_num_bins_x))
-    num_bins_y = int(config.get("heading_rate_map_overlay_local_num_bins_y", backdrop_num_bins_y))
+    num_bins_x = int(config["heading_rate_map_overlay_local_num_bins_x"])
+    num_bins_y = int(config["heading_rate_map_overlay_local_num_bins_y"])
     num_heading_bins = int(config.get("heading_rate_map_overlay_num_heading_bins", 36))
     min_heading_occupancy = int(
         config.get("heading_rate_map_overlay_min_occupancy_per_heading_bin", 5)
@@ -188,19 +166,9 @@ def _compute_heading_rate_map_overlay_metrics(
         return empty
 
     rates = np.clip(codes, 0.0, None).astype(np.float64)
-    active_threshold = float(
-        config.get(
-            "heading_rate_map_overlay_active_threshold",
-            config.get("place_field_overlay_active_threshold", 0.0),
-        )
-    )
+    active_threshold = float(config["heading_rate_map_overlay_active_threshold"])
     fired = (rates > active_threshold).astype(np.float64)
-    field_threshold_fraction = float(
-        config.get(
-            "heading_rate_map_overlay_field_threshold_fraction",
-            config.get("place_field_threshold_fraction", 0.2),
-        )
-    )
+    field_threshold_fraction = float(config["heading_rate_map_overlay_field_threshold_fraction"])
     heading_bins = (
         np.floor((headings % _TWO_PI) / (_TWO_PI / num_heading_bins)).astype(int)
     ) % num_heading_bins

@@ -43,9 +43,7 @@ class PerEpisodeRateMapsModule:
         minimum_visited_fraction = float(config.get("per_episode_minimum_visited_fraction", 0.05))
         top_k = int(config.get("per_episode_rate_maps_top_k", 8))
         max_episode_columns = int(config.get("per_episode_rate_maps_num_episodes", 6))
-        render_dpi = int(
-            config.get("per_episode_rate_maps_render_dpi", config.get("render_dpi", 160))
-        )
+        render_dpi = int(config["per_episode_rate_maps_render_dpi"])
 
         all_valid_positions = flatten_positions(
             analysis_input.position_xy, analysis_input.valid_mask

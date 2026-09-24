@@ -238,7 +238,7 @@ class SuccessorReturnComparisonModule:
             valid,
             discount_gamma=discount_gamma,
             normalized=normalized,
-            shuffle_seed=int(config.get("successor_return_shuffle_seed", 0)),
+            shuffle_seed=int(config["successor_return_shuffle_seed"]),
         )
         return AnalysisResult(
             metrics=metrics,

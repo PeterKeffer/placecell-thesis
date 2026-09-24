@@ -440,9 +440,8 @@ class DirectionalityModule:
         num_units = int(analysis_input.representation.shape[-1])
         omnidirectional_threshold = float(config.get("omnidirectional_threshold", 0.30))
         directional_threshold = float(config.get("directional_threshold", 0.60))
-        num_bins = int(config.get("directionality_num_bins", config.get("num_bins", 24)))
-        num_bins_x = int(config.get("directionality_num_bins_x", num_bins))
-        num_bins_y = int(config.get("directionality_num_bins_y", num_bins))
+        num_bins_x = int(config["directionality_num_bins_x"])
+        num_bins_y = int(config["directionality_num_bins_y"])
         num_null_shuffles = int(config.get("directionality_null_shuffles", 999))
         world_overlay = resolve_world_overlay(
             str(analysis_input.metadata.get("env_id", "")),

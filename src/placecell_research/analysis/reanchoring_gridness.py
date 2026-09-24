@@ -243,20 +243,10 @@ class ReanchoringGridnessModule:
 
     def run(self, analysis_input: AnalysisInput, output_dir: Path, config: dict) -> AnalysisResult:
         num_units = int(analysis_input.representation.shape[-1])
-        pooled_bins_x = int(config.get("reanchoring_num_bins_x", config.get("num_bins_x", 40)))
-        pooled_bins_y = int(config.get("reanchoring_num_bins_y", config.get("num_bins_y", 40)))
-        episode_bins_x = int(
-            config.get(
-                "reanchoring_per_episode_num_bins_x",
-                config.get("per_episode_num_bins_x", 20),
-            )
-        )
-        episode_bins_y = int(
-            config.get(
-                "reanchoring_per_episode_num_bins_y",
-                config.get("per_episode_num_bins_y", 20),
-            )
-        )
+        pooled_bins_x = int(config["reanchoring_num_bins_x"])
+        pooled_bins_y = int(config["reanchoring_num_bins_y"])
+        episode_bins_x = int(config["reanchoring_per_episode_num_bins_x"])
+        episode_bins_y = int(config["reanchoring_per_episode_num_bins_y"])
         smoothing_sigma = float(config.get("reanchoring_smoothing_sigma", 1.0))
         min_occupancy = float(config.get("reanchoring_min_occupancy", 1e-6))
         minimum_valid_steps = int(config.get("reanchoring_minimum_valid_steps", 50))

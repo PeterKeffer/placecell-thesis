@@ -37,7 +37,6 @@ from placecell_research.evaluation.runtime import (
     publish_report,
     resolve_registry_reference,
     resolve_stage_dataset_reference,
-    resolve_stage_device,
     resolve_stage_reference,
     resolve_stage_split_reference,
 )
@@ -57,19 +56,16 @@ from placecell_research.tracking import (
     stage_tags,
 )
 from placecell_research.training.loop import apply_tf32_policy
+from placecell_research.utils.device import resolve_device
 from placecell_research.utils.source_fingerprint import package_source_fingerprint
 
 
 def _configured_evaluation_split_names(
-    evaluation_config: dict[str, object],
+    configured_splits: list[str],
     *,
     primary_split_name: str,
     available_splits: list[str],
 ) -> list[str]:
-    configured_splits = evaluation_config.get(
-        "split_names",
-        [primary_split_name],
-    )
     ordered_splits = [str(split_name) for split_name in configured_splits]
     deduplicated_splits = list(dict.fromkeys(ordered_splits))
     if primary_split_name not in deduplicated_splits:
@@ -165,7 +161,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     registry = runtime.artifact_registry
     run_directory = runtime.run_directory
     apply_tf32_policy(config.spatial_model.training.allow_tf32)
-    device = resolve_stage_device(raw_config, "evaluation")
+    device = resolve_device(config.evaluation.device)
     stage_log_path = run_directory.logs_dir / "stage_evaluate.log"
     with managed_stage_run(
         config=config,
@@ -183,12 +179,11 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         ),
     ) as stage_run:
         progress_reporter = ConsoleProgressReporter("evaluate_model")
-        evaluation_config = raw_config.get("evaluation", {})
         model_id = resolve_registry_reference(
             registry,
             "place_model",
             resolve_stage_reference(
-                raw_config,
+                config.evaluation,
                 "evaluation",
                 "model_artifact_id",
                 fallback=config.reuse.place_model_artifact_id,
@@ -198,7 +193,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         model_observation_source = resolve_place_model_observation_source(registry, model_id)
         dataset_id, dataset_type = resolve_stage_dataset_reference(
             registry=registry,
-            raw_config=raw_config,
+            section=config.evaluation,
             section_name="evaluation",
             fallback_artifact_id=config.dataset.artifact_id,
             fallback_artifact_type=config.dataset.artifact_type,
@@ -206,14 +201,12 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         )
         split_id = resolve_stage_split_reference(
             registry=registry,
-            raw_config=raw_config,
+            section=config.evaluation,
             section_name="evaluation",
             fallback_artifact_id=config.splits.artifact_id,
             fallback_model_artifact_id=model_id,
         )
-        requested_primary_split_name = str(
-            evaluation_config.get("split_name", config.evaluation.split_name)
-        )
+        requested_primary_split_name = config.evaluation.split_name
         split_artifact = registry.load("split_set", split_id)
         representation_set_id = config.reuse.representation_set_artifact_id
         representation_set_directory = (
@@ -227,7 +220,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         )
         available_evaluation_splits = available_split_names(split_artifact.path)
         requested_evaluation_split_names = _configured_evaluation_split_names(
-            evaluation_config,
+            config.evaluation.split_names,
             primary_split_name=requested_primary_split_name,
             available_splits=available_evaluation_splits,
         )
@@ -242,12 +235,12 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             evaluation_split_names
         ):
             raise ValueError("matched_decode requires train and validation evaluation splits.")
-        source_names = list(evaluation_config.get("sources", config.evaluation.sources))
+        source_names = list(config.evaluation.sources)
         stage_fingerprint = artifact_match_fingerprint(
             {
                 "rmse_aggregation": RMSE_AGGREGATION,
                 "implementation_fingerprint": package_source_fingerprint(),
-                "evaluation": evaluation_config,
+                "evaluation": config.to_dict()["evaluation"],
                 "checkpoint_selection": config.policies.checkpoint_selection,
                 "model_artifact_id": model_id,
                 "dataset_artifact_id": dataset_id,

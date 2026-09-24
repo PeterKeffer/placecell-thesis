@@ -1,10 +1,4 @@
-model_artifact_id: ""
-dataset_artifact_id: ""
-split_artifact_id: ""
 split_name: test
-split_names: [validation, test]
 sources:
   - encoder.place_codes
   - predictor.place_codes
-batch_size: 16
-device: auto

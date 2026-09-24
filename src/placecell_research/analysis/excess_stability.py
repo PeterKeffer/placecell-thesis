@@ -311,7 +311,7 @@ class ExcessStabilityModule:
 
         num_bins_x = int(config.get("num_bins_x", 60))
         num_bins_y = int(config.get("num_bins_y", 60))
-        smoothing_sigma = float(config.get("smoothing_sigma", 0.4))
+        smoothing_sigma = float(config["smoothing_sigma"])
         min_occupancy = float(config.get("min_occupancy", 1e-6))
 
         def twin_psi_at(bins_x: int, bins_y: int) -> TwinPsi:

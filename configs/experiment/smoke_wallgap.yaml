@@ -167,9 +167,6 @@ analysis:
   comparative:
     combined_example_episode:
       enabled: true
-      example_episode_index: -1
-      example_episode_random_seed: null
-      example_episode_top_k: 0
       inputs:
         - {label: encoder_place_cells, source: encoder.place_codes}
         - {label: predictor_place_cells, source: predictor.place_codes}

@@ -218,15 +218,9 @@ class PlaceFieldOverlayModule:
         min_occupancy = float(config.get("min_occupancy", 1e-6))
         active_threshold = float(config.get("place_field_overlay_active_threshold", 0.0))
         blend_mode = str(config.get("place_field_overlay_blend_mode", "max"))
-        raw_max_cells = config.get("place_field_overlay_max_cells")
-        requested_max_cells = 20 if raw_max_cells in {None, ""} else int(raw_max_cells)
+        requested_max_cells = int(config["place_field_overlay_max_cells"])
         max_frames = int(config.get("place_field_overlay_max_frames", 240))
-        frame_duration = float(
-            config.get(
-                "place_field_overlay_frame_duration",
-                config.get("example_episode_frame_duration", 0.5),
-            )
-        )
+        frame_duration = float(config["place_field_overlay_frame_duration"])
 
         env_id = str(analysis_input.metadata.get("env_id", ""))
         world_overlay = resolve_world_overlay(env_id, analysis_input.metadata.get("env_kwargs"))

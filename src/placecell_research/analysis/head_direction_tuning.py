@@ -39,21 +39,8 @@ class HeadDirectionTuningModule:
     def run(self, analysis_input: AnalysisInput, output_dir: Path, config: dict) -> AnalysisResult:
         num_units = int(analysis_input.representation.shape[-1])
         num_heading_bins = int(config.get("head_direction_num_bins", 36))
-        spatial_num_bins = int(
-            config.get("head_direction_spatial_num_bins", config.get("num_bins", 24))
-        )
-        num_bins_x = int(
-            config.get(
-                "head_direction_num_bins_x",
-                config.get("head_direction_spatial_num_bins_x", spatial_num_bins),
-            )
-        )
-        num_bins_y = int(
-            config.get(
-                "head_direction_num_bins_y",
-                config.get("head_direction_spatial_num_bins_y", spatial_num_bins),
-            )
-        )
+        num_bins_x = int(config["head_direction_num_bins_x"])
+        num_bins_y = int(config["head_direction_num_bins_y"])
         vector_length_threshold = float(config.get("head_direction_vector_length_threshold", 0.5))
         spatial_coverage_threshold = float(
             config.get("head_direction_spatial_coverage_threshold", 0.2)
@@ -82,17 +69,10 @@ class HeadDirectionTuningModule:
                 num_bins_y=num_bins_y,
                 bounds=world_bounds,
                 min_occupancy_per_bin=int(config.get("head_direction_min_occupancy_per_bin", 5)),
-                min_heading_bins=int(
-                    config.get("head_direction_min_heading_bins", max(4, num_heading_bins // 4))
-                ),
+                min_heading_bins=int(config["head_direction_min_heading_bins"]),
                 min_heading_quadrants=int(config.get("head_direction_min_heading_quadrants", 3)),
                 min_active_spatial_bins=min_active_spatial_bins,
-                active_threshold_fraction=float(
-                    config.get(
-                        "head_direction_active_threshold_fraction",
-                        config.get("place_field_threshold_fraction", 0.2),
-                    )
-                ),
+                active_threshold_fraction=float(config["head_direction_active_threshold_fraction"]),
                 min_fire_rate=float(config.get("head_direction_min_fire_rate", 0.01)),
                 vector_length_threshold=vector_length_threshold,
                 spatial_coverage_threshold=spatial_coverage_threshold,

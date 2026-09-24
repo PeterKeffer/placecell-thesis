@@ -70,8 +70,12 @@ def _config() -> dict[str, float | int]:
     }
 
 
-def test_head_direction_tuning_separates_hd_conjunctive_and_place_units(tmp_path) -> None:
-    result = HeadDirectionTuningModule().run(_build_input(), tmp_path, _config())
+def test_head_direction_tuning_separates_hd_conjunctive_and_place_units(
+    tmp_path, analysis_settings
+) -> None:
+    result = HeadDirectionTuningModule().run(
+        _build_input(), tmp_path, analysis_settings(**_config())
+    )
 
     vector_lengths = result.per_unit_metrics["heading_vector_length"]
     spatial_coverage = result.per_unit_metrics["spatial_coverage_fraction"]
@@ -88,16 +92,20 @@ def test_head_direction_tuning_separates_hd_conjunctive_and_place_units(tmp_path
     assert conjunctive_candidates.tolist() == [0.0, 1.0, 0.0]
 
 
-def test_head_direction_tuning_reports_aggregate_metrics(tmp_path) -> None:
-    result = HeadDirectionTuningModule().run(_build_input(), tmp_path, _config())
+def test_head_direction_tuning_reports_aggregate_metrics(tmp_path, analysis_settings) -> None:
+    result = HeadDirectionTuningModule().run(
+        _build_input(), tmp_path, analysis_settings(**_config())
+    )
 
     assert np.isclose(result.metrics["fraction_hd_candidate"], 1.0 / 3.0)
     assert np.isclose(result.metrics["fraction_conjunctive_candidate"], 1.0 / 3.0)
     assert result.metadata["head_direction_assessable_unit_count"] == 3
 
 
-def test_head_direction_tuning_writes_per_unit_csv(tmp_path) -> None:
-    result = HeadDirectionTuningModule().run(_build_input(), tmp_path, _config())
+def test_head_direction_tuning_writes_per_unit_csv(tmp_path, analysis_settings) -> None:
+    result = HeadDirectionTuningModule().run(
+        _build_input(), tmp_path, analysis_settings(**_config())
+    )
 
     table_path = result.tables["per_unit_metrics"]
     lines = table_path.read_text().splitlines()
@@ -108,18 +116,26 @@ def test_head_direction_tuning_writes_per_unit_csv(tmp_path) -> None:
     assert len(lines) == 4
 
 
-def test_head_direction_tuning_renders_preferred_direction_rose(tmp_path) -> None:
-    result = HeadDirectionTuningModule().run(_build_input(), tmp_path, _config())
+def test_head_direction_tuning_renders_preferred_direction_rose(
+    tmp_path, analysis_settings
+) -> None:
+    result = HeadDirectionTuningModule().run(
+        _build_input(), tmp_path, analysis_settings(**_config())
+    )
 
     assert "preferred_direction_rose" in result.figures
     assert result.figures["preferred_direction_rose"].exists()
 
 
-def test_head_direction_tuning_marks_unassessable_units_when_heading_missing(tmp_path) -> None:
+def test_head_direction_tuning_marks_unassessable_units_when_heading_missing(
+    tmp_path, analysis_settings
+) -> None:
     analysis_input = _build_input()
     analysis_input.heading = None
 
-    result = HeadDirectionTuningModule().run(analysis_input, tmp_path, _config())
+    result = HeadDirectionTuningModule().run(
+        analysis_input, tmp_path, analysis_settings(**_config())
+    )
 
     assert np.all(np.isnan(result.per_unit_metrics["heading_vector_length"]))
     assert result.metadata["head_direction_assessable_unit_count"] == 0
@@ -165,7 +181,7 @@ def _random_walk_input(
     )
 
 
-def test_hd_null_flags_heading_tuned_not_place_units(tmp_path) -> None:
+def test_hd_null_flags_heading_tuned_not_place_units(tmp_path, analysis_settings) -> None:
     """Heading tuning that repeats across interleaved visits survives the circular-shift null."""
     analysis_input = _random_walk_input(
         lambda headings, at_corner: [
@@ -177,7 +193,9 @@ def test_hd_null_flags_heading_tuned_not_place_units(tmp_path) -> None:
         seed=11,
     )
 
-    result = HeadDirectionTuningModule().run(analysis_input, tmp_path, _null_config())
+    result = HeadDirectionTuningModule().run(
+        analysis_input, tmp_path, analysis_settings(**_null_config())
+    )
 
     significant = result.per_unit_metrics["heading_vector_length_significant"]
     excess = result.per_unit_metrics["heading_vector_length_excess"]
@@ -188,7 +206,7 @@ def test_hd_null_flags_heading_tuned_not_place_units(tmp_path) -> None:
     assert "fraction_hd_candidate_significant" in result.metrics
 
 
-def test_hd_null_does_not_flag_a_temporal_bout(tmp_path) -> None:
+def test_hd_null_does_not_flag_a_temporal_bout(tmp_path, analysis_settings) -> None:
     """A bout of activity is not heading selectivity, however slowly the heading drifts."""
     analysis_input = _random_walk_input(
         lambda headings, at_corner: [
@@ -206,7 +224,9 @@ def test_hd_null_does_not_flag_a_temporal_bout(tmp_path) -> None:
         seed=5,
     )
 
-    result = HeadDirectionTuningModule().run(analysis_input, tmp_path, _null_config())
+    result = HeadDirectionTuningModule().run(
+        analysis_input, tmp_path, analysis_settings(**_null_config())
+    )
 
     null_p = result.per_unit_metrics["heading_vector_length_null_p"]
     assert result.per_unit_metrics["assessable"][0] == 1.0
@@ -214,12 +234,12 @@ def test_hd_null_does_not_flag_a_temporal_bout(tmp_path) -> None:
     assert result.per_unit_metrics["heading_vector_length_significant"].tolist() == [0.0, 0.0]
 
 
-def test_hd_null_draws_every_configured_shuffle(tmp_path) -> None:
+def test_hd_null_draws_every_configured_shuffle(tmp_path, analysis_settings) -> None:
     """The null count is calibrated: p must be (1 + exceedances) / (1 + shuffles), nothing else."""
     num_shuffles = 40
     config = {**_config(), "head_direction_null_shuffles": num_shuffles}
 
-    result = HeadDirectionTuningModule().run(_build_input(), tmp_path, config)
+    result = HeadDirectionTuningModule().run(_build_input(), tmp_path, analysis_settings(**config))
 
     p_values = result.per_unit_metrics["heading_vector_length_null_p"]
     finite_p_values = p_values[np.isfinite(p_values)]
@@ -229,20 +249,26 @@ def test_hd_null_draws_every_configured_shuffle(tmp_path) -> None:
     assert np.all(exceedance_counts <= num_shuffles + 1e-4)
 
 
-def test_hd_null_is_invariant_to_the_shuffle_batch_size(tmp_path, monkeypatch) -> None:
+def test_hd_null_is_invariant_to_the_shuffle_batch_size(
+    tmp_path, monkeypatch, analysis_settings
+) -> None:
     """The batched null must reproduce the one-shuffle-at-a-time permutation stream exactly."""
     analysis_input = _build_input()
-    batched = HeadDirectionTuningModule().run(analysis_input, tmp_path / "batched", _config())
+    batched = HeadDirectionTuningModule().run(
+        analysis_input, tmp_path / "batched", analysis_settings(**_config())
+    )
     monkeypatch.setattr(head_direction_tuning, "_NULL_SCRATCH_BYTES", 1)
     assert head_direction_tuning._null_shuffle_batch(len(analysis_input.heading.ravel()), 100) == 1
 
-    one_at_a_time = HeadDirectionTuningModule().run(analysis_input, tmp_path / "single", _config())
+    one_at_a_time = HeadDirectionTuningModule().run(
+        analysis_input, tmp_path / "single", analysis_settings(**_config())
+    )
 
     for name, values in batched.per_unit_metrics.items():
         assert np.array_equal(values, one_at_a_time.per_unit_metrics[name], equal_nan=True), name
 
 
-def test_hd_vector_length_requires_circular_coverage(tmp_path) -> None:
+def test_hd_vector_length_requires_circular_coverage(tmp_path, analysis_settings) -> None:
     heading_centers = np.linspace(0.0, np.pi / 2.0, 16, endpoint=False, dtype=np.float32)
     positions: list[tuple[float, float]] = []
     headings: list[float] = []
@@ -265,7 +291,9 @@ def test_hd_vector_length_requires_circular_coverage(tmp_path) -> None:
         split_name="test",
     )
 
-    result = HeadDirectionTuningModule().run(analysis_input, tmp_path, _config())
+    result = HeadDirectionTuningModule().run(
+        analysis_input, tmp_path, analysis_settings(**_config())
+    )
 
     assert result.metadata["head_direction_assessable_unit_count"] == 0
     assert not np.isfinite(result.per_unit_metrics["heading_vector_length"]).any()

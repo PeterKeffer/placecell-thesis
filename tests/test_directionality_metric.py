@@ -61,11 +61,13 @@ def _build_input() -> AnalysisInput:
     )
 
 
-def test_directionality_separates_omnidirectional_from_directional(tmp_path) -> None:
+def test_directionality_separates_omnidirectional_from_directional(
+    tmp_path, analysis_settings
+) -> None:
     result = DirectionalityModule().run(
         _build_input(),
         tmp_path,
-        {"num_bins": 2, "min_occupancy_per_quadrant": 5, "min_field_bins": 3},
+        analysis_settings(num_bins=2, min_occupancy_per_quadrant=5, min_field_bins=3),
     )
 
     r_values = result.per_unit_metrics["directional_modulation_r"]
@@ -74,11 +76,11 @@ def test_directionality_separates_omnidirectional_from_directional(tmp_path) -> 
     assert r_values[1] > 0.9, "directional unit should have high directional modulation"
 
 
-def test_directionality_reports_headline_aggregate_metrics(tmp_path) -> None:
+def test_directionality_reports_headline_aggregate_metrics(tmp_path, analysis_settings) -> None:
     result = DirectionalityModule().run(
         _build_input(),
         tmp_path,
-        {"num_bins": 2, "min_occupancy_per_quadrant": 5, "min_field_bins": 3},
+        analysis_settings(num_bins=2, min_occupancy_per_quadrant=5, min_field_bins=3),
     )
 
     assert "median_directional_modulation_r" in result.metrics
@@ -88,7 +90,9 @@ def test_directionality_reports_headline_aggregate_metrics(tmp_path) -> None:
     assert result.metrics["fraction_directional"] == 0.5
 
 
-def test_directionality_uses_canonical_place_field_threshold_config(monkeypatch, tmp_path) -> None:
+def test_directionality_uses_canonical_place_field_threshold_config(
+    monkeypatch, tmp_path, analysis_settings
+) -> None:
     captured_thresholds = []
 
     def fake_modulation_r(statistics, mean_per_quadrant, **kwargs):
@@ -104,17 +108,19 @@ def test_directionality_uses_canonical_place_field_threshold_config(monkeypatch,
     DirectionalityModule().run(
         _build_input(),
         tmp_path,
-        {
-            "num_bins": 2,
-            "place_field_threshold_fraction": 0.17,
-            "directionality_null_shuffles": 0,
-        },
+        analysis_settings(
+            num_bins=2,
+            place_field_threshold_fraction=0.17,
+            directionality_null_shuffles=0,
+        ),
     )
 
     assert captured_thresholds == [0.17]
 
 
-def test_directionality_ignores_legacy_field_threshold_alias(monkeypatch, tmp_path) -> None:
+def test_directionality_ignores_legacy_field_threshold_alias(
+    monkeypatch, tmp_path, analysis_settings
+) -> None:
     captured_thresholds = []
 
     def fake_modulation_r(statistics, mean_per_quadrant, **kwargs):
@@ -131,20 +137,19 @@ def test_directionality_ignores_legacy_field_threshold_alias(monkeypatch, tmp_pa
         _build_input(),
         tmp_path,
         {
-            "num_bins": 2,
+            **analysis_settings(num_bins=2, directionality_null_shuffles=0),
             "field_threshold_fraction": 0.17,
-            "directionality_null_shuffles": 0,
         },
     )
 
     assert captured_thresholds == [0.2]
 
 
-def test_directionality_writes_per_unit_csv(tmp_path) -> None:
+def test_directionality_writes_per_unit_csv(tmp_path, analysis_settings) -> None:
     result = DirectionalityModule().run(
         _build_input(),
         tmp_path,
-        {"num_bins": 2, "min_occupancy_per_quadrant": 5, "min_field_bins": 3},
+        analysis_settings(num_bins=2, min_occupancy_per_quadrant=5, min_field_bins=3),
     )
 
     table_path = result.tables["per_unit_metrics"]
@@ -157,20 +162,22 @@ def test_directionality_writes_per_unit_csv(tmp_path) -> None:
     assert lines[2].startswith("1,")
 
 
-def test_directionality_marks_unassessable_units_when_heading_missing(tmp_path) -> None:
+def test_directionality_marks_unassessable_units_when_heading_missing(
+    tmp_path, analysis_settings
+) -> None:
     analysis_input = _build_input()
     analysis_input.heading = None
     result = DirectionalityModule().run(
         analysis_input,
         tmp_path,
-        {"num_bins": 2, "min_occupancy_per_quadrant": 5, "min_field_bins": 3},
+        analysis_settings(num_bins=2, min_occupancy_per_quadrant=5, min_field_bins=3),
     )
     r_values = result.per_unit_metrics["directional_modulation_r"]
     assert r_values.shape == (2,)
     assert np.all(np.isnan(r_values)), "without heading the metric cannot be assessed"
 
 
-def test_directionality_uses_known_world_bounds(monkeypatch, tmp_path) -> None:
+def test_directionality_uses_known_world_bounds(monkeypatch, tmp_path, analysis_settings) -> None:
     env_id = "MiniWorld-WallGapAsym-v0"
     expected_bounds = overlay_bounds(resolve_world_overlay(env_id))
     analysis_input = _build_input()
@@ -192,7 +199,7 @@ def test_directionality_uses_known_world_bounds(monkeypatch, tmp_path) -> None:
     DirectionalityModule().run(
         analysis_input,
         tmp_path,
-        {"num_bins": 2, "min_occupancy_per_quadrant": 5, "min_field_bins": 3},
+        analysis_settings(num_bins=2, min_occupancy_per_quadrant=5, min_field_bins=3),
     )
 
     assert captured_bounds == [expected_bounds]
@@ -254,10 +261,12 @@ def _build_temporal_bout_input() -> AnalysisInput:
     )
 
 
-def test_directionality_null_flags_heading_tuned_not_omnidirectional(tmp_path) -> None:
+def test_directionality_null_flags_heading_tuned_not_omnidirectional(
+    tmp_path, analysis_settings
+) -> None:
     """Tuning that repeats across interleaved visits survives the circular-shift null."""
     result = DirectionalityModule().run(
-        _build_interleaved_heading_input(), tmp_path, _NULL_CONFIG
+        _build_interleaved_heading_input(), tmp_path, analysis_settings(**_NULL_CONFIG)
     )
 
     significant = result.per_unit_metrics["directional_modulation_r_significant"]
@@ -269,9 +278,11 @@ def test_directionality_null_flags_heading_tuned_not_omnidirectional(tmp_path) -
     assert np.isclose(result.metrics["fraction_directional_significant"], 2.0 / 3.0)
 
 
-def test_directionality_null_does_not_flag_a_temporal_bout(tmp_path) -> None:
+def test_directionality_null_does_not_flag_a_temporal_bout(tmp_path, analysis_settings) -> None:
     """A bout of activity is not a directional cell, however cleanly it sits in one quadrant."""
-    result = DirectionalityModule().run(_build_temporal_bout_input(), tmp_path, _NULL_CONFIG)
+    result = DirectionalityModule().run(
+        _build_temporal_bout_input(), tmp_path, analysis_settings(**_NULL_CONFIG)
+    )
 
     r_values = result.per_unit_metrics["directional_modulation_r"]
     null_p = result.per_unit_metrics["directional_modulation_r_null_p"]

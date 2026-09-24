@@ -109,8 +109,8 @@ class _RateMapModuleBase:
             export_per_unit=self.emit_panel
             and bool(config.get("rate_map_export_per_unit", False)),
             spike_overlay_max_points=int(config.get("rate_map_spike_overlay_max_points", 180)),
-            panel_top_k=int(config.get("rate_map_panel_top_k", 8)),
-            grid_top_k=int(config.get("rate_map_grid_top_k", 24)),
+            panel_top_k=int(config["rate_map_panel_top_k"]),
+            grid_top_k=int(config["rate_map_grid_top_k"]),
             unit_order_mode=str(config.get("rate_map_unit_order", "field_position"))
             .strip()
             .lower(),

@@ -35,6 +35,7 @@ from placecell_research.collection.stage_support import (
     initialize_stage_runtime,
 )
 from placecell_research.config import artifact_match_fingerprint, resolve_matching_artifact
+from placecell_research.config.validator import HARD_K_SPARSIFIER_TYPES
 from placecell_research.datasets.batch_iterator import available_split_names, load_split_indices
 from placecell_research.datasets.zarr_io import _require_zarr, load_dataset_manifest
 from placecell_research.evaluation.inference import (
@@ -53,7 +54,6 @@ from placecell_research.evaluation.runtime import (
     _resolve_unique_direct_input_artifact,
     resolve_registry_reference,
     resolve_stage_dataset_reference,
-    resolve_stage_device,
     resolve_stage_reference,
     resolve_stage_split_reference,
 )
@@ -75,6 +75,7 @@ from placecell_research.tracking import (
 )
 from placecell_research.tracking._run_paths import link_if_absent
 from placecell_research.training.loop import apply_tf32_policy
+from placecell_research.utils.device import resolve_device
 from placecell_research.utils.source_fingerprint import package_source_fingerprint
 
 
@@ -217,7 +218,6 @@ def _analysis_config_with_target_order(
     return {**analysis_config, "targets": ordered}
 
 
-_HARD_K_SPARSIFIER_TYPES = ("kwinners", "grouped_kwinners", "lateral_inhibition")
 _PLACE_FIELD_OVERLAY_MODULE = "place_field_overlay"
 _PLACE_FIELD_OVERLAY_KWINNERS_KEY = "place_field_overlay_kwinners_k_fraction"
 
@@ -244,7 +244,7 @@ def _analysis_config_with_overlay_kwinners_default(
     """Default the place-field overlay's k-winners fraction to the encoder's."""
     if not _config_value_missing(analysis_config.get(_PLACE_FIELD_OVERLAY_KWINNERS_KEY)):
         return analysis_config
-    if str(encoder_sparsifier_type) not in _HARD_K_SPARSIFIER_TYPES:
+    if str(encoder_sparsifier_type) not in HARD_K_SPARSIFIER_TYPES:
         return analysis_config
     if not _place_field_overlay_is_enabled(analysis_config):
         return analysis_config
@@ -769,7 +769,7 @@ def _enabled_comparative_items(
 
 def _analysis_work_item_count(analysis_config: dict[str, object]) -> int:
     cost_order = {"light": 0, "standard": 1, "heavy": 2}
-    configured_max_cost_tier = str(analysis_config.get("max_cost_tier", "heavy"))
+    configured_max_cost_tier = str(analysis_config["max_cost_tier"])
     total = 0
     for target_payload in analysis_config.get("targets", {}).values():
         if not target_payload.get("enabled", True):
@@ -1039,7 +1039,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     registry = runtime.artifact_registry
     run_directory = runtime.run_directory
     apply_tf32_policy(config.spatial_model.training.allow_tf32)
-    device = resolve_stage_device(raw_config, "analysis")
+    device = resolve_device(config.analysis.device)
     stage_log_path = run_directory.logs_dir / "stage_analyze.log"
     with managed_stage_run(
         config=config,
@@ -1057,7 +1057,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         ),
     ) as stage_run:
         analysis_config = _analysis_config_with_seed_defaults(
-            raw_config.get("analysis", {}),
+            config.to_dict()["analysis"],
             int(config.seed.global_seed),
         )
         analysis_config = _analysis_config_with_overlay_kwinners_default(
@@ -1066,12 +1066,11 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             encoder_k_fraction=float(config.spatial_model.sparsifier.k_fraction),
         )
         analysis_config = _analysis_config_with_target_order(analysis_config)
-        raw_config = {**raw_config, "analysis": analysis_config}
         default_model_id = resolve_registry_reference(
             registry,
             "place_model",
             resolve_stage_reference(
-                raw_config,
+                config.analysis,
                 "analysis",
                 "model_artifact_id",
                 fallback=config.reuse.place_model_artifact_id,
@@ -1094,7 +1093,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         raw_config = {**raw_config, "analysis": analysis_config}
         default_dataset_id, default_dataset_type = resolve_stage_dataset_reference(
             registry=registry,
-            raw_config=raw_config,
+            section=config.analysis,
             section_name="analysis",
             fallback_artifact_id=config.dataset.artifact_id,
             fallback_artifact_type=config.dataset.artifact_type,
@@ -1102,12 +1101,12 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         )
         default_split_id = resolve_stage_split_reference(
             registry=registry,
-            raw_config=raw_config,
+            section=config.analysis,
             section_name="analysis",
             fallback_artifact_id=config.splits.artifact_id,
             fallback_model_artifact_id=default_model_id,
         )
-        default_split_name = str(analysis_config.get("split_name", "test"))
+        default_split_name = config.analysis.split_name
         default_split_artifact = registry.load("split_set", default_split_id)
         available_splits = available_split_names(default_split_artifact.path)
         progress = ProgressTracker(
@@ -1120,7 +1119,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
             unit_name="work_items",
         )
         progress.emit(detail="resolve analysis plan")
-        batch_size = int(analysis_config.get("batch_size", 8))
+        batch_size = config.analysis.batch_size
         stage_fingerprint = artifact_match_fingerprint(
             {
                 "rmse_aggregation": RMSE_AGGREGATION,

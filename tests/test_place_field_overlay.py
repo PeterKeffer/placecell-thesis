@@ -180,20 +180,22 @@ def _sparse_overlay_input() -> AnalysisInput:
     )
 
 
-def test_place_field_overlay_module_writes_one_gif_for_the_run(tmp_path: Path) -> None:
+def test_place_field_overlay_module_writes_one_gif_for_the_run(
+    tmp_path: Path, analysis_settings
+) -> None:
     analysis_input = _sparse_overlay_input()
 
     result = PlaceFieldOverlayModule().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 16,
-            "num_bins_y": 16,
-            "smoothing_sigma": 0.0,
-            "min_occupancy": 1e-6,
-            "example_episode_index": 0,
-            "place_field_overlay_max_frames": 6,
-        },
+        analysis_settings(
+            num_bins_x=16,
+            num_bins_y=16,
+            smoothing_sigma=0.0,
+            min_occupancy=1e-6,
+            example_episode_index=0,
+            place_field_overlay_max_frames=6,
+        ),
     )
 
     gif_path = (
@@ -210,28 +212,32 @@ def test_place_field_overlay_module_writes_one_gif_for_the_run(tmp_path: Path) -
     assert result.metrics["dropped_cell_count"] == 0.0
 
 
-def test_place_field_overlay_reports_dropped_cells_when_capped(tmp_path: Path) -> None:
+def test_place_field_overlay_reports_dropped_cells_when_capped(
+    tmp_path: Path, analysis_settings
+) -> None:
     analysis_input = _sparse_overlay_input()
 
     result = PlaceFieldOverlayModule().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 16,
-            "num_bins_y": 16,
-            "smoothing_sigma": 0.0,
-            "min_occupancy": 1e-6,
-            "example_episode_index": 0,
-            "place_field_overlay_max_frames": 6,
-            "place_field_overlay_max_cells": 2,
-        },
+        analysis_settings(
+            num_bins_x=16,
+            num_bins_y=16,
+            smoothing_sigma=0.0,
+            min_occupancy=1e-6,
+            example_episode_index=0,
+            place_field_overlay_max_frames=6,
+            place_field_overlay_max_cells=2,
+        ),
     )
 
     assert result.metrics["max_active_cells_in_frame"] == 2.0
     assert result.metrics["dropped_cell_count"] == 6.0
 
 
-def test_place_field_overlay_kwinners_sparsifies_dense_codes(tmp_path: Path) -> None:
+def test_place_field_overlay_kwinners_sparsifies_dense_codes(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes, steps, units = 2, 12, 16
     rng = np.random.default_rng(1)
     representation = rng.uniform(0.1, 1.0, size=(episodes, steps, units)).astype(np.float32)
@@ -252,15 +258,15 @@ def test_place_field_overlay_kwinners_sparsifies_dense_codes(tmp_path: Path) -> 
     result = PlaceFieldOverlayModule().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 16,
-            "num_bins_y": 16,
-            "smoothing_sigma": 0.0,
-            "min_occupancy": 1e-6,
-            "example_episode_index": 0,
-            "place_field_overlay_max_frames": 4,
-            "place_field_overlay_kwinners_k_fraction": 0.25,
-        },
+        analysis_settings(
+            num_bins_x=16,
+            num_bins_y=16,
+            smoothing_sigma=0.0,
+            min_occupancy=1e-6,
+            example_episode_index=0,
+            place_field_overlay_max_frames=4,
+            place_field_overlay_kwinners_k_fraction=0.25,
+        ),
     )
 
     assert result.metrics["active_selection_k"] == 4.0

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
 from placecell_research.artifacts.registry import ArtifactRegistry
+from placecell_research.config.schema import AnalysisConfig, EvaluationConfig
 from placecell_research.evaluation.runtime import (
     resolve_registry_reference,
     resolve_stage_dataset_reference,
@@ -56,9 +57,7 @@ def test_resolve_stage_dataset_and_split_auto_follow_place_model_lineage(tmp_pat
 
     dataset_id, dataset_type = resolve_stage_dataset_reference(
         registry=registry,
-        raw_config={
-            "analysis": {"model_artifact_id": place_model_id, "dataset_artifact_id": "auto"}
-        },
+        section=AnalysisConfig(model_artifact_id=place_model_id, dataset_artifact_id="auto"),
         section_name="analysis",
         fallback_artifact_id="",
         fallback_artifact_type="encoded_dataset",
@@ -66,7 +65,7 @@ def test_resolve_stage_dataset_and_split_auto_follow_place_model_lineage(tmp_pat
     )
     split_artifact_id = resolve_stage_split_reference(
         registry=registry,
-        raw_config={"analysis": {"model_artifact_id": place_model_id, "split_artifact_id": "auto"}},
+        section=AnalysisConfig(model_artifact_id=place_model_id, split_artifact_id="auto"),
         section_name="analysis",
         fallback_artifact_id="",
         fallback_model_artifact_id=place_model_id,
@@ -90,7 +89,7 @@ def test_resolve_stage_dataset_reference_supports_tag_reference_without_explicit
 
     dataset_id, dataset_type = resolve_stage_dataset_reference(
         registry=registry,
-        raw_config={"evaluation": {"dataset_artifact_id": "tag:datasets/demo_latest"}},
+        section=EvaluationConfig(dataset_artifact_id="tag:datasets/demo_latest"),
         section_name="evaluation",
         fallback_artifact_id="",
         fallback_artifact_type="",

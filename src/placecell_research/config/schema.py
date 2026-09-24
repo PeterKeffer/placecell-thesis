@@ -1284,6 +1284,36 @@ class AnalysisTargetConfig(BaseModel):
     modules: list[str] = Field(default_factory=list)
 
 
+_INHERITED_ANALYSIS_SETTINGS = {
+    "directionality_num_bins": "num_bins",
+    "directionality_num_bins_x": "directionality_num_bins",
+    "directionality_num_bins_y": "directionality_num_bins",
+    "head_direction_spatial_num_bins": "num_bins",
+    "head_direction_spatial_num_bins_x": "head_direction_spatial_num_bins",
+    "head_direction_spatial_num_bins_y": "head_direction_spatial_num_bins",
+    "head_direction_num_bins_x": "head_direction_spatial_num_bins_x",
+    "head_direction_num_bins_y": "head_direction_spatial_num_bins_y",
+    "head_direction_active_threshold_fraction": "place_field_threshold_fraction",
+    "heading_rate_map_overlay_num_bins_x": "num_bins_x",
+    "heading_rate_map_overlay_num_bins_y": "num_bins_y",
+    "heading_rate_map_overlay_local_num_bins_x": "heading_rate_map_overlay_num_bins_x",
+    "heading_rate_map_overlay_local_num_bins_y": "heading_rate_map_overlay_num_bins_y",
+    "heading_rate_map_overlay_smoothing_sigma": "smoothing_sigma",
+    "heading_rate_map_overlay_min_occupancy": "min_occupancy",
+    "heading_rate_map_overlay_top_k": "rate_map_grid_top_k",
+    "heading_rate_map_overlay_render_dpi": "render_dpi",
+    "heading_rate_map_overlay_active_threshold": "place_field_overlay_active_threshold",
+    "heading_rate_map_overlay_field_threshold_fraction": "place_field_threshold_fraction",
+    "decode_error_num_bins_x": "num_bins_x",
+    "decode_error_num_bins_y": "num_bins_y",
+    "per_episode_rate_maps_render_dpi": "render_dpi",
+    "probing_novelty_num_bins_x": "num_bins_x",
+    "probing_novelty_num_bins_y": "num_bins_y",
+    "reanchoring_num_bins_x": "num_bins_x",
+    "reanchoring_num_bins_y": "num_bins_y",
+    "reanchoring_per_episode_num_bins_x": "per_episode_num_bins_x",
+    "reanchoring_per_episode_num_bins_y": "per_episode_num_bins_y",
+}
 _FDR_PERMUTATION_COUNT_FIELDS: dict[str, float | str] = {
     "spatial_information_null_shuffles": 0.05,
     "directionality_null_shuffles": 0.05,
@@ -1340,9 +1370,9 @@ class AnalysisConfig:
     place_field_core_threshold_fraction: float = Field(default=0.5, ge=0.0, le=1.0)
     omnidirectional_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
     directional_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
-    directionality_num_bins: int = Field(default=24, ge=1)
-    directionality_num_bins_x: int = Field(default=24, ge=1)
-    directionality_num_bins_y: int = Field(default=24, ge=1)
+    directionality_num_bins: int | None = Field(default=None, ge=1)
+    directionality_num_bins_x: int | None = Field(default=None, ge=1)
+    directionality_num_bins_y: int | None = Field(default=None, ge=1)
     min_occupancy_per_quadrant: int = Field(default=5, ge=1)
     min_heading_quadrants: int = Field(default=3, ge=1, le=4)
     min_field_bins: int = Field(default=3, ge=1)
@@ -1352,24 +1382,24 @@ class AnalysisConfig:
     within_heading_conjunctive_gain: float = Field(default=0.2, ge=0.0)
 
     head_direction_num_bins: int = Field(default=36, ge=1)
-    head_direction_spatial_num_bins: int = Field(default=24, ge=1)
-    head_direction_spatial_num_bins_x: int = Field(default=24, ge=1)
-    head_direction_spatial_num_bins_y: int = Field(default=24, ge=1)
-    head_direction_num_bins_x: int = Field(default=24, ge=1)
-    head_direction_num_bins_y: int = Field(default=24, ge=1)
+    head_direction_spatial_num_bins: int | None = Field(default=None, ge=1)
+    head_direction_spatial_num_bins_x: int | None = Field(default=None, ge=1)
+    head_direction_spatial_num_bins_y: int | None = Field(default=None, ge=1)
+    head_direction_num_bins_x: int | None = Field(default=None, ge=1)
+    head_direction_num_bins_y: int | None = Field(default=None, ge=1)
     head_direction_vector_length_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     head_direction_spatial_coverage_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
     head_direction_position_invariance_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
     head_direction_hd_cell_score_threshold: float = Field(default=0.1, ge=0.0, le=1.0)
     head_direction_min_active_spatial_bins: int = Field(default=4, ge=1)
     head_direction_min_occupancy_per_bin: int = Field(default=5, ge=1)
-    head_direction_min_heading_bins: int = Field(default=9, ge=1)
-    head_direction_active_threshold_fraction: float = Field(default=0.2, ge=0.0, le=1.0)
+    head_direction_min_heading_bins: int | None = Field(default=None, ge=1)
+    head_direction_active_threshold_fraction: float | None = Field(default=None, ge=0.0, le=1.0)
     head_direction_min_fire_rate: float = Field(default=0.01, ge=0.0, le=1.0)
 
     place_field_overlay_active_threshold: float = 0.0
     place_field_overlay_blend_mode: Literal["max", "additive", "alpha"] = "max"
-    place_field_overlay_max_cells: int | None = Field(default=None, ge=0)
+    place_field_overlay_max_cells: int = Field(default=20, ge=0)
     place_field_overlay_max_frames: int = Field(default=240, ge=1)
     place_field_overlay_kwinners_k_fraction: float | None = Field(default=None, ge=0.0, le=1.0)
     place_field_overlay_frame_duration: float = Field(default=0.5, gt=0.0)
@@ -1395,20 +1425,20 @@ class AnalysisConfig:
     rate_map_grid_show_all_units: bool = False
     rate_map_spike_overlay_max_points: int = Field(default=180, ge=0)
     rate_map_unit_order: Literal["ranking_score", "field_position"] = "field_position"
-    heading_rate_map_overlay_num_bins_x: int = Field(default=60, ge=1)
-    heading_rate_map_overlay_num_bins_y: int = Field(default=60, ge=1)
-    heading_rate_map_overlay_smoothing_sigma: float = Field(default=0.3, ge=0.0)
-    heading_rate_map_overlay_min_occupancy: float = Field(default=1e-6, ge=0.0)
-    heading_rate_map_overlay_top_k: int = Field(default=12, ge=1)
+    heading_rate_map_overlay_num_bins_x: int | None = Field(default=None, ge=1)
+    heading_rate_map_overlay_num_bins_y: int | None = Field(default=None, ge=1)
+    heading_rate_map_overlay_smoothing_sigma: float | None = Field(default=None, ge=0.0)
+    heading_rate_map_overlay_min_occupancy: float | None = Field(default=None, ge=0.0)
+    heading_rate_map_overlay_top_k: int | None = Field(default=None, ge=1)
     heading_rate_map_overlay_page_size: int = Field(default=8, ge=1)
-    heading_rate_map_overlay_render_dpi: int = Field(default=160, ge=1)
-    heading_rate_map_overlay_local_num_bins_x: int = Field(default=20, ge=1)
-    heading_rate_map_overlay_local_num_bins_y: int = Field(default=20, ge=1)
+    heading_rate_map_overlay_render_dpi: int | None = Field(default=None, ge=1)
+    heading_rate_map_overlay_local_num_bins_x: int | None = Field(default=None, ge=1)
+    heading_rate_map_overlay_local_num_bins_y: int | None = Field(default=None, ge=1)
     heading_rate_map_overlay_num_heading_bins: int = Field(default=36, ge=1)
     heading_rate_map_overlay_min_occupancy_per_heading_bin: int = Field(default=5, ge=1)
-    heading_rate_map_overlay_active_threshold: float = 0.0
-    heading_rate_map_overlay_field_threshold_fraction: float = Field(
-        default=0.2,
+    heading_rate_map_overlay_active_threshold: float | None = None
+    heading_rate_map_overlay_field_threshold_fraction: float | None = Field(
+        default=None,
         ge=0.0,
         le=1.0,
     )
@@ -1423,8 +1453,8 @@ class AnalysisConfig:
     decode_bias_min_samples_per_bin: int = Field(default=8, ge=1)
     decode_max_samples: int = Field(default=0, ge=0)
     decode_random_seed: int = 0
-    decode_error_num_bins_x: int = Field(default=60, ge=1)
-    decode_error_num_bins_y: int = Field(default=60, ge=1)
+    decode_error_num_bins_x: int | None = Field(default=None, ge=1)
+    decode_error_num_bins_y: int | None = Field(default=None, ge=1)
     decode_region_num_regions_x: int = Field(default=4, ge=1)
     decode_region_num_regions_y: int = Field(default=4, ge=1)
     decode_region_max_iter: int = Field(default=200, ge=1)
@@ -1439,12 +1469,12 @@ class AnalysisConfig:
     redundancy_max_samples: int = Field(default=4096, ge=64)
     redundancy_random_seed: int = 0
     example_episode_index: int = Field(default=-1, ge=-1)
-    example_episode_random_seed: int | None = 0
+    example_episode_random_seed: int | None = None
     example_episode_top_k: int = Field(default=0, ge=0)
     example_episode_frame_duration: float = Field(default=0.14, gt=0.0)
     per_episode_rate_maps_top_k: int = Field(default=8, ge=0)
     per_episode_rate_maps_num_episodes: int = Field(default=6, ge=1)
-    per_episode_rate_maps_render_dpi: int = Field(default=160, ge=1)
+    per_episode_rate_maps_render_dpi: int | None = Field(default=None, ge=1)
     per_episode_rate_maps_page_size: int = Field(default=6, ge=1)
 
     selectivity_position_centers_x: int = Field(default=8, ge=1)
@@ -1522,18 +1552,18 @@ class AnalysisConfig:
     probing_train_fraction: float = Field(default=0.8, gt=0.0, lt=1.0)
     probing_ridge_alpha: float = Field(default=1e-3, ge=0.0)
     probing_include_shuffle: bool = True
-    probing_shuffle_seed: int = 0
-    probing_novelty_num_bins_x: int = Field(default=60, ge=1)
-    probing_novelty_num_bins_y: int = Field(default=60, ge=1)
+    probing_shuffle_seed: int | None = None
+    probing_novelty_num_bins_x: int | None = Field(default=None, ge=1)
+    probing_novelty_num_bins_y: int | None = Field(default=None, ge=1)
 
     active_peak_rate_threshold: float = Field(default=1e-6, ge=0.0)
     remapping_shuffle_iterations: int = Field(default=100, ge=0)
-    remapping_shuffle_seed: int = 0
+    remapping_shuffle_seed: int | None = None
 
-    reanchoring_num_bins_x: int = Field(default=60, ge=1)
-    reanchoring_num_bins_y: int = Field(default=60, ge=1)
-    reanchoring_per_episode_num_bins_x: int = Field(default=20, ge=1)
-    reanchoring_per_episode_num_bins_y: int = Field(default=20, ge=1)
+    reanchoring_num_bins_x: int | None = Field(default=None, ge=1)
+    reanchoring_num_bins_y: int | None = Field(default=None, ge=1)
+    reanchoring_per_episode_num_bins_x: int | None = Field(default=None, ge=1)
+    reanchoring_per_episode_num_bins_y: int | None = Field(default=None, ge=1)
     reanchoring_smoothing_sigma: float = Field(default=1.0, ge=0.0)
     reanchoring_min_occupancy: float = Field(default=1e-6, ge=0.0)
     reanchoring_minimum_valid_steps: int = Field(default=50, ge=1)
@@ -1552,7 +1582,7 @@ class AnalysisConfig:
     sr_oracle_num_eigen_modes: int = Field(default=8, ge=1)
     successor_return_discount_gamma: float = Field(default=0.95, ge=0.0, lt=1.0)
     successor_return_normalized: bool = True
-    successor_return_shuffle_seed: int = 0
+    successor_return_shuffle_seed: int | None = None
 
     vector_num_distance_bins: int = Field(default=12, ge=1)
     vector_num_angle_bins: int = Field(default=24, ge=1)
@@ -1579,6 +1609,17 @@ class AnalysisConfig:
     targets: dict[str, AnalysisTargetConfig] = field(default_factory=dict)
     target_order: list[str] = field(default_factory=list)
     comparative: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _inherit_unset_settings(self) -> AnalysisConfig:
+        """An unset specific setting takes the value of the general setting it refines."""
+        for field_name, general_name in _INHERITED_ANALYSIS_SETTINGS.items():
+            if getattr(self, field_name) is None:
+                object.__setattr__(self, field_name, getattr(self, general_name))
+        if self.head_direction_min_heading_bins is None:
+            minimum_bins = max(4, self.head_direction_num_bins // 4)
+            object.__setattr__(self, "head_direction_min_heading_bins", minimum_bins)
+        return self
 
     @model_validator(mode="after")
     def _check_permutation_counts_support_fdr(self) -> AnalysisConfig:

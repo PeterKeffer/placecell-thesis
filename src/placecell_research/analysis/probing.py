@@ -64,7 +64,7 @@ class ProbingModule:
                 train_fraction=float(config.get("probing_train_fraction", 0.8)),
                 ridge_alpha=float(config.get("probing_ridge_alpha", 1e-3)),
                 include_shuffle=bool(config.get("probing_include_shuffle", True)),
-                random_seed=int(config.get("probing_shuffle_seed", 0)),
+                random_seed=int(config["probing_shuffle_seed"]),
             )
             metrics[f"probe_{target.name}_score"] = score.score
             if score.shuffle_score is not None:
@@ -257,8 +257,8 @@ def _novelty_target(analysis_input: AnalysisInput, config: dict) -> _ProbeTarget
     values = np.full((episodes, steps, 1), np.nan, dtype=np.float32)
     env_id = str(analysis_input.metadata.get("env_id", ""))
     bounds = resolve_plot_bounds(env_id, positions.reshape(-1, 2))
-    num_bins_x = int(config.get("probing_novelty_num_bins_x", config.get("num_bins_x", 60)))
-    num_bins_y = int(config.get("probing_novelty_num_bins_y", config.get("num_bins_y", 60)))
+    num_bins_x = int(config["probing_novelty_num_bins_x"])
+    num_bins_y = int(config["probing_novelty_num_bins_y"])
     for episode_index in range(episodes):
         linear_bins, _, _, _ = compute_spatial_bin_assignments(
             positions[episode_index],

@@ -424,7 +424,7 @@ def execute_comparative_work_items(
                 comparative_output_dir,
                 {
                     "comparative": {analysis_name: analysis_payload},
-                    "max_cost_tier": analysis_config.get("max_cost_tier", "heavy"),
+                    "max_cost_tier": analysis_config["max_cost_tier"],
                 },
                 progress_callback=lambda completed_name: progress.advance(
                     detail=f"comparative:{completed_name}"

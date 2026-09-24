@@ -128,20 +128,6 @@ def select_high_activation_positions(
         selected_positions[int(unit_index)] = active_positions.astype(np.float32, copy=False)
     return selected_positions
 
-def _show_all_rate_map_grid_units(config: dict) -> bool:
-    raw_value = config.get("rate_map_grid_show_all_units", True)
-    if isinstance(raw_value, str):
-        return raw_value.strip().lower() in {"1", "true", "yes", "on"}
-    return bool(raw_value)
-
-
-def _show_all_rate_map_panel_units(config: dict) -> bool:
-    raw_value = config.get("rate_map_panel_show_all_units", True)
-    if isinstance(raw_value, str):
-        return raw_value.strip().lower() in {"1", "true", "yes", "on"}
-    return bool(raw_value)
-
-
 def use_shared_rate_map_color_scale(config: dict) -> bool:
     raw_value = config.get("rate_map_shared_color_scale", False)
     if isinstance(raw_value, str):
@@ -366,13 +352,13 @@ def select_ranked_units(
 ) -> _RankedUnits:
     """Take the top-k of the ranking for each figure, then optionally regroup by field position."""
     ranked_indices = bundle.ranked_indices
-    render_all_panel_units = _show_all_rate_map_panel_units(config)
+    render_all_panel_units = bool(config["rate_map_panel_show_all_units"])
     summary_indices = (
         ranked_indices
         if render_all_panel_units
         else ranked_indices[: min(settings.panel_top_k, len(ranked_indices))]
     )
-    render_all_grid_units = _show_all_rate_map_grid_units(config)
+    render_all_grid_units = bool(config["rate_map_grid_show_all_units"])
     grid_indices = (
         ranked_indices
         if render_all_grid_units

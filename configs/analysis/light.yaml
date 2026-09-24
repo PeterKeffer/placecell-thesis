@@ -1,33 +1,19 @@
-model_artifact_id: ""
-dataset_artifact_id: ""
-split_artifact_id: ""
 split_name: validation
 batch_size: 16
-device: auto
 num_bins_x: 32
 num_bins_y: 32
 smoothing_sigma: 0.35
-min_occupancy: 1.0e-6
-place_field_threshold_fraction: 0.2
 rate_map_panel_emit_thresholded_reliability_figure: false
 rate_map_panel_emit_quantile_thresholded_reliability_figure: false
 rate_map_panel_top_k: 24
-rate_map_panel_show_all_units: false
 rate_map_grid_top_k: 24
-rate_map_grid_show_all_units: false
 decode_max_samples: 32768
-decode_nonlinear_enabled: true
 umap_max_points: 1024
 umap_n_neighbors: 15
 umap_pool_num_bins_x: 12
 umap_pool_num_bins_y: 12
 umap_trustworthiness_neighbors: 8
-example_episode_index: -1
-example_episode_random_seed: null
-example_episode_top_k: 0
-place_field_overlay_frame_duration: 0.5
 dataset_coverage_extra_splits: [train, validation, test]
-max_cost_tier: standard
 targets:
   encoder_place_cells:
     source: encoder.place_codes

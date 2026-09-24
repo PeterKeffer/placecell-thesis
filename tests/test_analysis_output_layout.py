@@ -264,6 +264,7 @@ def test_comparative_input_payloads_requires_inputs() -> None:
 
 def test_disabled_comparative_items_are_filtered_before_input_validation() -> None:
     analysis_config = {
+        "max_cost_tier": "standard",
         "targets": {},
         "comparative": {
             "remapping": {
@@ -285,6 +286,7 @@ def test_disabled_comparative_items_are_filtered_before_input_validation() -> No
 
 def test_analysis_work_item_count_includes_extra_dataset_coverage_splits() -> None:
     analysis_config = {
+        "max_cost_tier": "standard",
         "split_name": "validation",
         "dataset_coverage_extra_splits": ["train", "test"],
         "targets": {

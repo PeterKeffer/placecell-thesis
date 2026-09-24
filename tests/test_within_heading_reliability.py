@@ -81,7 +81,7 @@ def test_population_separates_conjunctive_from_omnidirectional():
     assert np.nanmean(result.within_heading) > np.nanmean(result.pooled)
 
 
-def test_module_run_reports_metrics_and_table(tmp_path):
+def test_module_run_reports_metrics_and_table(tmp_path, analysis_settings):
     quadrant, heading, _position, valid_mask = _single_bin_episodes()
     num_episodes = heading.shape[0]
     conjunctive = (quadrant == 0).astype(np.float64)
@@ -101,7 +101,9 @@ def test_module_run_reports_metrics_and_table(tmp_path):
         label="encoder_place_cells",
         split_name="test",
     )
-    result = WithinHeadingReliabilityModule().run(analysis_input, tmp_path, {"num_bins": 1})
+    result = WithinHeadingReliabilityModule().run(analysis_input, tmp_path, analysis_settings(
+        num_bins=1,
+    ))
 
     assert set(result.metrics) >= {
         "mean_pooled_reliability",

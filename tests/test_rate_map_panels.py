@@ -265,7 +265,9 @@ def test_rate_map_metric_bundle_reuses_episode_activity_sum_chunks(monkeypatch) 
     assert sorted(summed_units) == list(range(representation.shape[-1]))
 
 
-def test_rate_map_module_writes_summary_panel_grid_and_field_reliability(tmp_path: Path) -> None:
+def test_rate_map_module_writes_summary_panel_grid_and_field_reliability(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes = 5
     steps = 48
     position_sequences = []
@@ -296,16 +298,16 @@ def test_rate_map_module_writes_summary_panel_grid_and_field_reliability(tmp_pat
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 24,
-            "num_bins_y": 24,
-            "smoothing_sigma": 0.8,
-            "min_occupancy": 1e-6,
-            "reliability_threshold_fraction": 0.3,
-            "place_field_threshold_fraction": 0.35,
-            "rate_map_panel_top_k": 3,
-            "rate_map_grid_top_k": 3,
-        },
+        analysis_settings(
+            num_bins_x=24,
+            num_bins_y=24,
+            smoothing_sigma=0.8,
+            min_occupancy=1e-6,
+            reliability_threshold_fraction=0.3,
+            place_field_threshold_fraction=0.35,
+            rate_map_panel_top_k=3,
+            rate_map_grid_top_k=3,
+        ),
     )
 
     assert (
@@ -411,7 +413,7 @@ def test_rate_map_module_writes_summary_panel_grid_and_field_reliability(tmp_pat
     assert "episode_rate_map_correlation" in metrics_table_text
 
 
-def test_rate_map_module_reports_timing_sections(tmp_path: Path, capsys) -> None:
+def test_rate_map_module_reports_timing_sections(tmp_path: Path, capsys, analysis_settings) -> None:
     positions = np.stack(
         [
             np.linspace(-1.0, 1.0, 12, dtype=np.float32),
@@ -440,16 +442,16 @@ def test_rate_map_module_reports_timing_sections(tmp_path: Path, capsys) -> None
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 8,
-            "num_bins_y": 8,
-            "smoothing_sigma": 0.3,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 1,
-            "rate_map_grid_top_k": 1,
-            "rate_map_panel_emit_thresholded_reliability_figure": False,
-            "rate_map_panel_emit_quantile_thresholded_reliability_figure": False,
-        },
+        analysis_settings(
+            num_bins_x=8,
+            num_bins_y=8,
+            smoothing_sigma=0.3,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=1,
+            rate_map_grid_top_k=1,
+            rate_map_panel_emit_thresholded_reliability_figure=False,
+            rate_map_panel_emit_quantile_thresholded_reliability_figure=False,
+        ),
     )
 
     captured = capsys.readouterr()
@@ -471,7 +473,7 @@ def test_rate_map_module_reports_timing_sections(tmp_path: Path, capsys) -> None
     assert "render_primary_panel=" in captured.err
 
 
-def test_rate_map_panel_module_writes_panel_without_grid(tmp_path: Path) -> None:
+def test_rate_map_panel_module_writes_panel_without_grid(tmp_path: Path, analysis_settings) -> None:
     positions = np.stack(
         [
             np.linspace(-1.0, 1.0, 12, dtype=np.float32),
@@ -500,16 +502,16 @@ def test_rate_map_panel_module_writes_panel_without_grid(tmp_path: Path) -> None
     result = RateMapPanelModule().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 8,
-            "num_bins_y": 8,
-            "smoothing_sigma": 0.3,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 1,
-            "rate_map_grid_top_k": 1,
-            "rate_map_panel_emit_thresholded_reliability_figure": False,
-            "rate_map_panel_emit_quantile_thresholded_reliability_figure": False,
-        },
+        analysis_settings(
+            num_bins_x=8,
+            num_bins_y=8,
+            smoothing_sigma=0.3,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=1,
+            rate_map_grid_top_k=1,
+            rate_map_panel_emit_thresholded_reliability_figure=False,
+            rate_map_panel_emit_quantile_thresholded_reliability_figure=False,
+        ),
     )
 
     panel_path = tmp_path / "rate_map_panel" / "rate_map_panel__encoder.place_codes__validation.png"
@@ -527,6 +529,7 @@ def test_rate_map_panel_module_writes_panel_without_grid(tmp_path: Path) -> None
 def test_rate_map_metrics_module_skips_spike_position_selection(
     tmp_path: Path,
     monkeypatch,
+    analysis_settings,
 ) -> None:
     positions = np.stack(
         [
@@ -564,73 +567,15 @@ def test_rate_map_metrics_module_skips_spike_position_selection(
     result = RateMapFieldsModule().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 8,
-            "num_bins_y": 8,
-            "smoothing_sigma": 0.3,
-            "min_occupancy": 1e-6,
-        },
+        analysis_settings(num_bins_x=8, num_bins_y=8, smoothing_sigma=0.3, min_occupancy=1e-6),
     )
 
     assert "rate_map_panel" not in result.figures
     assert result.metrics["mean_peak_rate"] > 0.0
 
 
-def test_rate_map_module_can_switch_panel_back_to_thresholded_reliability(tmp_path: Path) -> None:
-    episodes = 4
-    steps = 18
-    x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
-    y_positions = np.linspace(-0.6, 0.6, steps, dtype=np.float32)
-    position_sequences = []
-    representation_sequences = []
-    for episode_index in range(episodes):
-        positions = np.stack([x_positions, np.roll(y_positions, shift=episode_index)], axis=-1)
-        position_sequences.append(positions)
-        unit_0 = _synthetic_place_activity(positions, center_x=-0.4, center_y=-0.2)
-        unit_1 = _synthetic_place_activity(positions, center_x=0.35, center_y=0.2)
-        representation_sequences.append(np.stack([unit_0, unit_1], axis=-1))
-
-    analysis_input = AnalysisInput(
-        representation=np.stack(representation_sequences, axis=0),
-        position_xy=np.stack(position_sequences, axis=0),
-        heading=None,
-        kinematics=None,
-        actions=None,
-        valid_mask=np.ones((episodes, steps), dtype=bool),
-        source_name="encoder.place_codes",
-        label="encoder_place_cells",
-        split_name="validation",
-        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
-    )
-
-    result = _RateMapModuleBase().run(
-        analysis_input,
-        tmp_path,
-        {
-            "num_bins_x": 20,
-            "num_bins_y": 20,
-            "smoothing_sigma": 0.6,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_reliability_metric": "thresholded_reliability",
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
-    )
-
-    assert result.metadata["rate_map_panel_reliability_metric"] == "thresholded_reliability"
-    assert result.metrics["mean_reliability_inside_fields"] > 0.0
-    assert result.metrics["mean_bin_consistency_inside_fields"] > 0.0
-    assert (
-        result.figures["rate_map_panel_thresholded_reliability"] == result.figures["rate_map_panel"]
-    )
-    assert (
-        result.metadata["rate_map_panel_thresholded_reliability_pages"]
-        == result.metadata["rate_map_panel_pages"]
-    )
-
-
-def test_rate_map_module_can_switch_panel_to_quantile_thresholded_reliability(
-    tmp_path: Path,
+def test_rate_map_module_can_switch_panel_back_to_thresholded_reliability(
+    tmp_path: Path, analysis_settings
 ) -> None:
     episodes = 4
     steps = 18
@@ -661,15 +606,71 @@ def test_rate_map_module_can_switch_panel_to_quantile_thresholded_reliability(
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 20,
-            "num_bins_y": 20,
-            "smoothing_sigma": 0.6,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_reliability_metric": "quantile_thresholded_reliability",
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=20,
+            num_bins_y=20,
+            smoothing_sigma=0.6,
+            min_occupancy=1e-6,
+            rate_map_panel_reliability_metric="thresholded_reliability",
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+        ),
+    )
+
+    assert result.metadata["rate_map_panel_reliability_metric"] == "thresholded_reliability"
+    assert result.metrics["mean_reliability_inside_fields"] > 0.0
+    assert result.metrics["mean_bin_consistency_inside_fields"] > 0.0
+    assert (
+        result.figures["rate_map_panel_thresholded_reliability"] == result.figures["rate_map_panel"]
+    )
+    assert (
+        result.metadata["rate_map_panel_thresholded_reliability_pages"]
+        == result.metadata["rate_map_panel_pages"]
+    )
+
+
+def test_rate_map_module_can_switch_panel_to_quantile_thresholded_reliability(
+    tmp_path: Path,
+    analysis_settings,
+) -> None:
+    episodes = 4
+    steps = 18
+    x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
+    y_positions = np.linspace(-0.6, 0.6, steps, dtype=np.float32)
+    position_sequences = []
+    representation_sequences = []
+    for episode_index in range(episodes):
+        positions = np.stack([x_positions, np.roll(y_positions, shift=episode_index)], axis=-1)
+        position_sequences.append(positions)
+        unit_0 = _synthetic_place_activity(positions, center_x=-0.4, center_y=-0.2)
+        unit_1 = _synthetic_place_activity(positions, center_x=0.35, center_y=0.2)
+        representation_sequences.append(np.stack([unit_0, unit_1], axis=-1))
+
+    analysis_input = AnalysisInput(
+        representation=np.stack(representation_sequences, axis=0),
+        position_xy=np.stack(position_sequences, axis=0),
+        heading=None,
+        kinematics=None,
+        actions=None,
+        valid_mask=np.ones((episodes, steps), dtype=bool),
+        source_name="encoder.place_codes",
+        label="encoder_place_cells",
+        split_name="validation",
+        metadata={"env_id": "MiniWorld-WallGapAsym-v0"},
+    )
+
+    result = _RateMapModuleBase().run(
+        analysis_input,
+        tmp_path,
+        analysis_settings(
+            num_bins_x=20,
+            num_bins_y=20,
+            smoothing_sigma=0.6,
+            min_occupancy=1e-6,
+            rate_map_panel_reliability_metric="quantile_thresholded_reliability",
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+        ),
     )
 
     assert (
@@ -686,7 +687,9 @@ def test_rate_map_module_can_switch_panel_to_quantile_thresholded_reliability(
     )
 
 
-def test_rate_map_module_can_render_split_half_agreement_panel(tmp_path: Path) -> None:
+def test_rate_map_module_can_render_split_half_agreement_panel(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes = 4
     steps = 18
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
@@ -716,15 +719,15 @@ def test_rate_map_module_can_render_split_half_agreement_panel(tmp_path: Path) -
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 20,
-            "num_bins_y": 20,
-            "smoothing_sigma": 0.6,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_reliability_metric": "split_half_agreement",
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=20,
+            num_bins_y=20,
+            smoothing_sigma=0.6,
+            min_occupancy=1e-6,
+            rate_map_panel_reliability_metric="split_half_agreement",
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+        ),
     )
 
     assert result.metadata["rate_map_panel_reliability_metric"] == "split_half_agreement"
@@ -732,7 +735,9 @@ def test_rate_map_module_can_render_split_half_agreement_panel(tmp_path: Path) -
     assert np.asarray(result.metadata["split_half_agreement_support_counts"]).shape == (20, 20)
 
 
-def test_rate_map_module_can_disable_extra_thresholded_reliability_panel(tmp_path: Path) -> None:
+def test_rate_map_module_can_disable_extra_thresholded_reliability_panel(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes = 4
     steps = 18
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
@@ -762,16 +767,16 @@ def test_rate_map_module_can_disable_extra_thresholded_reliability_panel(tmp_pat
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 20,
-            "num_bins_y": 20,
-            "smoothing_sigma": 0.6,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_emit_thresholded_reliability_figure": False,
-            "rate_map_panel_emit_quantile_thresholded_reliability_figure": False,
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=20,
+            num_bins_y=20,
+            smoothing_sigma=0.6,
+            min_occupancy=1e-6,
+            rate_map_panel_emit_thresholded_reliability_figure=False,
+            rate_map_panel_emit_quantile_thresholded_reliability_figure=False,
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+        ),
     )
 
     assert result.metadata["rate_map_panel_emit_thresholded_reliability_figure"] is False
@@ -788,7 +793,9 @@ def test_rate_map_module_can_disable_extra_thresholded_reliability_panel(tmp_pat
     )
 
 
-def test_rate_map_metrics_export_peak_rate_ignores_unvisited_nan_bins(tmp_path: Path) -> None:
+def test_rate_map_metrics_export_peak_rate_ignores_unvisited_nan_bins(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes = 4
     steps = 8
     x_positions = np.linspace(-1.0, -0.2, steps, dtype=np.float32)
@@ -818,14 +825,14 @@ def test_rate_map_metrics_export_peak_rate_ignores_unvisited_nan_bins(tmp_path: 
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 24,
-            "num_bins_y": 24,
-            "smoothing_sigma": 0.8,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=24,
+            num_bins_y=24,
+            smoothing_sigma=0.8,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+        ),
     )
 
     exported_rows = list(csv.DictReader(result.tables["rate_map_panel_metrics"].open()))
@@ -838,6 +845,7 @@ def test_rate_map_metrics_export_peak_rate_ignores_unvisited_nan_bins(tmp_path: 
 
 def test_rate_map_module_marks_place_field_metrics_unsupported_for_signed_rate_maps(
     tmp_path: Path,
+    analysis_settings,
 ) -> None:
     episodes = 4
     steps = 48
@@ -869,14 +877,14 @@ def test_rate_map_module_marks_place_field_metrics_unsupported_for_signed_rate_m
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 20,
-            "num_bins_y": 20,
-            "smoothing_sigma": 0.4,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=20,
+            num_bins_y=20,
+            smoothing_sigma=0.4,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+        ),
     )
 
     assert result.metadata["place_field_metrics_skipped_for_signed_rate_maps"] is True
@@ -918,6 +926,7 @@ def test_population_colormap_family_and_palette() -> None:
 
 def test_rate_map_module_supports_near_nonnegative_units_with_tiny_negative_bins(
     tmp_path: Path,
+    analysis_settings,
 ) -> None:
     episodes = 4
     steps = 100
@@ -947,14 +956,14 @@ def test_rate_map_module_supports_near_nonnegative_units_with_tiny_negative_bins
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 10,
-            "num_bins_y": 10,
-            "smoothing_sigma": 0.0,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 1,
-            "rate_map_grid_top_k": 1,
-        },
+        analysis_settings(
+            num_bins_x=10,
+            num_bins_y=10,
+            smoothing_sigma=0.0,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=1,
+            rate_map_grid_top_k=1,
+        ),
     )
 
     assert result.metadata["place_field_metrics_supported_unit_count"] == 1
@@ -971,7 +980,9 @@ def test_world_overlay_for_wallgap_asym_exposes_segments_and_landmarks() -> None
     assert len(overlay.landmarks) >= 4
 
 
-def test_rate_map_grid_defaults_to_all_units_even_when_grid_top_k_is_lower(tmp_path: Path) -> None:
+def test_rate_map_grid_show_all_units_overrides_grid_top_k(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes = 4
     steps = 18
     unit_count = 5
@@ -1007,21 +1018,23 @@ def test_rate_map_grid_defaults_to_all_units_even_when_grid_top_k_is_lower(tmp_p
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 24,
-            "num_bins_y": 24,
-            "smoothing_sigma": 0.6,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 3,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=24,
+            num_bins_y=24,
+            smoothing_sigma=0.6,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=3,
+            rate_map_grid_top_k=2,
+            rate_map_grid_show_all_units=True,
+        ),
     )
 
     assert len(result.metadata["ranked_units_grid"]) == unit_count
 
 
-def test_rate_map_panel_defaults_to_all_units_even_when_panel_top_k_is_lower(
+def test_rate_map_panel_show_all_units_overrides_panel_top_k(
     tmp_path: Path,
+    analysis_settings,
 ) -> None:
     episodes = 4
     steps = 18
@@ -1060,14 +1073,15 @@ def test_rate_map_panel_defaults_to_all_units_even_when_panel_top_k_is_lower(
     result = _RateMapModuleBase().run(
         analysis_input,
         tmp_path,
-        {
-            "num_bins_x": 24,
-            "num_bins_y": 24,
-            "smoothing_sigma": 0.6,
-            "min_occupancy": 1e-6,
-            "rate_map_panel_top_k": 2,
-            "rate_map_grid_top_k": 2,
-        },
+        analysis_settings(
+            num_bins_x=24,
+            num_bins_y=24,
+            smoothing_sigma=0.6,
+            min_occupancy=1e-6,
+            rate_map_panel_top_k=2,
+            rate_map_grid_top_k=2,
+            rate_map_panel_show_all_units=True,
+        ),
     )
 
     assert len(result.metadata["ranked_units_summary"]) == unit_count

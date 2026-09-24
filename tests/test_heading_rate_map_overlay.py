@@ -69,12 +69,12 @@ def test_heading_rate_map_overlay_is_registered_for_config_use() -> None:
     assert ANALYSIS_MODULES["heading_rate_map_overlay"]().name == "heading_rate_map_overlay"
 
 
-def test_heading_rate_map_overlay_metrics_expose_corridor_and_support() -> None:
+def test_heading_rate_map_overlay_metrics_expose_corridor_and_support(analysis_settings) -> None:
     analysis_input = _build_input()
 
     metrics = _compute_heading_rate_map_overlay_metrics(
         analysis_input,
-        config=_config(),
+        config=analysis_settings(**_config()),
         bounds=((-0.5, 4.5), (-0.5, 4.5)),
     )
 
@@ -88,8 +88,12 @@ def test_heading_rate_map_overlay_metrics_expose_corridor_and_support() -> None:
     assert metrics.local_support_fraction[0, 2, 2] == 1.0
 
 
-def test_heading_rate_map_overlay_writes_paged_figure_and_table(tmp_path: Path) -> None:
-    result = HeadingRateMapOverlayModule().run(_build_input(), tmp_path, _config())
+def test_heading_rate_map_overlay_writes_paged_figure_and_table(
+    tmp_path: Path, analysis_settings
+) -> None:
+    result = HeadingRateMapOverlayModule().run(
+        _build_input(), tmp_path, analysis_settings(**_config())
+    )
 
     assert result.figures["heading_rate_map_overlay_page_0"].exists()
     assert result.tables["per_unit_metrics"].exists()

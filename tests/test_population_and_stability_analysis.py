@@ -64,7 +64,7 @@ def test_coverage_residuals_are_negative_for_undercovered_bins() -> None:
     assert residuals[2] > 0.0
 
 
-def test_population_coverage_module_renders_coverage_map(tmp_path: Path) -> None:
+def test_population_coverage_module_renders_coverage_map(tmp_path: Path, analysis_settings) -> None:
     episodes = 4
     steps = 40
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
@@ -90,7 +90,7 @@ def test_population_coverage_module_renders_coverage_map(tmp_path: Path) -> None
     result = PopulationCoverageModule().run(
         _analysis_input(np.stack(representations, axis=0), np.stack(positions, axis=0)),
         tmp_path,
-        {"num_bins_x": 24, "num_bins_y": 24, "smoothing_sigma": 0.6, "min_occupancy": 1e-6},
+        analysis_settings(num_bins_x=24, num_bins_y=24, smoothing_sigma=0.6, min_occupancy=1e-6),
     )
 
     assert result.figures["population_coverage_map"].exists()
@@ -103,7 +103,9 @@ def test_population_coverage_module_renders_coverage_map(tmp_path: Path) -> None
     assert "log_occupancy_coverage_correlation" in result.metrics
 
 
-def test_redundancy_metrics_module_detects_dead_and_redundant_units(tmp_path: Path) -> None:
+def test_redundancy_metrics_module_detects_dead_and_redundant_units(
+    tmp_path: Path, analysis_settings
+) -> None:
     steps = 128
     positions = np.stack(
         [
@@ -123,7 +125,9 @@ def test_redundancy_metrics_module_detects_dead_and_redundant_units(tmp_path: Pa
         axis=-1,
     )[None, :, :]
 
-    result = RedundancyMetricsModule().run(_analysis_input(representation, positions), tmp_path, {})
+    result = RedundancyMetricsModule().run(
+        _analysis_input(representation, positions), tmp_path, analysis_settings()
+    )
 
     assert result.figures["redundancy_metrics"].exists()
     assert result.metrics["dead_unit_fraction"] >= 0.24
@@ -181,7 +185,9 @@ def test_redundancy_metrics_samples_before_flattening_valid_steps(
     assert result.figures["redundancy_metrics"].exists()
 
 
-def test_field_stability_module_reports_small_drift_for_stable_fields(tmp_path: Path) -> None:
+def test_field_stability_module_reports_small_drift_for_stable_fields(
+    tmp_path: Path, analysis_settings
+) -> None:
     episodes = 5
     steps = 64
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
@@ -227,17 +233,17 @@ def test_field_stability_module_reports_small_drift_for_stable_fields(tmp_path: 
     metrics_result = FieldStabilityMetricsModule().run(
         analysis_input,
         tmp_path,
-        config,
+        analysis_settings(**config),
     )
     summary_result = FieldStabilitySummaryModule().run(
         analysis_input,
         tmp_path,
-        config,
+        analysis_settings(**config),
     )
     trajectories_result = FieldStabilityTrajectoriesModule().run(
         analysis_input,
         tmp_path,
-        config,
+        analysis_settings(**config),
     )
 
     assert summary_result.figures["field_stability_summary"].exists()
@@ -256,6 +262,7 @@ def test_field_stability_module_reports_small_drift_for_stable_fields(tmp_path: 
 def test_field_stability_split_modules_share_episode_metrics(
     tmp_path: Path,
     monkeypatch,
+    analysis_settings,
 ) -> None:
     episodes = 4
     steps = 48
@@ -307,14 +314,16 @@ def test_field_stability_split_modules_share_episode_metrics(
         "field_stability_top_k": 2,
     }
 
-    FieldStabilityMetricsModule().run(analysis_input, tmp_path, config)
-    FieldStabilitySummaryModule().run(analysis_input, tmp_path, config)
-    FieldStabilityTrajectoriesModule().run(analysis_input, tmp_path, config)
+    FieldStabilityMetricsModule().run(analysis_input, tmp_path, analysis_settings(**config))
+    FieldStabilitySummaryModule().run(analysis_input, tmp_path, analysis_settings(**config))
+    FieldStabilityTrajectoriesModule().run(analysis_input, tmp_path, analysis_settings(**config))
 
     assert activity_chunk_passes == 1
 
 
-def test_field_stability_batches_episode_rate_maps(tmp_path: Path, monkeypatch) -> None:
+def test_field_stability_batches_episode_rate_maps(
+    tmp_path: Path, monkeypatch, analysis_settings
+) -> None:
     episodes = 4
     steps = 48
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
@@ -349,21 +358,21 @@ def test_field_stability_batches_episode_rate_maps(tmp_path: Path, monkeypatch) 
     result = FieldStabilitySummaryModule().run(
         _analysis_input(np.stack(representations, axis=0), np.stack(positions, axis=0)),
         tmp_path,
-        {
-            "per_episode_num_bins_x": 8,
-            "per_episode_num_bins_y": 8,
-            "per_episode_smoothing_sigma": 0.5,
-            "per_episode_min_occupancy": 1e-6,
-            "per_episode_minimum_visited_fraction": 0.1,
-            "per_episode_minimum_valid_steps": 8,
-            "field_stability_top_k": 2,
-        },
+        analysis_settings(
+            per_episode_num_bins_x=8,
+            per_episode_num_bins_y=8,
+            per_episode_smoothing_sigma=0.5,
+            per_episode_min_occupancy=1e-6,
+            per_episode_minimum_visited_fraction=0.1,
+            per_episode_minimum_valid_steps=8,
+            field_stability_top_k=2,
+        ),
     )
 
     assert result.figures["field_stability_summary"].exists()
 
 
-def test_decode_heatmap_and_headline_use_the_same_rmse(tmp_path, monkeypatch):
+def test_decode_heatmap_and_headline_use_the_same_rmse(tmp_path, monkeypatch, analysis_settings):
     import matplotlib.axes
 
     rng = np.random.default_rng(91)
@@ -377,15 +386,16 @@ def test_decode_heatmap_and_headline_use_the_same_rmse(tmp_path, monkeypatch):
         return original(axis, values, *args, **kwargs)
 
     monkeypatch.setattr(matplotlib.axes.Axes, "imshow", capture)
-    result = DecodeXYModule().run(_analysis_input(codes, positions), tmp_path, {
-        "decode_error_num_bins_x": 1, "decode_error_num_bins_y": 1,
-        "decode_bias_min_samples_per_bin": 1,
-    })
+    result = DecodeXYModule().run(_analysis_input(codes, positions), tmp_path, analysis_settings(
+        decode_error_num_bins_x=1,
+        decode_error_num_bins_y=1,
+        decode_bias_min_samples_per_bin=1,
+    ))
     assert images[0].shape == (1, 1)
     assert images[0][0, 0] == pytest.approx(result.metrics["decode_rmse"], rel=1e-6)
 
 
-def test_decode_xy_module_writes_bias_arrow_figure(tmp_path: Path) -> None:
+def test_decode_xy_module_writes_bias_arrow_figure(tmp_path: Path, analysis_settings) -> None:
     episodes = 6
     steps = 48
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
@@ -412,13 +422,13 @@ def test_decode_xy_module_writes_bias_arrow_figure(tmp_path: Path) -> None:
     result = DecodeXYModule().run(
         _analysis_input(np.stack(representations, axis=0), np.stack(positions, axis=0)),
         tmp_path,
-        {
-            "decode_train_fraction": 0.8,
-            "decode_ridge_alpha": 1e-3,
-            "decode_error_num_bins_x": 20,
-            "decode_error_num_bins_y": 20,
-            "decode_bias_min_samples_per_bin": 3,
-        },
+        analysis_settings(
+            decode_train_fraction=0.8,
+            decode_ridge_alpha=1e-3,
+            decode_error_num_bins_x=20,
+            decode_error_num_bins_y=20,
+            decode_bias_min_samples_per_bin=3,
+        ),
     )
 
     assert result.figures["decode_error_heatmap"].exists()
@@ -437,7 +447,9 @@ def test_decode_xy_module_writes_bias_arrow_figure(tmp_path: Path) -> None:
     }
 
 
-def test_decode_xy_module_can_emit_nonlinear_decode_metrics(tmp_path: Path) -> None:
+def test_decode_xy_module_can_emit_nonlinear_decode_metrics(
+    tmp_path: Path, analysis_settings
+) -> None:
     rng = np.random.default_rng(6)
     episodes = 8
     steps = 48
@@ -456,16 +468,16 @@ def test_decode_xy_module_can_emit_nonlinear_decode_metrics(tmp_path: Path) -> N
             flat_positions.reshape(episodes, steps, 2),
         ),
         tmp_path,
-        {
-            "decode_train_fraction": 0.75,
-            "decode_ridge_alpha": 1e-3,
-            "decode_nonlinear_enabled": True,
-            "decode_nonlinear_hidden_sizes": [64, 64],
-            "decode_nonlinear_max_epochs": 180,
-            "decode_nonlinear_batch_size": 128,
-            "decode_nonlinear_random_seed": 11,
-            "decode_bias_min_samples_per_bin": 1,
-        },
+        analysis_settings(
+            decode_train_fraction=0.75,
+            decode_ridge_alpha=1e-3,
+            decode_nonlinear_enabled=True,
+            decode_nonlinear_hidden_sizes=[64, 64],
+            decode_nonlinear_max_epochs=180,
+            decode_nonlinear_batch_size=128,
+            decode_nonlinear_random_seed=11,
+            decode_bias_min_samples_per_bin=1,
+        ),
     )
 
     assert "nonlinear_decode_r2" in result.metrics
@@ -476,6 +488,7 @@ def test_decode_xy_module_can_emit_nonlinear_decode_metrics(tmp_path: Path) -> N
 def test_decode_xy_module_can_opt_into_bounded_valid_step_sample(
     tmp_path: Path,
     monkeypatch,
+    analysis_settings,
 ) -> None:
     episodes = 4
     steps = 32
@@ -511,13 +524,13 @@ def test_decode_xy_module_can_opt_into_bounded_valid_step_sample(
     result = DecodeXYModule().run(
         _analysis_input(np.stack(representations, axis=0), np.stack(positions, axis=0)),
         tmp_path,
-        {
-            "decode_train_fraction": 0.75,
-            "decode_ridge_alpha": 1e-3,
-            "decode_max_samples": 32,
-            "decode_random_seed": 9,
-            "decode_bias_min_samples_per_bin": 1,
-        },
+        analysis_settings(
+            decode_train_fraction=0.75,
+            decode_ridge_alpha=1e-3,
+            decode_max_samples=32,
+            decode_random_seed=9,
+            decode_bias_min_samples_per_bin=1,
+        ),
     )
 
     assert result.metrics["decode_r2"] > 0.8
@@ -527,7 +540,7 @@ def test_decode_xy_module_can_opt_into_bounded_valid_step_sample(
     assert result.metadata["decode_timing_seconds"]["sample_valid_steps"] >= 0.0
 
 
-def test_decode_xy_module_skips_single_episode_decode(tmp_path: Path) -> None:
+def test_decode_xy_module_skips_single_episode_decode(tmp_path: Path, analysis_settings) -> None:
     steps = 8
     x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
     y_positions = np.linspace(-0.8, 0.8, steps, dtype=np.float32)
@@ -544,7 +557,7 @@ def test_decode_xy_module_skips_single_episode_decode(tmp_path: Path) -> None:
     result = DecodeXYModule().run(
         _analysis_input(representation[None, ...], episode_positions[None, ...]),
         tmp_path,
-        {"decode_train_fraction": 0.8, "decode_ridge_alpha": 1e-3},
+        analysis_settings(decode_train_fraction=0.8, decode_ridge_alpha=1e-3),
     )
 
     assert result.metrics == {}
@@ -569,22 +582,26 @@ def _two_visited_bins_input() -> AnalysisInput:
     return _analysis_input(representation, positions)
 
 
-def test_population_coverage_reads_visited_bins_before_smoothing(tmp_path: Path) -> None:
+def test_population_coverage_reads_visited_bins_before_smoothing(
+    tmp_path: Path, analysis_settings
+) -> None:
     result = PopulationCoverageModule().run(
         _two_visited_bins_input(),
         tmp_path,
-        {"num_bins_x": 9, "num_bins_y": 9, "smoothing_sigma": 1.0, "min_occupancy": 4.0},
+        analysis_settings(num_bins_x=9, num_bins_y=9, smoothing_sigma=1.0, min_occupancy=4.0),
     )
 
     assert result.metrics["mean_population_coverage_units"] == 0.5
     assert result.metrics["mean_population_coverage_fraction"] == 0.5
 
 
-def test_dataset_coverage_counts_visited_bins_before_smoothing(tmp_path: Path) -> None:
+def test_dataset_coverage_counts_visited_bins_before_smoothing(
+    tmp_path: Path, analysis_settings
+) -> None:
     result = DatasetCoverageModule().run(
         _two_visited_bins_input(),
         tmp_path,
-        {"num_bins_x": 9, "num_bins_y": 9, "smoothing_sigma": 1.0},
+        analysis_settings(num_bins_x=9, num_bins_y=9, smoothing_sigma=1.0),
     )
 
     assert result.metrics["occupied_bins_fraction"] == pytest.approx(2 / 81)

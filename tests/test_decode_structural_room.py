@@ -10,7 +10,9 @@ from placecell_research.analysis.decode_structural_room import DecodeStructuralR
 from placecell_research.analysis.registry import run_analysis_modules
 
 
-def test_structural_room_decode_uses_episode_held_out_named_rooms(tmp_path: Path) -> None:
+def test_structural_room_decode_uses_episode_held_out_named_rooms(
+    tmp_path: Path, analysis_settings
+) -> None:
     room_positions = np.asarray(
         [[0.0, 12.0], [0.0, 0.0], [-12.0, -12.0], [12.0, -12.0]],
         dtype=np.float32,
@@ -30,7 +32,7 @@ def test_structural_room_decode_uses_episode_held_out_named_rooms(tmp_path: Path
         metadata={"env_id": "MiniWorld-WallGapAsymLarge-v0"},
     )
 
-    result = DecodeStructuralRoomModule().run(analysis_input, tmp_path, {})
+    result = DecodeStructuralRoomModule().run(analysis_input, tmp_path, analysis_settings())
 
     assert result.metrics["structural_room_decode_accuracy"] == pytest.approx(1.0)
     assert result.metrics["structural_room_decode_balanced_accuracy"] == pytest.approx(1.0)
@@ -40,7 +42,9 @@ def test_structural_room_decode_uses_episode_held_out_named_rooms(tmp_path: Path
     assert result.metadata["test_episode_count"] == 2
 
 
-def test_structural_room_decode_skips_unknown_environment(tmp_path: Path) -> None:
+def test_structural_room_decode_skips_unknown_environment(
+    tmp_path: Path, analysis_settings
+) -> None:
     analysis_input = AnalysisInput(
         representation=np.ones((2, 2, 2), dtype=np.float32),
         position_xy=np.zeros((2, 2, 2), dtype=np.float32),
@@ -54,13 +58,15 @@ def test_structural_room_decode_skips_unknown_environment(tmp_path: Path) -> Non
         metadata={"env_id": "unknown"},
     )
 
-    result = DecodeStructuralRoomModule().run(analysis_input, tmp_path, {})
+    result = DecodeStructuralRoomModule().run(analysis_input, tmp_path, analysis_settings())
 
     assert result.metrics == {}
     assert result.metadata["decode_skipped"] is True
 
 
-def test_hierarchy_diagnostics_run_together_through_registry(tmp_path: Path) -> None:
+def test_hierarchy_diagnostics_run_together_through_registry(
+    tmp_path: Path, analysis_settings
+) -> None:
     room_positions = np.asarray(
         [[0.0, 12.0], [0.0, 0.0], [-12.0, -12.0], [12.0, -12.0]],
         dtype=np.float32,
@@ -83,7 +89,7 @@ def test_hierarchy_diagnostics_run_together_through_registry(tmp_path: Path) -> 
     results = run_analysis_modules(
         analysis_input,
         tmp_path,
-        {"spatial_code_dynamics_lags": [1, 2]},
+        analysis_settings(spatial_code_dynamics_lags=[1, 2]),
         ["decode_structural_room", "spatial_code_dynamics"],
     )
 

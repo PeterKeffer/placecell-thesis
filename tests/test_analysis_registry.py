@@ -43,19 +43,19 @@ def test_successor_analyses_use_their_matching_registry_axes() -> None:
     assert COMPARATIVE_MODULES["sr_oracle"]().name == "sr_oracle"
 
 
-def test_run_analysis_modules_executes_requested_modules(tmp_path) -> None:
+def test_run_analysis_modules_executes_requested_modules(tmp_path, analysis_settings) -> None:
     completed_modules: list[str] = []
     results = run_analysis_modules(
         _synthetic_input(),
         tmp_path,
-        {
-            "num_bins_x": 20,
-            "num_bins_y": 20,
-            "smoothing_sigma": 0.0,
-            "transition_geometry_num_bins_x": 8,
-            "transition_geometry_num_bins_y": 8,
-            "transition_geometry_num_modes": 3,
-        },
+        analysis_settings(
+            num_bins_x=20,
+            num_bins_y=20,
+            smoothing_sigma=0.0,
+            transition_geometry_num_bins_x=8,
+            transition_geometry_num_bins_y=8,
+            transition_geometry_num_modes=3,
+        ),
         [
             "dataset_coverage",
             "sparsity",
@@ -99,7 +99,7 @@ def test_run_analysis_modules_executes_requested_modules(tmp_path) -> None:
     assert "transition_geometry" in results["transition_geometry_panel"].figures
 
 
-def test_analysis_timing_logs_after_progress_callback(tmp_path, capsys) -> None:
+def test_analysis_timing_logs_after_progress_callback(tmp_path, capsys, analysis_settings) -> None:
     completed_modules: list[str] = []
 
     def progress_callback(module_name: str) -> None:
@@ -109,7 +109,7 @@ def test_analysis_timing_logs_after_progress_callback(tmp_path, capsys) -> None:
     run_analysis_modules(
         _synthetic_input(),
         tmp_path,
-        {"decode_train_fraction": 0.8, "decode_ridge_alpha": 1e-3},
+        analysis_settings(decode_train_fraction=0.8, decode_ridge_alpha=1e-3),
         ["decode_xy"],
         progress_callback=progress_callback,
     )
@@ -123,7 +123,9 @@ def test_analysis_timing_logs_after_progress_callback(tmp_path, capsys) -> None:
     )
 
 
-def test_run_analysis_modules_reuses_cached_rate_maps_and_occupancy(monkeypatch, tmp_path) -> None:
+def test_run_analysis_modules_reuses_cached_rate_maps_and_occupancy(
+    monkeypatch, tmp_path, analysis_settings
+) -> None:
     rate_map_calls = 0
     episode_statistics_rate_map_calls = 0
     occupancy_calls = 0
@@ -159,7 +161,7 @@ def test_run_analysis_modules_reuses_cached_rate_maps_and_occupancy(monkeypatch,
     results = run_analysis_modules(
         _synthetic_input(),
         tmp_path,
-        {"num_bins_x": 20, "num_bins_y": 20, "smoothing_sigma": 0.0, "min_occupancy": 1e-6},
+        analysis_settings(num_bins_x=20, num_bins_y=20, smoothing_sigma=0.0, min_occupancy=1e-6),
         [
             "dataset_coverage",
             "rate_map_fields",
@@ -181,7 +183,9 @@ def test_run_analysis_modules_reuses_cached_rate_maps_and_occupancy(monkeypatch,
     assert episode_statistics_rate_map_calls == 1
 
 
-def test_split_rate_map_modules_share_metric_bundle(monkeypatch, tmp_path) -> None:
+def test_split_rate_map_modules_share_metric_bundle(
+    monkeypatch, tmp_path, analysis_settings
+) -> None:
     metric_bundle_calls = 0
     original_compute_metric_bundle = rate_map_module.compute_rate_map_metric_bundle
 
@@ -199,7 +203,7 @@ def test_split_rate_map_modules_share_metric_bundle(monkeypatch, tmp_path) -> No
     results = run_analysis_modules(
         _synthetic_input(),
         tmp_path,
-        {"num_bins_x": 10, "num_bins_y": 10, "smoothing_sigma": 0.0, "min_occupancy": 1e-6},
+        analysis_settings(num_bins_x=10, num_bins_y=10, smoothing_sigma=0.0, min_occupancy=1e-6),
         [
             "rate_map_fields",
             "rate_map_reliability",
@@ -242,7 +246,7 @@ def test_split_rate_map_modules_share_metric_bundle(monkeypatch, tmp_path) -> No
     )
 
 
-def test_sparsity_module_matches_reference_formulas(tmp_path) -> None:
+def test_sparsity_module_matches_reference_formulas(tmp_path, analysis_settings) -> None:
     analysis_input = _synthetic_input()
     analysis_input.valid_mask[0, 0] = False
     flattened, _ = rate_map_kernels.flatten_valid_steps(
@@ -259,7 +263,7 @@ def test_sparsity_module_matches_reference_formulas(tmp_path) -> None:
     )
     expected_population = rate_map_kernels.population_activity_fraction(flattened)
 
-    result = SparsityModule().run(analysis_input, tmp_path, {})
+    result = SparsityModule().run(analysis_input, tmp_path, analysis_settings())
 
     np.testing.assert_allclose(
         result.per_unit_metrics["lifetime_activity_fraction"],
@@ -358,7 +362,9 @@ def test_flatten_helpers_keep_all_valid_views() -> None:
     assert np.shares_memory(episode_statistics.flat_values, representation)
 
 
-def test_rate_map_coding_purity_and_confounds_share_confound_scores(monkeypatch, tmp_path) -> None:
+def test_rate_map_coding_purity_and_confounds_share_confound_scores(
+    monkeypatch, tmp_path, analysis_settings
+) -> None:
     confound_calls = 0
     original_compute_confound_scores = place_cell_quality.compute_available_confound_scores
 
@@ -376,7 +382,7 @@ def test_rate_map_coding_purity_and_confounds_share_confound_scores(monkeypatch,
     results = run_analysis_modules(
         _synthetic_input(),
         tmp_path,
-        {"num_bins_x": 10, "num_bins_y": 10, "smoothing_sigma": 0.0, "min_occupancy": 1e-6},
+        analysis_settings(num_bins_x=10, num_bins_y=10, smoothing_sigma=0.0, min_occupancy=1e-6),
         ["rate_map_coding_purity", "confounds"],
     )
 

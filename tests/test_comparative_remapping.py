@@ -67,10 +67,12 @@ def test_remapping_comparison_runs_with_comparative_block(tmp_path) -> None:
                     "num_bins_x": 20,
                     "num_bins_y": 20,
                     "smoothing_sigma": 0.0,
+                    "remapping_shuffle_seed": 0,
                     "min_occupancy": 1.0e-6,
                     "inputs": [],
                 }
-            }
+            },
+            "max_cost_tier": "heavy",
         },
     )
     assert "remapping_across_runs" in results
@@ -143,6 +145,7 @@ def test_remapping_uses_world_overlay_bounds_for_matching_environments(
             "num_bins_x": 4,
             "num_bins_y": 4,
             "smoothing_sigma": 0.0,
+            "remapping_shuffle_seed": 0,
             "min_occupancy": 1.0e-6,
         },
     )
@@ -198,6 +201,7 @@ def test_remapping_normalizes_known_environments_with_different_bounds(
             "num_bins_x": 4,
             "num_bins_y": 4,
             "smoothing_sigma": 0.0,
+            "remapping_shuffle_seed": 0,
             "min_occupancy": 1.0e-6,
         },
     )

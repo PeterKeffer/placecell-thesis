@@ -358,7 +358,7 @@ class _TransitionGeometryModuleBase:
         top_unit_scores = np.zeros((0,), dtype=np.float32)
         top_k = min(max(alignment_top_k, 1), len(best_mode_abs_correlation))
         if self.emit_alignment_metrics or self.emit_panel:
-            smoothing_sigma = float(config.get("smoothing_sigma", 0.4))
+            smoothing_sigma = float(config["smoothing_sigma"])
             min_occupancy = float(config.get("min_occupancy", 1e-6))
             alignment_cache_key = (
                 "transition_geometry_alignment",

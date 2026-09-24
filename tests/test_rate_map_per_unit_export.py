@@ -60,11 +60,11 @@ _BASE_CONFIG = {
 }
 
 
-def test_per_unit_export_writes_pngs_and_npz(tmp_path: Path) -> None:
+def test_per_unit_export_writes_pngs_and_npz(tmp_path: Path, analysis_settings) -> None:
     result = _RateMapModuleBase().run(
         _wallgap_analysis_input(),
         tmp_path,
-        {**_BASE_CONFIG, "rate_map_export_per_unit": True},
+        analysis_settings(**{**_BASE_CONFIG, "rate_map_export_per_unit": True}),
     )
 
     units_dir = tmp_path / "rate_map_bundle" / "rate_map_units"
@@ -101,15 +101,17 @@ def test_per_unit_export_writes_pngs_and_npz(tmp_path: Path) -> None:
     assert result.metadata["rate_map_export_per_unit"] is True
 
 
-def test_per_unit_export_covers_all_units_with_show_all_units(tmp_path: Path) -> None:
+def test_per_unit_export_covers_all_units_with_show_all_units(
+    tmp_path: Path, analysis_settings
+) -> None:
     result = _RateMapModuleBase().run(
         _wallgap_analysis_input(),
         tmp_path,
-        {
+        analysis_settings(**{
             **_BASE_CONFIG,
             "rate_map_export_per_unit": True,
             "rate_map_panel_show_all_units": True,
-        },
+        }),
     )
 
     units_dir = tmp_path / "rate_map_bundle" / "rate_map_units"
@@ -119,11 +121,11 @@ def test_per_unit_export_covers_all_units_with_show_all_units(tmp_path: Path) ->
         assert bundle["rate_maps"].shape == (3, 24, 24)
 
 
-def test_per_unit_export_is_off_by_default(tmp_path: Path) -> None:
+def test_per_unit_export_is_off_by_default(tmp_path: Path, analysis_settings) -> None:
     result = _RateMapModuleBase().run(
         _wallgap_analysis_input(),
         tmp_path,
-        dict(_BASE_CONFIG),
+        analysis_settings(**dict(_BASE_CONFIG)),
     )
 
     assert not (tmp_path / "rate_map_bundle" / "rate_map_units").exists()

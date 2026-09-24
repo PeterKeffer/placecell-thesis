@@ -1,12 +1,5 @@
-model_artifact_id: ""
-dataset_artifact_id: ""
-split_artifact_id: ""
-split_name: validation
 split_names: [train, validation, test]
-sources:
-  - encoder.place_codes
 batch_size: 32
-device: auto
 decode_include_shuffle: false
 compute_spatial_info: false
 spatial_info_top_k: 8

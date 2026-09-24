@@ -6,29 +6,23 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import torch
-
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import config_fingerprint, generate_artifact_id
 from placecell_research.artifacts.manifests import ArtifactManifest, CreatedBy
 from placecell_research.artifacts.registry import ArtifactRegistry, RegisteredArtifact
 from placecell_research.numerics.error_metrics import RMSE_AGGREGATION
 from placecell_research.tracking.run_directory import RunDirectory
-from placecell_research.utils.device import resolve_device
 from placecell_research.utils.source_fingerprint import package_source_fingerprint
 
 
 def resolve_stage_reference(
-    raw_config: dict[str, Any],
+    section: Any,
     section_name: str,
     key: str,
     fallback: str | None = None,
 ) -> str:
     """Read a stage-scoped explicit artifact reference."""
-    section = raw_config.get(section_name, {})
-    value = section.get(key)
-    if value in {"", None}:
-        value = fallback
+    value = getattr(section, key) or fallback
     if not value:
         raise ValueError(
             f"Missing explicit `{section_name}.{key}`. This stage does not do implicit artifact "
@@ -83,26 +77,24 @@ def _resolve_unique_direct_input_artifact(
 def resolve_stage_dataset_reference(
     *,
     registry: ArtifactRegistry,
-    raw_config: dict[str, Any],
+    section: Any,
     section_name: str,
     fallback_artifact_id: str | None = None,
     fallback_artifact_type: str | None = None,
     fallback_model_artifact_id: str | None = None,
 ) -> tuple[str, str]:
     artifact_reference = resolve_stage_reference(
-        raw_config,
+        section,
         section_name,
         "dataset_artifact_id",
         fallback=fallback_artifact_id,
     )
-    artifact_type_reference = raw_config.get(section_name, {}).get("dataset_artifact_type")
-    if artifact_type_reference in {"", None}:
-        artifact_type_reference = fallback_artifact_type
+    artifact_type_reference = section.dataset_artifact_type or fallback_artifact_type
     normalized_reference = str(artifact_reference or "").strip()
     normalized_type_reference = str(artifact_type_reference or "").strip()
     if normalized_reference == "auto":
         model_reference = resolve_stage_reference(
-            raw_config,
+            section,
             section_name,
             "model_artifact_id",
             fallback=fallback_model_artifact_id,
@@ -146,13 +138,13 @@ def resolve_stage_dataset_reference(
 def resolve_stage_split_reference(
     *,
     registry: ArtifactRegistry,
-    raw_config: dict[str, Any],
+    section: Any,
     section_name: str,
     fallback_artifact_id: str | None = None,
     fallback_model_artifact_id: str | None = None,
 ) -> str:
     artifact_reference = resolve_stage_reference(
-        raw_config,
+        section,
         section_name,
         "split_artifact_id",
         fallback=fallback_artifact_id,
@@ -160,7 +152,7 @@ def resolve_stage_split_reference(
     normalized_reference = str(artifact_reference).strip()
     if normalized_reference == "auto":
         model_reference = resolve_stage_reference(
-            raw_config,
+            section,
             section_name,
             "model_artifact_id",
             fallback=fallback_model_artifact_id,
@@ -225,8 +217,3 @@ def publish_report(
         final_path = registry.register_directory(artifact_type, artifact_id, temporary_path)
     return artifact_id, final_path
 
-
-def resolve_stage_device(raw_config: dict[str, Any], section_name: str) -> torch.device:
-    """Read a stage-scoped device override if present."""
-    requested = raw_config.get(section_name, {}).get("device", "auto")
-    return resolve_device(str(requested))

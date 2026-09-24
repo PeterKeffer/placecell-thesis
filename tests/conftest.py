@@ -16,6 +16,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pytest  # noqa: E402
 
+from placecell_research.config.schema import AnalysisConfig, ExperimentConfig  # noqa: E402
+
 
 @pytest.fixture(autouse=True)
 def _close_matplotlib_figures():
@@ -67,3 +69,13 @@ def _isolate_user_settings(monkeypatch, tmp_path_factory):
     monkeypatch.setenv("PLACECELL_USER_CONFIG", str(user_file))
     for name in USER_SETTING_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def analysis_settings():
+    """Build the analysis section the analyze stage hands to modules: the schema plus overrides."""
+
+    def build(**overrides) -> dict:
+        return ExperimentConfig(analysis=AnalysisConfig(**overrides)).to_dict()["analysis"]
+
+    return build

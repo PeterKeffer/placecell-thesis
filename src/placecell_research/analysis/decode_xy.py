@@ -95,7 +95,7 @@ class DecodeXYModule:
         )
         record_timing(timing_seconds, "linear_decode", section_started_at)
         nonlinear_decode = None
-        if bool(config.get("decode_nonlinear_enabled", False)):
+        if bool(config["decode_nonlinear_enabled"]):
             section_started_at = perf_counter()
             nonlinear_decode = nonlinear_decode_position(
                 flattened,
@@ -133,8 +133,8 @@ class DecodeXYModule:
         )
         if bounds is None:
             raise ValueError("Could not resolve XY decode plot bounds.")
-        num_bins_x = int(config.get("decode_error_num_bins_x", config.get("num_bins_x", 40)))
-        num_bins_y = int(config.get("decode_error_num_bins_y", config.get("num_bins_y", 40)))
+        num_bins_x = int(config["decode_error_num_bins_x"])
+        num_bins_y = int(config["decode_error_num_bins_y"])
         per_step_squared_error = np.mean(
             np.square(decode.predictions - decode.targets, dtype=np.float64), axis=1
         )

@@ -32,11 +32,11 @@ from placecell_research.evaluation.representation_store import (
 from placecell_research.evaluation.runtime import (
     resolve_registry_reference,
     resolve_stage_dataset_reference,
-    resolve_stage_device,
     resolve_stage_reference,
     resolve_stage_split_reference,
 )
 from placecell_research.training.loop import apply_tf32_policy
+from placecell_research.utils.device import resolve_device
 
 _STAGE_NAME = "collect_representations"
 
@@ -61,16 +61,15 @@ def resolve_source_names(config: ExperimentConfig) -> list[str]:
 def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     runtime = initialize_stage_runtime(config_path, overrides, _STAGE_NAME)
     config = runtime.config
-    raw_config = runtime.raw_payload
     registry = runtime.artifact_registry
     apply_tf32_policy(config.spatial_model.training.allow_tf32)
-    device = resolve_stage_device(raw_config, "representation_collection")
+    device = resolve_device(config.representation_collection.device)
 
     model_id = resolve_registry_reference(
         registry,
         "place_model",
         resolve_stage_reference(
-            raw_config,
+            config.representation_collection,
             "representation_collection",
             "model_artifact_id",
             fallback=config.reuse.place_model_artifact_id,
@@ -79,7 +78,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     model_artifact = registry.load("place_model", model_id)
     dataset_id, dataset_type = resolve_stage_dataset_reference(
         registry=registry,
-        raw_config=raw_config,
+        section=config.representation_collection,
         section_name="representation_collection",
         fallback_artifact_id=config.dataset.artifact_id,
         fallback_artifact_type=config.dataset.artifact_type,
@@ -87,7 +86,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
     )
     split_id = resolve_stage_split_reference(
         registry=registry,
-        raw_config=raw_config,
+        section=config.representation_collection,
         section_name="representation_collection",
         fallback_artifact_id=config.splits.artifact_id,
         fallback_model_artifact_id=model_id,
@@ -185,7 +184,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
         ).write(temp_dir / "manifest.json")
         write_artifact_config_snapshots(
             temp_dir,
-            raw_config,
+            runtime.raw_payload,
             config.to_dict(),
             stage_name=_STAGE_NAME,
             section_names=["representation_collection", "seed", "policies", "reuse", "tracking"],

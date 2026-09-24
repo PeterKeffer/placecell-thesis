@@ -131,9 +131,8 @@ class WithinHeadingReliabilityModule:
 
     def run(self, analysis_input: AnalysisInput, output_dir: Path, config: dict) -> AnalysisResult:
         num_units = int(analysis_input.representation.shape[-1])
-        num_bins = int(config.get("num_bins", 24))
-        num_bins_x = int(config.get("directionality_num_bins_x", num_bins))
-        num_bins_y = int(config.get("directionality_num_bins_y", num_bins))
+        num_bins_x = int(config["directionality_num_bins_x"])
+        num_bins_y = int(config["directionality_num_bins_y"])
         conjunctive_gain_threshold = float(config.get("within_heading_conjunctive_gain", 0.2))
         world_overlay = resolve_world_overlay(
             str(analysis_input.metadata.get("env_id", "")),

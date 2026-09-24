@@ -116,12 +116,12 @@ class RemappingComparisonModule:
             raise ValueError("Remapping comparison needs at least two sources.")
         num_bins_x = int(config.get("num_bins_x", 60))
         num_bins_y = int(config.get("num_bins_y", 60))
-        smoothing_sigma = float(config.get("smoothing_sigma", 0.4))
+        smoothing_sigma = float(config["smoothing_sigma"])
         min_occupancy = float(config.get("min_occupancy", 1e-6))
         field_threshold_fraction = float(config.get("place_field_threshold_fraction", 0.2))
         active_peak_rate_threshold = float(config.get("active_peak_rate_threshold", 1e-6))
         shuffle_iterations = int(config.get("remapping_shuffle_iterations", 100))
-        shuffle_seed = int(config.get("remapping_shuffle_seed", 0))
+        shuffle_seed = int(config["remapping_shuffle_seed"])
 
         rate_maps_by_label: dict[str, RateMapComputation] = {}
         for source, bounds in _rate_map_sources_and_bounds(inputs):

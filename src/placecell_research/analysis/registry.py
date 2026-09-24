@@ -251,7 +251,7 @@ def run_analysis_modules(
 ) -> dict[str, AnalysisResult]:
     """Run configured single-source modules."""
     results: dict[str, AnalysisResult] = {}
-    max_cost_tier = str(config.get("max_cost_tier", "heavy"))
+    max_cost_tier = str(config["max_cost_tier"])
     if output_dir is None:
         with TemporaryDirectory(prefix="placecell_analysis_") as temporary_dir:
             scratch_dir = Path(temporary_dir)
@@ -335,7 +335,7 @@ def run_comparative_modules(
                     raise KeyError(f"Unknown comparative analysis module: {module_name}")
                 module = COMPARATIVE_MODULES[module_name]()
                 max_cost_tier = str(
-                    analysis_config.get("max_cost_tier", config.get("max_cost_tier", "heavy"))
+                    analysis_config.get("max_cost_tier", config["max_cost_tier"])
                 )
                 if not _should_run_module(module.cost_tier, max_cost_tier):
                     continue
@@ -361,7 +361,7 @@ def run_comparative_modules(
             raise KeyError(f"Unknown comparative analysis module: {module_name}")
         module = COMPARATIVE_MODULES[module_name]()
         max_cost_tier = str(
-            analysis_config.get("max_cost_tier", config.get("max_cost_tier", "heavy"))
+            analysis_config.get("max_cost_tier", config["max_cost_tier"])
         )
         if not _should_run_module(module.cost_tier, max_cost_tier):
             continue
