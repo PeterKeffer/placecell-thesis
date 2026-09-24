@@ -12,6 +12,7 @@ environment:
   randomize_agent_start: true
 
 models:
+  vision_encoder_artifact_id: auto
   place_model_checkpoint: best_primary
   place_representation_source: encoder.place_codes
 
@@ -24,7 +25,7 @@ observation:
 
 training:
   algorithm: ppo
-  total_timesteps: 400000
+  total_timesteps: 3000000
   learning_rate: 0.00025
   n_steps: 2048
   batch_size: 256

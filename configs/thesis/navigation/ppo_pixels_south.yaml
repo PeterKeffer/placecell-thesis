@@ -1,7 +1,5 @@
 defaults: [../../downstream/wallgap_navigation_ppo]
 name: ppo_pixels_south
-models:
-  vision_encoder_artifact_id: auto
 goal_task:
   candidate_positions_xy:
   - [18.0, -22.0]
@@ -11,5 +9,4 @@ observation:
 training:
   cnn_features_dim: 512
   device: auto
-  total_timesteps: 3000000
   learning_rate: 0.0005

@@ -1,10 +1,8 @@
 defaults: [../../downstream/wallgap_navigation_ppo]
 name: ppo_recurrent_state_north
 models:
-  vision_encoder_artifact_id: auto
   place_model_artifact_id: tag:baseline
   place_representation_source: encoder.hidden_state
 training:
-  total_timesteps: 3000000
   learning_rate: 0.0001
   ent_coef: 0.02

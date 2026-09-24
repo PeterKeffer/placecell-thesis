@@ -1,7 +1,5 @@
 defaults: [../../downstream/wallgap_navigation_dqn]
 name: dqn_synthetic_grid_cells_south
-models:
-  vision_encoder_artifact_id: auto
 goal_task:
   candidate_positions_xy:
   - [18.0, -22.0]
@@ -10,6 +8,4 @@ observation:
   synthetic_grid_cells:
     normalization: l2
 training:
-  total_timesteps: 3000000
-  exploration_fraction: 0.1667
   learning_rate: 0.0003

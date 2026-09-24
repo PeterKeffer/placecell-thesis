@@ -1,9 +1,4 @@
 defaults: [../../downstream/wallgap_navigation_dqn]
 name: dqn_coordinates_north
-models:
-  vision_encoder_artifact_id: auto
 observation:
   feature_sources: [current_position_xy_scaled, goal_xy_scaled, heading_sin_cos]
-training:
-  total_timesteps: 3000000
-  exploration_fraction: 0.1667

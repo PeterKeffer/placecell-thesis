@@ -1,8 +1,6 @@
 defaults: [../../downstream/wallgap_navigation_ppo]
 name: ppo_place_code_north
 models:
-  vision_encoder_artifact_id: auto
   place_model_artifact_id: tag:baseline
 training:
-  total_timesteps: 3000000
   learning_rate: 0.0005

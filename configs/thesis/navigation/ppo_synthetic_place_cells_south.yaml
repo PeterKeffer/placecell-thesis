@@ -1,7 +1,5 @@
 defaults: [../../downstream/wallgap_navigation_ppo]
 name: ppo_synthetic_place_cells_south
-models:
-  vision_encoder_artifact_id: auto
 goal_task:
   candidate_positions_xy:
   - [18.0, -22.0]
@@ -10,5 +8,4 @@ observation:
   synthetic_place_cells:
     normalization: l2
 training:
-  total_timesteps: 3000000
   ent_coef: 0.003

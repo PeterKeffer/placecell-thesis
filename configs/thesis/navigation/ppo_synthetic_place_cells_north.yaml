@@ -1,11 +1,8 @@
 defaults: [../../downstream/wallgap_navigation_ppo]
 name: ppo_synthetic_place_cells_north
-models:
-  vision_encoder_artifact_id: auto
 observation:
   feature_sources: [synthetic_place_cells, goal_xy_scaled, heading_sin_cos]
   synthetic_place_cells:
     normalization: l2
 training:
-  total_timesteps: 3000000
   ent_coef: 0.003

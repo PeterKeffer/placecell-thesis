@@ -1,11 +1,8 @@
 defaults: [../../downstream/wallgap_navigation_dqn]
 name: dqn_visual_latent_north
 models:
-  vision_encoder_artifact_id: auto
   place_model_artifact_id: tag:baseline
 observation:
   feature_sources: [ae_latent, goal_xy_scaled, heading_sin_cos]
 training:
-  total_timesteps: 3000000
-  exploration_fraction: 0.1667
   exploration_final_eps: 0.05

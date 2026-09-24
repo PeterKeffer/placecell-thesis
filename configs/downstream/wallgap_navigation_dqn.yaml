@@ -12,6 +12,7 @@ environment:
   randomize_agent_start: true
 
 models:
+  vision_encoder_artifact_id: auto
   place_model_checkpoint: best_primary
   place_representation_source: encoder.place_codes
 
@@ -24,7 +25,7 @@ observation:
 
 training:
   algorithm: dqn
-  total_timesteps: 400000
+  total_timesteps: 3000000
   learning_rate: 0.0001
   batch_size: 256
   gamma: 0.997
@@ -34,7 +35,7 @@ training:
   learning_starts: 10000
   gradient_steps: auto_default_utd
   target_update_interval: 3000
-  exploration_fraction: 0.5
+  exploration_fraction: 0.1667
   exploration_final_eps: 0.1
   replay_buffer_type: nstep
   checkpoint_freq: 1000000

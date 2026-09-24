@@ -1,7 +1,6 @@
 defaults: [../../downstream/wallgap_navigation_ppo]
 name: ppo_visual_latent_south
 models:
-  vision_encoder_artifact_id: auto
   place_model_artifact_id: tag:baseline
 goal_task:
   candidate_positions_xy:
@@ -9,5 +8,4 @@ goal_task:
 observation:
   feature_sources: [ae_latent, goal_xy_scaled, heading_sin_cos]
 training:
-  total_timesteps: 3000000
   ent_coef: 0.003
