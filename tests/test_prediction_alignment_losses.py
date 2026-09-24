@@ -3,8 +3,9 @@ from __future__ import annotations
 import pytest
 import torch
 
-from placecell_research.config.schema import ObjectiveConfig
+from placecell_research.config.schema import ObjectiveConfig, SpatialModelConfig
 from placecell_research.objectives.prediction import PredictionAlignmentObjective
+from placecell_research.spatial_model.builder import ModelBuildContext, build_place_model
 from placecell_research.spatial_model.types import ModuleOutputs, RepresentationBundle
 
 
@@ -103,3 +104,31 @@ def test_target_offset_uses_same_predictor_and_valid_transitions(offset, expecte
     assert torch.count_nonzero(prediction.grad[:, 3]) == 0
     if offset == 1:
         assert torch.count_nonzero(prediction.grad[:, 1:3]) > 0
+
+
+def test_same_step_alignment_backpropagates_through_predictor():
+    config = SpatialModelConfig()
+    config.encoder.layer_sizes = [8]
+    config.predictor.layer_sizes = [8]
+    config.training.code_dim = 8
+    objective_config = ObjectiveConfig(type="prediction_alignment", target_offset=0)
+    config.objectives = {"prediction": objective_config}
+    model = build_place_model(
+        config,
+        ModelBuildContext(
+            num_actions=3, observation_dim=6, kinematics_dim=2, total_optimizer_steps=4
+        ),
+    )
+    batch = {
+        "latent": torch.randn(2, 6, 6),
+        "actions": torch.zeros(2, 6, dtype=torch.long),
+        "kinematics": torch.zeros(2, 6, 2),
+        "valid_steps": torch.ones(2, 6, dtype=torch.bool),
+    }
+    result = PredictionAlignmentObjective(name="prediction", config=objective_config).compute(
+        model.forward_sequence(batch), batch
+    )
+    result.loss.backward()
+    gradients = [parameter.grad for parameter in model.predictor_temporal.parameters()]
+    assert gradients
+    assert any(gradient is not None and torch.count_nonzero(gradient) for gradient in gradients)

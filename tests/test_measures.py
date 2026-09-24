@@ -5,6 +5,7 @@ import math
 
 import numpy as np
 
+from placecell_research.measures.data import fixed_topk
 from placecell_research.measures.decoding import (
     decode,
     stack_features,
@@ -179,3 +180,11 @@ def test_learning_curve_finds_three_sustained_bins():
     curve = learning_curve(history, 1_000_000)
     assert curve["steps_to_sustained_80_percent"] == 400_000
     assert curve["training_success_first_million"] == 0.7
+
+
+def test_fixed_mask_selects_signed_values_without_learning_or_rescaling():
+    values = np.array([[[-20, -2, 1, 4], [8, 0, -3, 2]]], dtype=np.float32)
+    original = values.copy()
+    np.testing.assert_array_equal(fixed_topk(values, 2), [[[0, 0, 1, 4], [8, 0, 0, 2]]])
+    np.testing.assert_array_equal(values, original)
+    np.testing.assert_array_equal(fixed_topk(values, 4), values)

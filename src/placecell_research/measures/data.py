@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import torch
 import zarr
 
 from placecell_research.artifacts.registry import ArtifactRegistry, RegisteredArtifact
-from placecell_research.evaluation.frozen_controls import fixed_topk
 from placecell_research.evaluation.representation_store import read_representation_manifest
 
 EPISODES_PER_SPLIT = 512
@@ -76,6 +76,15 @@ def find_analysis_report(registry: ArtifactRegistry, model_id: str) -> Registere
 
 def representation_sources(directory: Path) -> list[str]:
     return list(read_representation_manifest(directory)["sources"])
+
+
+def fixed_topk(values: np.ndarray, k: int) -> np.ndarray:
+    """Keep the k largest signed activations per sample, without fitting or rescaling."""
+    if not 1 <= k <= values.shape[-1]:
+        raise ValueError("k must be between 1 and the representation width.")
+    tensor = torch.from_numpy(np.ascontiguousarray(values))
+    indices = tensor.topk(k, dim=-1).indices
+    return torch.zeros_like(tensor).scatter(-1, indices, tensor.gather(-1, indices)).numpy()
 
 
 def load_split(

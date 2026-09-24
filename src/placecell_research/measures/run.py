@@ -13,7 +13,6 @@ import yaml
 from placecell_research.analysis.world_overlay import overlay_bounds, resolve_world_overlay
 from placecell_research.artifacts.registry import ArtifactRegistry
 from placecell_research.config import load_experiment_config
-from placecell_research.evaluation.frozen_controls import fixed_topk
 from placecell_research.evaluation.inference import collect_representations, load_model_checkpoint
 from placecell_research.evaluation.representation_store import read_representation_manifest
 from placecell_research.utils.repo_paths import find_repo_root
@@ -24,6 +23,7 @@ from .data import (
     analysis_report_metrics,
     find_analysis_report,
     find_representation_set,
+    fixed_topk,
     load_split,
     representation_sources,
 )

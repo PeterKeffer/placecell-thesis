@@ -328,7 +328,5 @@ src/placecell_research/
 scripts/
   setup_env.sh               creates the conda environment and runs pc doctor
   slurm/                     per-job environment setup (common, MiniWorld/EGL, JAXenstein, site/hpc3)
-  evaluation/frozen_controls.py        frozen code organisation and reset/blackout recovery
-  experiments/*_navigation_memory.py   navigation policies with exploration or a per-step state reset
 tests/                       pytest suite
 ```
