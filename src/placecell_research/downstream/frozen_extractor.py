@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
@@ -479,6 +480,27 @@ class FrozenRepresentationExtractor:
     @property
     def uses_stateful_encoder(self) -> bool:
         return self._online_encoder is not None
+
+    @cached_property
+    def head_row_norms(self) -> np.ndarray:
+        """Per-neuron gain: L2 norm of each encoder code-head output row (read once, data-free)."""
+        if self.representation_source != "encoder.place_codes":
+            raise ValueError(
+                "head_row_norm pre-scaling is only defined for representation_source="
+                f"'encoder.place_codes'; got {self.representation_source!r}."
+            )
+        encoder_stack = getattr(self.model, "encoder_stack", None)
+        encoder_head = getattr(encoder_stack, "encoder_head", None)
+        linear = getattr(encoder_head, "linear", None)
+        weight = getattr(linear, "weight", None)
+        if weight is None:
+            raise ValueError(
+                "head_row_norm pre-scaling requires "
+                "model.encoder_stack.encoder_head.linear.weight, "
+                "which this place model does not expose."
+            )
+        norms = np.linalg.norm(weight.detach().to("cpu").numpy().astype(np.float32), axis=1)
+        return np.where(norms <= 1e-8, 1.0, norms).astype(np.float32, copy=False)
 
     def _load_model(self) -> torch.nn.Module:
         if self.model_checkpoint.is_dir():

@@ -14,6 +14,7 @@ from ..numerics.rate_map_kernels import (
 )
 from .base import AnalysisInput, AnalysisResult
 from .helpers import get_or_compute_rate_maps
+from .rate_map_metrics import nanmean_or_nan
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
 
@@ -59,16 +60,12 @@ class PlaceFieldDetectionModule:
             coherences_array[unit_index] = float(coherence)
         supported_count = int(np.count_nonzero(prepared_maps.supported_mask))
 
-        def _supported_mean(values: np.ndarray) -> float:
-            finite = values[np.isfinite(values)]
-            return float(finite.mean()) if finite.size else float("nan")
-
         return AnalysisResult(
             metrics={
-                "mean_field_count": _supported_mean(counts_array),
-                "mean_field_area": _supported_mean(areas_array),
-                "mean_field_radius": _supported_mean(radii_array),
-                "mean_field_coherence": _supported_mean(coherences_array),
+                "mean_field_count": nanmean_or_nan(counts_array),
+                "mean_field_area": nanmean_or_nan(areas_array),
+                "mean_field_radius": nanmean_or_nan(radii_array),
+                "mean_field_coherence": nanmean_or_nan(coherences_array),
                 "field_metrics_supported_fraction": (
                     float(supported_count / unit_count) if unit_count else float("nan")
                 ),

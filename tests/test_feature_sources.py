@@ -1,6 +1,8 @@
 """Unit tests for downstream place-code feature sources."""
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 
 from placecell_research.config.downstream_feature_sources import (
@@ -29,7 +31,9 @@ class _FakePlaceRuntime:
         place_code_stats: PlaceCodeStats | None = None,
     ) -> None:
         self._code = np.asarray(code, dtype=np.float32)
-        self.head_row_norms = np.asarray(head_row_norms, dtype=np.float32)
+        self.extractor = SimpleNamespace(
+            head_row_norms=np.asarray(head_row_norms, dtype=np.float32)
+        )
         self.feature_dim = int(self._code.shape[-1])
         self.place_code_stats = place_code_stats
 

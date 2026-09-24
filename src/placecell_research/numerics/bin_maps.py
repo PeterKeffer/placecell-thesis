@@ -103,3 +103,15 @@ def smoothed_safe_occupancy(
     return np.where(occupancy_maps >= min_occupancy, occupancy_maps, np.nan)
 
 
+def bin_center_grids(
+    bounds: tuple[tuple[float, float], tuple[float, float]],
+    *,
+    num_bins_x: int,
+    num_bins_y: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Meshgrids of the x and y centres of every spatial bin."""
+    x_edges = np.linspace(bounds[0][0], bounds[0][1], num_bins_x + 1, dtype=np.float32)
+    y_edges = np.linspace(bounds[1][0], bounds[1][1], num_bins_y + 1, dtype=np.float32)
+    x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
+    y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
+    return np.meshgrid(x_centers, y_centers)

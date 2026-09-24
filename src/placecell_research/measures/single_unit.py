@@ -5,10 +5,11 @@ from __future__ import annotations
 import numpy as np
 
 from placecell_research.analysis.base import AnalysisInput
-from placecell_research.analysis.field_stability import _bin_center_grids, _field_map_metrics
+from placecell_research.analysis.field_stability import _field_map_metrics
 from placecell_research.analysis.occupancy import get_or_compute_episode_bin_statistics
 from placecell_research.analysis.reliability_splits import compute_field_traversal_reliability
 from placecell_research.analysis.shift_nulls import circular_shift_spatial_information_null
+from placecell_research.numerics.bin_maps import bin_center_grids
 from placecell_research.numerics.place_cell_quality import benjamini_hochberg
 from placecell_research.numerics.rate_map_kernels import (
     compute_place_field_mask,
@@ -87,7 +88,7 @@ def rectified_track(
 
 def field_anatomy(rate_maps: np.ndarray, bounds: Bounds) -> dict[str, np.ndarray]:
     """Field mask, connected-component count and field area of every rate map."""
-    x_grid, y_grid = _bin_center_grids(bounds, num_bins_x=NUM_BINS, num_bins_y=NUM_BINS)
+    x_grid, y_grid = bin_center_grids(bounds, num_bins_x=NUM_BINS, num_bins_y=NUM_BINS)
     metrics = _field_map_metrics(
         rate_maps, FIELD_THRESHOLD_FRACTION, x_center_grid=x_grid, y_center_grid=y_grid
     )

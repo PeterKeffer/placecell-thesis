@@ -9,6 +9,7 @@ import numpy as np
 from ..numerics.rate_map_kernels import compute_spatial_bin_assignments
 from .base import AnalysisInput, AnalysisResult
 from .helpers import write_csv
+from .rate_map_metrics import nanmean_or_nan
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
 _EPS = 1e-9
@@ -114,11 +115,6 @@ def _nanmax_over_axis(values: np.ndarray, axis: int) -> np.ndarray:
     return maximum
 
 
-def _safe_nanmean(values: np.ndarray) -> float:
-    finite = values[np.isfinite(values)]
-    return float(finite.mean()) if finite.size else float("nan")
-
-
 @dataclass(slots=True)
 class WithinHeadingReliabilityModule:
     """Reliability of each unit conditioned on heading vs pooled over heading."""
@@ -165,9 +161,9 @@ class WithinHeadingReliabilityModule:
             else float("nan")
         )
         metrics = {
-            "mean_pooled_reliability": _safe_nanmean(result.pooled),
-            "mean_within_heading_reliability": _safe_nanmean(result.within_heading),
-            "mean_within_heading_reliability_gain": _safe_nanmean(result.gain),
+            "mean_pooled_reliability": nanmean_or_nan(result.pooled),
+            "mean_within_heading_reliability": nanmean_or_nan(result.within_heading),
+            "mean_within_heading_reliability_gain": nanmean_or_nan(result.gain),
             "fraction_conjunctive": fraction_conjunctive,
         }
         table = _write_per_unit_table(output_dir, analysis_input, result)

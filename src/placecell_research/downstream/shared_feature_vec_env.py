@@ -24,7 +24,6 @@ from placecell_research.config.downstream_schema import (
 from placecell_research.downstream.feature_sources import (
     AELatentFeatureSource,
     apply_place_code_source,
-    encoder_head_row_norms,
     heading_sin_cos,
     scale_goal_xy,
     scale_xy_to_unit_box,
@@ -141,13 +140,6 @@ class _SharedPlaceRepresentationRuntime:
         )
         self.device = self.extractor.device
         self.feature_dim = int(self.extractor.feature_dim)
-        self._head_row_norms: np.ndarray | None = None
-
-    @property
-    def head_row_norms(self) -> np.ndarray:
-        if self._head_row_norms is None:
-            self._head_row_norms = encoder_head_row_norms(self.extractor)
-        return self._head_row_norms
 
     def _encode_microbatch(
         self,
@@ -336,7 +328,7 @@ class SharedFeaturePipeline:
                         source_name,
                         place_codes,
                         head_row_norms=(
-                            self.place_runtime.head_row_norms
+                            self.place_runtime.extractor.head_row_norms
                             if PLACE_CODE_SOURCES[source_name].pre_scale == "head_row_norm"
                             else None
                         ),

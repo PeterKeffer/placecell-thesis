@@ -9,7 +9,7 @@ from time import perf_counter
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..numerics.bin_maps import _smooth_flat_bin_maps
+from ..numerics.bin_maps import _smooth_flat_bin_maps, bin_center_grids
 from ..numerics.occupancy import (
     iter_episode_activity_sum_chunks,
     reachable_bin_visited_fractions,
@@ -25,19 +25,6 @@ from .world_overlay import (
     overlay_bounds,
     resolve_world_overlay,
 )
-
-
-def _bin_center_grids(
-    bounds: tuple[tuple[float, float], tuple[float, float]],
-    *,
-    num_bins_x: int,
-    num_bins_y: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    x_edges = np.linspace(bounds[0][0], bounds[0][1], num_bins_x + 1, dtype=np.float32)
-    y_edges = np.linspace(bounds[1][0], bounds[1][1], num_bins_y + 1, dtype=np.float32)
-    x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
-    y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
-    return np.meshgrid(x_centers, y_centers)
 
 
 @dataclass(slots=True)
@@ -240,7 +227,7 @@ class _FieldStabilityModuleBase:
             min_occupancy=min_occupancy,
             bounds=world_bounds,
         )
-        x_center_grid, y_center_grid = _bin_center_grids(
+        x_center_grid, y_center_grid = bin_center_grids(
             pooled_rate_maps.bounds,
             num_bins_x=num_bins_x,
             num_bins_y=num_bins_y,

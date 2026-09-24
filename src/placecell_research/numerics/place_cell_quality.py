@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +12,7 @@ from .rate_map_kernels import (
     correlation_from_centered_parts,
     flatten_valid_steps,
     flatten_vector_field,
+    read_float_setting,
 )
 from .work_blocks import run_over_index_blocks
 
@@ -333,19 +333,17 @@ DEFAULT_PLACE_CELL_GATE_THRESHOLDS = PlaceCellGateThresholds()
 
 
 def resolve_place_cell_gate_thresholds(analysis_config: Any) -> PlaceCellGateThresholds:
-    def read(field_name: str, default: float) -> float:
-        if isinstance(analysis_config, Mapping):
-            return float(analysis_config.get(field_name, default))
-        return float(getattr(analysis_config, field_name, default))
-
     return PlaceCellGateThresholds(
-        minimum_split_half=read(
+        minimum_split_half=read_float_setting(
+            analysis_config,
             "place_cell_gate_minimum_split_half", DEFAULT_GATE_MINIMUM_SPLIT_HALF
         ),
-        minimum_coherence=read(
+        minimum_coherence=read_float_setting(
+            analysis_config,
             "place_cell_gate_minimum_coherence", DEFAULT_GATE_MINIMUM_COHERENCE
         ),
-        maximum_confound=read(
+        maximum_confound=read_float_setting(
+            analysis_config,
             "place_cell_gate_maximum_confound", DEFAULT_GATE_MAXIMUM_CONFOUND
         ),
     )

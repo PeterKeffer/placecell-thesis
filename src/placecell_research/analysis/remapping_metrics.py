@@ -8,6 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from ..numerics.bin_maps import bin_center_grids
 from ..numerics.rate_map_kernels import (
     RateMapComputation,
     compute_place_field_mask,
@@ -173,19 +174,6 @@ def _active_overlap(
     return active_both, active_a_only, active_b_only, silent_both, active_jaccard
 
 
-def _bin_center_grids(
-    bounds: Bounds,
-    *,
-    num_bins_x: int,
-    num_bins_y: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    x_edges = np.linspace(bounds[0][0], bounds[0][1], num_bins_x + 1, dtype=np.float32)
-    y_edges = np.linspace(bounds[1][0], bounds[1][1], num_bins_y + 1, dtype=np.float32)
-    x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
-    y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
-    return np.meshgrid(x_centers, y_centers)
-
-
 def _field_centroid(
     rate_map: np.ndarray,
     field_mask: np.ndarray,
@@ -209,7 +197,7 @@ def _field_metrics(
     threshold_fraction: float,
 ) -> FieldMetrics:
     num_units, num_bins_y, num_bins_x = rate_maps.shape
-    x_center_grid, y_center_grid = _bin_center_grids(
+    x_center_grid, y_center_grid = bin_center_grids(
         bounds,
         num_bins_x=num_bins_x,
         num_bins_y=num_bins_y,

@@ -55,25 +55,31 @@ class PlaceMetricSettings:
 DEFAULT_PLACE_METRIC_SETTINGS = PlaceMetricSettings()
 
 
-def resolve_place_metric_settings(analysis_config: Any) -> PlaceMetricSettings:
-    def read(field_name: str, default: float) -> float:
-        if isinstance(analysis_config, Mapping):
-            return float(analysis_config.get(field_name, default))
-        return float(getattr(analysis_config, field_name, default))
+def read_float_setting(analysis_config: Any, field_name: str, default: float) -> float:
+    """One float setting from a mapping or a typed config section."""
+    if isinstance(analysis_config, Mapping):
+        return float(analysis_config.get(field_name, default))
+    return float(getattr(analysis_config, field_name, default))
 
+
+def resolve_place_metric_settings(analysis_config: Any) -> PlaceMetricSettings:
     return PlaceMetricSettings(
-        negative_tolerance=read(
+        negative_tolerance=read_float_setting(
+            analysis_config,
             "place_metric_negative_tolerance", DEFAULT_PLACE_METRIC_SETTINGS.negative_tolerance
         ),
-        max_negative_bin_fraction=read(
+        max_negative_bin_fraction=read_float_setting(
+            analysis_config,
             "place_metric_max_negative_bin_fraction",
             DEFAULT_PLACE_METRIC_SETTINGS.max_negative_bin_fraction,
         ),
-        max_negative_peak_fraction=read(
+        max_negative_peak_fraction=read_float_setting(
+            analysis_config,
             "place_metric_max_negative_peak_fraction",
             DEFAULT_PLACE_METRIC_SETTINGS.max_negative_peak_fraction,
         ),
-        field_threshold_fraction=read(
+        field_threshold_fraction=read_float_setting(
+            analysis_config,
             "place_field_threshold_fraction",
             DEFAULT_PLACE_METRIC_SETTINGS.field_threshold_fraction,
         ),

@@ -116,26 +116,6 @@ def apply_place_code_source(
     return transform_place_code_batch(matrix, mode=spec.transform, stats=stats)
 
 
-def encoder_head_row_norms(extractor: FrozenRepresentationExtractor) -> np.ndarray:
-    """Per-neuron gain: L2 norm of each encoder code-head output row (read once, data-free)."""
-    if extractor.representation_source != "encoder.place_codes":
-        raise ValueError(
-            "head_row_norm pre-scaling is only defined for representation_source="
-            f"'encoder.place_codes'; got {extractor.representation_source!r}."
-        )
-    encoder_stack = getattr(extractor.model, "encoder_stack", None)
-    encoder_head = getattr(encoder_stack, "encoder_head", None)
-    linear = getattr(encoder_head, "linear", None)
-    weight = getattr(linear, "weight", None)
-    if weight is None:
-        raise ValueError(
-            "head_row_norm pre-scaling requires model.encoder_stack.encoder_head.linear.weight, "
-            "which this place model does not expose."
-        )
-    norms = np.linalg.norm(weight.detach().to("cpu").numpy().astype(np.float32), axis=1)
-    return np.where(norms <= _EPSILON, 1.0, norms).astype(np.float32, copy=False)
-
-
 def scale_goal_xy(goal_xy: np.ndarray) -> np.ndarray:
     return (np.asarray(goal_xy, dtype=np.float32) / GOAL_XY_SCALE).astype(np.float32, copy=False)
 
@@ -183,13 +163,6 @@ class PlaceCodeFeatureRuntime:
         )
         self.feature_dim = int(self.extractor.feature_dim)
         self.place_code_stats = place_code_stats
-        self._head_row_norms: np.ndarray | None = None
-
-    @property
-    def head_row_norms(self) -> np.ndarray:
-        if self._head_row_norms is None:
-            self._head_row_norms = encoder_head_row_norms(self.extractor)
-        return self._head_row_norms
 
     def reset(self) -> None:
         self.extractor.reset()
@@ -228,7 +201,7 @@ class PlaceCodeFeatureSource:
             self.name,
             code.reshape(1, -1),
             head_row_norms=(
-                self.runtime.head_row_norms if spec.pre_scale == "head_row_norm" else None
+                self.runtime.extractor.head_row_norms if spec.pre_scale == "head_row_norm" else None
             ),
             stats=self.runtime.place_code_stats,
         ).reshape(-1)
