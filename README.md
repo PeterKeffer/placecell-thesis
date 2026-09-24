@@ -14,20 +14,25 @@ other SLURM cluster.
 
 ```bash
 bash scripts/setup_env.sh        # --dry-run prints the steps, --help lists the options
-conda activate placecell
+source ~/miniforge3/etc/profile.d/conda.sh && conda activate ~/miniforge3/envs/placecell
 pc doctor
 ```
 
-`setup_env.sh` creates a conda environment with Python 3.12, PyTorch and JAX builds for the machine
-(CUDA on Linux GPU machines and clusters, MPS or CPU on a Mac), MiniWorld, and this package with the
-extras `rl` (Stable-Baselines3), `jax` (JAX and the JAXenstein simulator at a pinned commit) and
-`dev` (pytest, ruff). It installs Miniforge first if no conda is found. `pc doctor` then checks
-Python, the torch and JAX devices, one MiniWorld and one museum frame, and write access. By hand:
-`pip install -e ".[rl,jax,dev]"` into any Python 3.11 or newer.
+`setup_env.sh` creates a conda environment with Python 3.12 in `<prefix>/envs/placecell`
+(`--prefix`, default `~/miniforge3`), with PyTorch and JAX builds for the machine (CUDA on Linux GPU
+machines and clusters, MPS or CPU on a Mac), MiniWorld, and this package with the extras `rl`
+(Stable-Baselines3), `jax` (JAX and the JAXenstein simulator at a pinned commit) and `dev` (pytest,
+ruff). Package versions are pinned to the tested set in `constraints.txt`. It installs Miniforge
+first if no conda is found, and ends by printing the line that activates the environment; the
+second line above is that line for the default prefix. `pc doctor` checks Python, the torch and
+JAX devices, one MiniWorld and one museum frame, and write access. By hand:
+`pip install -e ".[rl,jax,dev]" -c constraints.txt` into Python 3.11 or 3.12 (NumPy 1.26 has no
+wheels for 3.13).
 
 MiniWorld, which renders the WallGap environment, needs an OpenGL context: on Linux the NVIDIA EGL
-driver (or a software Mesa build), on macOS a display that stays awake (for long runs,
-`caffeinate -d -i pc ...`). JAXenstein renders in JAX and needs no display.
+driver (or a software Mesa build), on macOS a display that is awake. `caffeinate -d -i` does not
+wake a display that is already asleep, so wake it first: `caffeinate -u -t 5`, then
+`caffeinate -d -i pc ...`. JAXenstein renders in JAX and needs no display.
 
 ## Smoke test
 
@@ -39,7 +44,8 @@ pytest tests/
 
 The first line runs the thesis chain at toy size: data, visual encoder, three models (the last
 starts from the second), their stored forward passes and measures, one navigation policy and the
-summaries, in about ten minutes on a laptop. Everything goes to `smoke/`, which git ignores.
+summaries, in about ten minutes on a laptop. Without `--only` the smoke runs all 154 jobs of the
+plan in about 90 minutes and 1.7 GB on an M-series Mac. Everything goes to `smoke/`, which git ignores.
 
 ## How a run works
 
@@ -87,7 +93,8 @@ pc measures -c configs/thesis/C.yaml -o reuse.place_model_artifact_id=tag:C
 
 The first command trains, evaluates and analyzes the model. The second stores its forward pass
 over the first 512 episodes of the training, validation and test splits. The third writes
-`measures/<condition>__seed<seed>__<model>.csv` and a per-unit table beside it.
+`measures/<condition>__seed<seed>__<model>.csv` and, beside it, a per-unit table (`_units.csv`)
+and the decoding error at each step of the test episodes (`_within_episode.csv`).
 
 | Thesis part | Configs | Notes |
 |---|---|---|
@@ -110,6 +117,8 @@ Tables and the columns that hold their values:
 | Single-unit measures of every model | `spatial_information_bits_all_units_mean` and the `*_all_units_zero_filled_median` columns of fields, split-half, traversal response and variance explained |
 | Population measures of every model | `participation_ratio`, `step_trustworthiness`, `step_continuity`, `partial_spearman_euclidean`, `mean_units_per_visited_location` |
 | Decoding at five stages | `decode_<source>_*`, after collecting all five sources (below) |
+| Shuffled-code chance level of decoding | `decode_<source>_position_ridge_shuffled_code_rmse` |
+| Decoding error within an episode | `_within_episode.csv`; `decode_<source>_position_ridge_first_step_rmse` and `_last_512_steps_rmse` (the visual latent with `--inputs`) |
 | Full ablation tables (weight decay, widths, code width, cell types) | the `full_*` columns, `participation_ratio`, `step_trustworthiness` |
 | Responses on single traversals | the `traversal_*` columns |
 | Navigation success | `pc navigation-measures` (below) |
@@ -131,8 +140,9 @@ column is left out for a condition when any of its runs has no value.
 
 ### Conditions that depend on another model
 
-- `retrofitted_competition` starts from the weights of the trained `no_competition` model
-  (`reuse.place_model_artifact_id: tag:no_competition`), freezes the recurrent encoder, and trains
+- `retrofitted_competition` starts from the best checkpoint (lowest validation decoding error) of
+  the trained `no_competition` model (`reuse.place_model_artifact_id: tag:no_competition`,
+  `policies.training_resume: weights_only`), freezes the recurrent encoder, and trains
   the linear head, the predictor and the embeddings for 128 epochs with 10 winners. Train
   `no_competition` with `--place-tag no_competition` first. For seed 1:
   `-o seed.training_seed=1 -o reuse.place_model_artifact_id=tag:no_competition_seed1`.
@@ -207,8 +217,12 @@ steps.
   with at least 5 traversals.
 - Decoding: ridge regression with train-set scaling and 10 penalties from 1e-6 to 1e3, chosen on
   512 validation episodes and scored on 512 test episodes; an MLP with two hidden layers of 128
-  units (AdamW, at most 200 epochs, early stopping on validation). Steps 15 to the end of each episode. Heading is decoded as sine
-  and cosine and scored as the median angular error.
+  units (AdamW, at most 200 epochs, early stopping on validation). Steps 15 to the end of each
+  episode. Heading is decoded as sine and cosine and scored as the median angular error. Chance
+  levels come from the shift control, which rolls the test predictions within each episode, and
+  the shuffled-code control, which fits the same ridge on train and validation rows paired with
+  the targets of random other rows. The within-episode error applies the fitted ridge to every
+  test step from the first and averages the error (RMSE over x and y) over episodes at each step.
 - Similarity: cosine similarity of 8 million pairs from different episodes (first 128 test
   episodes, every 4th step) against distance; the half-distance is where the mean curve falls to
   half its value at contact, for all pairs and for pairs whose headings differ by less than 45 or
@@ -221,6 +235,10 @@ steps.
   5,000 random steps, trustworthiness and continuity (k = 15) on 4,096 random steps, the partial
   Spearman correlation of code distance (1 - Pearson) and Euclidean distance controlling for
   path distance on 20 x 20 bins, and the mean number of units with a field per visited bin.
+- Training curves come from the training log. Every `evaluation.eval_every_n_epochs` epochs (8)
+  the training stage writes a `[validation]` block to `runs/by_id/<run>/logs/stage_train_model.log`
+  with the place-code `xy_decode_rmse`, the `participation_ratio` and, under
+  `[validation.routing]`, the `never_selected_fraction`; the thesis curves plot these values.
 
 ## Running on a cluster
 
@@ -249,8 +267,10 @@ timeout.
 
 ## Other commands
 
-- `pc sweep -c configs/study/example_grid.yaml` and `pc curriculum -c configs/study/example_curriculum.yaml`
-  train a grid of variants or a sequence of phases from one base config.
+- `pc sweep -c configs/study/example_grid.yaml` trains a grid of variants of one base config. It
+  trains only, so the data chain of the base config must exist: run
+  `pc pipeline -c configs/experiment/smoke_museum.yaml` first. `pc curriculum -c
+  configs/study/example_curriculum.yaml` builds its own data and trains a sequence of phases.
 - `pc analyze` can run every analysis module of the project, not only the ones the thesis uses:
   list a module under `analysis.targets.<target>.modules` to enable it
   (`src/placecell_research/analysis/registry.py` has the names).

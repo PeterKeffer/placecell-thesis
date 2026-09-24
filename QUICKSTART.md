@@ -1,35 +1,40 @@
 # Quickstart
 
 Three ways to run the thesis: on your own computer, on the lab cluster the thesis ran on, and on
-any other SLURM cluster. Each starts with the same two commands: one sets up the software, one
-checks it. [README.md](README.md) explains what each run computes.
+any other SLURM cluster. Each starts the same way: set up the software, activate it, check it.
+[README.md](README.md) explains what each run computes.
 
 ## 1. Your own computer (macOS or Linux)
 
 ```bash
 git clone <this repository> placecell-thesis && cd placecell-thesis
 bash scripts/setup_env.sh
-conda activate placecell
+source ~/miniforge3/etc/profile.d/conda.sh && conda activate ~/miniforge3/envs/placecell
 pc doctor
 pc reproduce --profile local --smoke
 ```
 
-`setup_env.sh` creates the conda environment `placecell` with PyTorch, JAX, JAXenstein, MiniWorld
-and this package. It uses your conda, or installs Miniforge into `--prefix` (default
-`~/miniforge3`) when it finds none. On a Mac it installs the default PyTorch (Apple GPU through
-MPS) and JAX on the CPU. On Linux it installs CUDA builds when it finds a GPU or SLURM, CPU builds
-otherwise; `--gpu cpu` or `--gpu cuda` overrides the guess. `--dry-run` prints every step and runs
-none. It ends with `pc doctor`, which checks Python, the torch and JAX devices, one rendered
-MiniWorld and museum frame, and write access.
+`setup_env.sh` creates the conda environment `<prefix>/envs/placecell` (`--prefix`, default
+`~/miniforge3`) with Python 3.12, PyTorch, JAX, JAXenstein, MiniWorld and this package, at the
+tested versions in `constraints.txt`. It uses your conda, or installs Miniforge into `--prefix`
+when it finds none. On a Mac it installs the default PyTorch (Apple GPU through MPS) and JAX on the
+CPU. On Linux it installs CUDA builds when it finds a GPU or SLURM, CPU builds otherwise;
+`--gpu cpu` or `--gpu cuda` overrides the guess. `--dry-run` prints every step and runs none. It
+ends with `pc doctor`, which checks Python, the torch and JAX devices, one rendered MiniWorld and
+museum frame, and write access, and then prints the line that activates the environment; the
+third line above is that line for the default prefix.
 
-`--smoke` runs every stage of every thesis condition on 16 short episodes and small models, a few
-minutes per condition, and writes to `smoke/`. It shows that everything runs; the numbers mean
-nothing. `--only baseline,no_competition` restricts the plan to some conditions (runs they depend
-on are added), `--seeds 42` to one seed, `--dry-run` prints the plan.
+`--smoke` runs every stage of every thesis condition on 16 short episodes and small models (154
+jobs, about 90 minutes and 1.7 GB on an M-series Mac) and writes to `smoke/`. It shows that
+everything runs; the numbers mean nothing. `--only baseline,no_competition` restricts the plan to
+some conditions (runs they depend on are added), `--seeds 42` to one seed, `--dry-run` prints the
+plan. MiniWorld needs an awake display on macOS: run `caffeinate -u -t 5` to wake it, then
+`caffeinate -d -i pc reproduce --profile local --smoke` to keep it awake.
 
-The full reproduction is the same command without `--smoke`. It runs every job in order on this
-machine. If it stops, run the command again: finished jobs are skipped. MiniWorld needs a display
-on macOS, so keep the screen awake: `caffeinate -d -i pc reproduce --profile local`.
+Without `--smoke` the same command runs the full reproduction, every job in order on this machine:
+about 750 GPU hours for the models and 700 hours of navigation (see Compute), so use a cluster
+(sections 2 and 3) unless you run only a few conditions with `--only`. If it stops, run the command
+again: finished jobs are skipped.
 
 ## 2. The lab cluster (hpc3, partition klab-gpu)
 
@@ -38,17 +43,17 @@ On the login node:
 ```bash
 git clone <this repository> placecell-thesis && cd placecell-thesis
 bash scripts/setup_env.sh --prefix <a folder on the lab share>/miniforge3
-conda activate placecell
+# run the activation line that setup_env.sh prints at the end
 pc doctor --no-render
 pc reproduce --profile hpc3 --dry-run
 pc reproduce --profile hpc3 --smoke --only baseline
 pc reproduce --profile hpc3
 ```
 
-Keep the environment (about 8 GB) and the checkout on the lab share, not in your home folder. The
-login node has no GPU, so `pc doctor --no-render` skips rendering; every job checks CUDA, EGL and
-the MiniWorld textures itself before it starts. `configs/launcher/hpc3.yaml` holds the cluster's
-settings:
+Keep the environment (about 8 GB) and the checkout on the lab share, not in your home folder;
+the environment goes to `--prefix` even when conda comes from a module. The login node has no GPU,
+so `pc doctor --no-render` skips rendering; every job checks CUDA, EGL and the MiniWorld textures
+itself before it starts. `configs/launcher/hpc3.yaml` holds the cluster's settings:
 
 - GPU jobs run on `klab-gpu` and request a full H100 (`--gres=gpu:H100.80gb:1`). A request that
   could land on a 10 GB MIG slice is refused: MIG slices have no graphics API for MiniWorld and too
