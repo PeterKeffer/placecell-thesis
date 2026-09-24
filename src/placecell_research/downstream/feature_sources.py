@@ -86,20 +86,6 @@ def transform_place_code_batch(
     raise ValueError(f"Unsupported place-code transform mode: {mode!r}.")
 
 
-def transform_place_code_vector(
-    code: np.ndarray,
-    *,
-    mode: PlaceCodeTransformMode,
-    stats: PlaceCodeStats | None = None,
-) -> np.ndarray:
-    transformed = transform_place_code_batch(
-        np.asarray(code, dtype=np.float32).reshape(1, -1),
-        mode=mode,
-        stats=stats,
-    )
-    return transformed.reshape(-1)
-
-
 def apply_place_code_source(
     source_name: str,
     codes: np.ndarray,

@@ -415,7 +415,9 @@ def test_schema_and_builder_validate_new_kwinners_knobs() -> None:
     sparsifier = model.encoder_stack.sparsifier
     assert sparsifier.balance_bias.shape == (NUM_UNITS,)
     assert sparsifier.balance_liveness_patience_steps == 8
-    assert sparsifier.balance_liveness_rate == pytest.approx(0.001)
+    assert sparsifier.balance_bias_rate * sparsifier.balance_liveness_rate_ratio == pytest.approx(
+        0.001
+    )
 
 
 def test_region_metrics_distinguish_dead_specialist_and_monopolist_units() -> None:

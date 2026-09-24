@@ -8,8 +8,6 @@ from placecell_research.analysis import helpers
 from placecell_research.analysis.helpers import compute_rate_maps_from_episode_statistics
 from placecell_research.analysis.reliability_splits import (
     _compute_bin_consistency_chunk,
-    compute_episode_rate_map_correlations,
-    compute_split_half_agreement_maps_and_correlations,
 )
 from placecell_research.analysis.shift_nulls import circular_shift_spatial_information_null
 from placecell_research.evaluation.decode import (
@@ -456,107 +454,6 @@ def test_episode_activity_sum_chunks_use_one_bincount_per_chunk(monkeypatch) -> 
     assert len(chunks) == 1
     assert chunks[0][2].shape == (2, 2, 6)
     assert bincount_calls == 1
-
-
-def test_episode_rate_map_correlations_batch_smoothing(monkeypatch) -> None:
-    episodes = 4
-    steps = 10
-    units = 3
-    x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
-    y_positions = np.linspace(-0.5, 0.5, steps, dtype=np.float32)
-    position_sequences = []
-    representation_sequences = []
-    for episode_index in range(episodes):
-        positions = np.stack(
-            [x_positions, np.roll(y_positions, shift=episode_index)],
-            axis=-1,
-        )
-        position_sequences.append(positions)
-        representation_sequences.append(
-            np.stack(
-                [
-                    _synthetic_place_activity(positions, center_x=-0.3, center_y=-0.1),
-                    _synthetic_place_activity(positions, center_x=0.35, center_y=0.2),
-                    np.linspace(0.1, 0.9, steps, dtype=np.float32),
-                ],
-                axis=-1,
-            )
-        )
-    assert len(representation_sequences[0][0]) == units
-
-    gaussian_calls = 0
-    original_gaussian_filter = helpers.gaussian_filter
-
-    def counted_gaussian_filter(*args, **kwargs):
-        nonlocal gaussian_calls
-        gaussian_calls += 1
-        return original_gaussian_filter(*args, **kwargs)
-
-    monkeypatch.setattr(helpers, "gaussian_filter", counted_gaussian_filter)
-
-    correlations = compute_episode_rate_map_correlations(
-        np.stack(representation_sequences, axis=0),
-        np.stack(position_sequences, axis=0),
-        valid_mask=np.ones((episodes, steps), dtype=bool),
-        num_bins_x=8,
-        num_bins_y=8,
-        smoothing_sigma=0.4,
-        min_occupancy=1e-6,
-    )
-
-    assert correlations.shape == (units,)
-    assert gaussian_calls <= 6
-
-
-def test_split_half_agreement_reuses_smoothed_occupancy(monkeypatch) -> None:
-    episodes = 4
-    steps = 12
-    units = 40
-    x_positions = np.linspace(-1.0, 1.0, steps, dtype=np.float32)
-    y_positions = np.linspace(-0.5, 0.5, steps, dtype=np.float32)
-    position_sequences = []
-    representation_sequences = []
-    for episode_index in range(episodes):
-        positions = np.stack(
-            [x_positions, np.roll(y_positions, shift=episode_index)],
-            axis=-1,
-        )
-        position_sequences.append(positions)
-        base_activity = _synthetic_place_activity(positions, center_x=0.1, center_y=-0.1)
-        representation_sequences.append(
-            np.stack(
-                [
-                    base_activity * (1.0 + 0.01 * unit_index)
-                    for unit_index in range(units)
-                ],
-                axis=-1,
-            )
-        )
-
-    gaussian_calls = 0
-    original_gaussian_filter = helpers.gaussian_filter
-
-    def counted_gaussian_filter(*args, **kwargs):
-        nonlocal gaussian_calls
-        gaussian_calls += 1
-        return original_gaussian_filter(*args, **kwargs)
-
-    monkeypatch.setattr(helpers, "gaussian_filter", counted_gaussian_filter)
-
-    agreement_maps, _, correlations = compute_split_half_agreement_maps_and_correlations(
-        np.stack(representation_sequences, axis=0),
-        np.stack(position_sequences, axis=0),
-        valid_mask=np.ones((episodes, steps), dtype=bool),
-        num_bins_x=8,
-        num_bins_y=8,
-        smoothing_sigma=0.4,
-        min_occupancy=1e-6,
-        unit_chunk_size=8,
-    )
-
-    assert agreement_maps.shape == (units, 8, 8)
-    assert correlations.shape == (units,)
-    assert gaussian_calls <= 12
 
 
 def test_bin_consistency_chunk_avoids_per_unit_episode_mean_allocations(monkeypatch) -> None:

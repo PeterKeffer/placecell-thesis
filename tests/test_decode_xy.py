@@ -6,7 +6,6 @@ from placecell_research.evaluation.decode import (
     _split_indices,
     chunked_ridge_fit_predict,
     linear_decode_position,
-    linear_decode_position_transfer,
     nonlinear_decode_position,
 )
 
@@ -84,30 +83,6 @@ def test_linear_decode_position_is_invariant_to_chunk_size() -> None:
     assert np.allclose(tiny_chunks.predictions, one_chunk.predictions, atol=1e-4)
     assert abs(tiny_chunks.rmse - one_chunk.rmse) < 1e-5
     assert abs(tiny_chunks.r2 - one_chunk.r2) < 1e-5
-
-
-def test_linear_decode_transfer_reuses_the_fit_condition_decoder() -> None:
-    rng = np.random.default_rng(4)
-    fit_features = rng.normal(size=(256, 6)).astype(np.float32)
-    weights = rng.normal(size=(6, 2)).astype(np.float32)
-    positions = fit_features @ weights
-    rotated_features = -fit_features
-
-    fit_result = linear_decode_position(
-        fit_features,
-        positions,
-        train_fraction=0.75,
-        include_shuffle=False,
-    )
-    transfer_result = linear_decode_position_transfer(
-        fit_features,
-        rotated_features,
-        positions,
-        train_fraction=0.75,
-    )
-
-    assert fit_result.r2 > 0.99
-    assert transfer_result.r2 < 0.0
 
 
 def test_chunked_ridge_fit_predict_matches_sklearn_for_scalar_target() -> None:

@@ -16,7 +16,7 @@ from placecell_research.downstream.feature_sources import (
     PlaceCodeFeatureSource,
     StepContext,
     apply_place_code_source,
-    transform_place_code_vector,
+    transform_place_code_batch,
 )
 from placecell_research.downstream.place_code_stats import PlaceCodeStats
 
@@ -85,7 +85,7 @@ def test_apply_place_code_source_owns_prescale_and_transform() -> None:
         stats=None,
     )
 
-    expected = transform_place_code_vector(codes.reshape(-1) / head_row_norms, mode="l2")
+    expected = transform_place_code_batch(codes / head_row_norms, mode="l2")[0]
     np.testing.assert_allclose(result, expected.reshape(1, -1), rtol=1e-6)
 
 
@@ -97,9 +97,9 @@ def test_headnorm_l2_prescales_by_head_row_norm_then_l2() -> None:
     source = PlaceCodeFeatureSource(runtime=runtime, source_name="place_codes_headnorm_l2")
     result = source.extract(_context(), previous_action=None)
 
-    expected = transform_place_code_vector(code / head_row_norms, mode="l2")
+    expected = transform_place_code_batch((code / head_row_norms)[None], mode="l2")[0]
     np.testing.assert_allclose(result, expected, rtol=1e-6)
-    plain_l2 = transform_place_code_vector(code, mode="l2")
+    plain_l2 = transform_place_code_batch(code[None], mode="l2")[0]
     assert not np.allclose(result, plain_l2)
 
 
@@ -142,7 +142,7 @@ def test_rms_l2_is_active_rms_then_l2() -> None:
     source = PlaceCodeFeatureSource(runtime=runtime, source_name="place_codes_rms_l2")
     result = source.extract(_context(), previous_action=None)
 
-    scaled = transform_place_code_vector(code, mode="active_rms", stats=stats)
-    expected = transform_place_code_vector(scaled, mode="l2")
+    scaled = transform_place_code_batch(code[None], mode="active_rms", stats=stats)
+    expected = transform_place_code_batch(scaled, mode="l2")[0]
     np.testing.assert_allclose(result, expected, rtol=1e-6)
     np.testing.assert_allclose(np.linalg.norm(result), 1.0, rtol=1e-6)

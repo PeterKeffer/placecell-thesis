@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any
 
 import numpy as np
 import torch
@@ -67,22 +67,6 @@ def hold_recovery_checkpoint_lock(checkpoint_dir: Path) -> Iterator[None]:
         lock_handle.close()
 
 
-def _checkpoint_lock_is_available(lock_path: Path) -> bool:
-    if not lock_path.is_file():
-        return False
-    lock_handle: TextIO | None = None
-    try:
-        lock_handle = lock_path.open("a+")
-        fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fcntl.flock(lock_handle, fcntl.LOCK_UN)
-        return True
-    except BlockingIOError:
-        return False
-    finally:
-        if lock_handle is not None:
-            lock_handle.close()
-
-
 def _compatible_recovery_checkpoints(
     run_root: Path,
     *,
@@ -131,22 +115,6 @@ def _compatible_recovery_checkpoints(
         key=lambda candidate: (candidate.checkpoint_modified_time_ns, candidate.run_id),
         reverse=True,
     )
-
-
-def find_latest_compatible_recovery_checkpoint(
-    run_root: Path,
-    *,
-    resume_fingerprint: str,
-    exclude_run_id: str,
-) -> RecoveryCheckpoint | None:
-    for candidate in _compatible_recovery_checkpoints(
-        run_root,
-        resume_fingerprint=resume_fingerprint,
-        exclude_run_id=exclude_run_id,
-    ):
-        if _checkpoint_lock_is_available(candidate.path.parent / _RECOVERY_LOCK_FILE_NAME):
-            return candidate
-    return None
 
 
 @contextmanager

@@ -11,13 +11,11 @@ import zarr
 
 from placecell_research.evaluation.representation_store import (
     RepresentationRequest,
-    read_representation_manifest,
     read_representation_set,
     resolve_representations,
     stored_split_names,
     write_representation_batches,
     write_representation_manifest,
-    write_representation_set,
 )
 
 EPISODES, STEPS, UNITS = 3, 64, 16
@@ -42,6 +40,20 @@ def _write_request(directory: Path, request: RepresentationRequest) -> None:
     manifest = asdict(request)
     manifest["episode_ids"] = {"test": request.episode_ids}
     write_representation_manifest(directory, manifest)
+
+
+def _write(
+    directory: Path,
+    split_name: str,
+    representations: dict[str, np.ndarray],
+    metadata: dict[str, np.ndarray],
+) -> None:
+    write_representation_batches(
+        directory,
+        split_name=split_name,
+        episode_count=EPISODES,
+        batches=[(representations, metadata)],
+    )
 
 
 def test_streamed_batches_match_the_original_arrays(tmp_path):
@@ -98,9 +110,7 @@ def test_cached_prefix_preserves_inference_batch_boundaries(tmp_path):
     request = _request()
     _write_request(tmp_path, request)
     representations, metadata = _arrays(4)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
+    _write(tmp_path, "test", representations, metadata)
     actual, actual_metadata = read_representation_set(
         tmp_path,
         split_name="test",
@@ -126,9 +136,7 @@ def test_resolver_reads_only_standard_and_requested_metadata(tmp_path, monkeypat
     representations, metadata = _arrays(4)
     metadata["latent"] = np.ones((EPISODES, STEPS, 8), dtype=np.float32)
     metadata["rgb"] = np.ones((EPISODES, STEPS, 8, 8, 3), dtype=np.uint8)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
+    _write(tmp_path, "test", representations, metadata)
     reads = []
     original_getitem = zarr.Array.__getitem__
 
@@ -179,9 +187,7 @@ def _arrays(seed: int) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
 
 def test_round_trip_is_byte_identical(tmp_path: Path) -> None:
     representations, metadata = _arrays(0)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
+    _write(tmp_path, "test", representations, metadata)
     read_representations, read_metadata = read_representation_set(
         tmp_path, split_name="test", source_names=sorted(representations)
     )
@@ -196,12 +202,8 @@ def test_round_trip_is_byte_identical(tmp_path: Path) -> None:
 def test_splits_stay_separate(tmp_path: Path) -> None:
     validation, validation_metadata = _arrays(1)
     test, test_metadata = _arrays(2)
-    write_representation_set(
-        tmp_path, split_name="validation", representations=validation, metadata=validation_metadata
-    )
-    write_representation_set(
-        tmp_path, split_name="test", representations=test, metadata=test_metadata
-    )
+    _write(tmp_path, "validation", validation, validation_metadata)
+    _write(tmp_path, "test", test, test_metadata)
     assert stored_split_names(tmp_path) == ["test", "validation"]
     read_test, _ = read_representation_set(
         tmp_path, split_name="test", source_names=["encoder.place_codes"]
@@ -211,39 +213,18 @@ def test_splits_stay_separate(tmp_path: Path) -> None:
 
 def test_missing_source_raises_rather_than_falling_back(tmp_path: Path) -> None:
     representations, metadata = _arrays(0)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
+    _write(tmp_path, "test", representations, metadata)
     with pytest.raises(KeyError, match="no source"):
         read_representation_set(tmp_path, split_name="test", source_names=["encoder.hidden_state"])
 
 
 def test_missing_split_raises(tmp_path: Path) -> None:
     representations, metadata = _arrays(0)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
+    _write(tmp_path, "test", representations, metadata)
     with pytest.raises(KeyError, match="not in this representation set"):
         read_representation_set(
             tmp_path, split_name="validation", source_names=["encoder.place_codes"]
         )
-
-
-def test_device_mismatch_is_refused(tmp_path: Path) -> None:
-    """Opt-in only: a caller that asks for a device gets told when the set used another."""
-    representations, metadata = _arrays(0)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
-    write_representation_manifest(tmp_path, {"device": "cuda"})
-    with pytest.raises(ValueError, match="Drop expected_device"):
-        read_representation_set(
-            tmp_path,
-            split_name="test",
-            source_names=["encoder.place_codes"],
-            expected_device="cpu",
-        )
-    assert read_representation_manifest(tmp_path)["device"] == "cuda"
 
 
 def test_source_union_covers_evaluation_and_analysis() -> None:
@@ -267,9 +248,7 @@ def test_resolver_allows_an_unavailable_optional_observation(tmp_path, observati
     _write_request(tmp_path, request)
     representations, metadata = _arrays(4)
     metadata[observation_key] = np.ones((EPISODES, STEPS, 8), dtype=np.float32)
-    write_representation_set(
-        tmp_path, split_name="test", representations=representations, metadata=metadata
-    )
+    _write(tmp_path, "test", representations, metadata)
     _, actual = resolve_representations(
         artifact_directory=tmp_path,
         split_name="test",

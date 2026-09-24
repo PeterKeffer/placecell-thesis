@@ -387,10 +387,6 @@ class KWinnersSparsifier(nn.Module):
         self.balance_bias.add_(delta)
         self._ever_rescued.logical_or_(stale)
 
-    @property
-    def balance_liveness_rate(self) -> float:
-        return self.balance_bias_rate * self.balance_liveness_rate_ratio
-
     @torch.no_grad()
     def _record_controller_diagnostics(
         self,

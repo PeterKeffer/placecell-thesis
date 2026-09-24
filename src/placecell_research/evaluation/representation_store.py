@@ -96,25 +96,6 @@ def _split_group_name(split_name: str) -> str:
     return f"split_{split_name}"
 
 
-def write_representation_set(
-    directory: Path,
-    *,
-    split_name: str,
-    representations: dict[str, np.ndarray],
-    metadata: dict[str, np.ndarray],
-) -> None:
-    """Append one split's arrays to the store, creating it if needed."""
-    directory.mkdir(parents=True, exist_ok=True)
-    root = zarr.open_group(str(directory / _STORE_NAME), mode="a")
-    split_group = root.require_group(_split_group_name(split_name))
-    source_group = split_group.require_group(_SOURCE_GROUP)
-    metadata_group = split_group.require_group(_METADATA_GROUP)
-    for name, array in representations.items():
-        source_group.array(name, np.ascontiguousarray(array), overwrite=True)
-    for name, array in metadata.items():
-        metadata_group.array(name, np.ascontiguousarray(array), overwrite=True)
-
-
 def write_representation_manifest(directory: Path, payload: dict[str, Any]) -> None:
     (directory / MANIFEST_NAME).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
@@ -137,21 +118,12 @@ def read_representation_set(
     *,
     split_name: str,
     source_names: list[str],
-    expected_device: str | None = None,
     require_metadata_keys: list[str] | None = None,
     metadata_keys: list[str] | None = None,
     request: RepresentationRequest | None = None,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
     """The same (representations, metadata) pair collect_representations returns."""
     count = None if request is None else _validate_request(directory, split_name, request)
-    if expected_device is not None:
-        stored_device = str(read_representation_manifest(directory).get("device", ""))
-        if stored_device and stored_device != expected_device:
-            raise ValueError(
-                f"representation set was collected on '{stored_device}' but this stage asked "
-                f"for '{expected_device}'; k-winner active sets differ across devices "
-                "on a small fraction of steps. Drop expected_device to accept it."
-            )
     root = zarr.open_group(str(directory / _STORE_NAME), mode="r")
     group_name = _split_group_name(split_name)
     if group_name not in root:

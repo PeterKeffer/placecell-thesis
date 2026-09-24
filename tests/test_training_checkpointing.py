@@ -20,7 +20,6 @@ from placecell_research.stages.train_place_model import (
 from placecell_research.training.checkpointing import (
     capture_rng_state,
     claim_latest_compatible_recovery_checkpoint,
-    find_latest_compatible_recovery_checkpoint,
     hold_recovery_checkpoint_lock,
     load_checkpoint,
     save_checkpoint,
@@ -196,6 +195,15 @@ def _write_recovery_candidate(
     return checkpoint_path
 
 
+def _claim(run_root: Path):
+    with claim_latest_compatible_recovery_checkpoint(
+        run_root,
+        resume_fingerprint="matching",
+        exclude_run_id="current",
+    ) as candidate:
+        return candidate
+
+
 def test_auto_resume_selects_latest_compatible_incomplete_checkpoint(tmp_path: Path) -> None:
     run_root = tmp_path / "runs"
     older_path = _write_recovery_candidate(
@@ -230,11 +238,7 @@ def test_auto_resume_selects_latest_compatible_incomplete_checkpoint(tmp_path: P
         modified_time_ns=700,
     )
 
-    candidate = find_latest_compatible_recovery_checkpoint(
-        run_root,
-        resume_fingerprint="matching",
-        exclude_run_id="current",
-    )
+    candidate = _claim(run_root)
 
     assert candidate is not None
     assert candidate.path == newest_path
@@ -253,11 +257,7 @@ def test_auto_resume_does_not_recover_failed_runs(tmp_path: Path, status: str) -
         modified_time_ns=300,
     )
 
-    candidate = find_latest_compatible_recovery_checkpoint(
-        run_root,
-        resume_fingerprint="matching",
-        exclude_run_id="current",
-    )
+    candidate = _claim(run_root)
 
     assert candidate is None
 
@@ -342,11 +342,7 @@ def test_auto_resume_skips_checkpoint_held_by_active_training_process(tmp_path: 
     )
 
     with hold_recovery_checkpoint_lock(active_path.parent):
-        candidate = find_latest_compatible_recovery_checkpoint(
-            run_root,
-            resume_fingerprint="matching",
-            exclude_run_id="current",
-        )
+        candidate = _claim(run_root)
 
     assert candidate is not None
     assert candidate.path == inactive_path

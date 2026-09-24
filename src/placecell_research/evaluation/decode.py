@@ -247,40 +247,6 @@ def fit_position_ridge_decoder(
     )
 
 
-def score_position_ridge_decoder(
-    decoder: FittedPositionDecoder,
-    codes: np.ndarray,
-    positions: np.ndarray,
-    *,
-    chunk_size: int = 262_144,
-) -> DecodeResult:
-    """Score aligned codes with a previously fitted position decoder."""
-    if codes.ndim != 2 or codes.shape[1] != len(decoder.ridge.feature_mean):
-        raise ValueError(
-            "Codes must have shape [N, D] matching the fitted decoder; "
-            f"got {codes.shape}."
-        )
-    if positions.ndim != 2 or positions.shape != (len(codes), 2):
-        raise ValueError(f"Expected positions shape ({len(codes)}, 2), got {positions.shape}.")
-    predictions = chunked_ridge_predict(
-        decoder.ridge,
-        codes,
-        decoder.validation_indices,
-        chunk_size=chunk_size,
-    )
-    targets = positions[decoder.validation_indices]
-    return DecodeResult(
-        rmse=root_mean_squared_error(targets, predictions),
-        mae=float(mean_absolute_error(targets, predictions)),
-        r2=float(r2_score(targets, predictions)),
-        shuffle_rmse=None,
-        train_size=int(len(decoder.train_indices)),
-        validation_size=int(len(decoder.validation_indices)),
-        predictions=predictions.astype(np.float32, copy=False),
-        targets=targets.astype(np.float32, copy=False),
-    )
-
-
 def linear_decode_position(
     codes: np.ndarray,
     positions: np.ndarray,
@@ -420,46 +386,6 @@ def score_ridge_position_decoder(
     return (
         root_mean_squared_error(positions, predictions),
         float(r2_score(positions, predictions)),
-    )
-
-
-def linear_decode_position_transfer(
-    fit_codes: np.ndarray,
-    evaluation_codes: np.ndarray,
-    positions: np.ndarray,
-    train_fraction: float = 0.8,
-    alpha: float = 1.0e-3,
-    episode_ids: np.ndarray | None = None,
-    chunk_size: int = 262_144,
-) -> DecodeResult:
-    """Fit on one representation condition and score another without refitting."""
-    if fit_codes.ndim != 2 or evaluation_codes.ndim != 2:
-        raise ValueError(
-            "Expected fit_codes and evaluation_codes to both have shape [N, D]."
-        )
-    if fit_codes.shape != evaluation_codes.shape:
-        raise ValueError(
-            "fit_codes and evaluation_codes must have identical shapes; "
-            f"got {fit_codes.shape} and {evaluation_codes.shape}."
-        )
-    if positions.ndim != 2 or positions.shape[-1] != 2:
-        raise ValueError(f"Expected positions [N, 2], got {positions.shape}.")
-    if len(fit_codes) != len(positions):
-        raise ValueError("Codes and positions must have the same first dimension.")
-
-    decoder = fit_position_ridge_decoder(
-        fit_codes,
-        positions,
-        train_fraction=train_fraction,
-        alpha=alpha,
-        episode_ids=episode_ids,
-        chunk_size=chunk_size,
-    )
-    return score_position_ridge_decoder(
-        decoder,
-        evaluation_codes,
-        positions,
-        chunk_size=chunk_size,
     )
 
 

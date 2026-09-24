@@ -4,13 +4,9 @@ import numpy as np
 
 from placecell_research.analysis.reliability_splits import (
     _compute_global_unit_thresholds,
-    compute_bin_consistency_maps,
-    compute_episode_rate_map_correlations,
     compute_field_traversal_reliability,
     compute_reliability_maps,
     compute_revisit_activity_metrics,
-    compute_split_half_agreement_maps,
-    compute_split_half_agreement_maps_and_correlations,
 )
 from placecell_research.numerics.bin_maps import MIN_MAP_CORRELATION_OVERLAP_BINS
 from placecell_research.numerics.occupancy import (
@@ -234,15 +230,20 @@ def test_revisit_stability_metrics_reward_consistent_per_bin_activity() -> None:
         dtype=np.float32,
     )
 
-    consistency_maps, coefficient_of_variation_maps, visit_counts = compute_bin_consistency_maps(
+    metrics = compute_revisit_activity_metrics(
         representation,
         position_xy,
-        valid_mask=None,
-        num_bins_x=4,
-        num_bins_y=1,
+        None,
+        4,
+        1,
+        smoothing_sigma=0.0,
+        min_occupancy=1e-6,
         active_bin_peak_fraction=0.05,
         active_episode_threshold_fraction_of_bin_mean=0.5,
     )
+    consistency_maps = metrics.bin_consistency_maps
+    coefficient_of_variation_maps = metrics.bin_coefficient_of_variation_maps
+    visit_counts = metrics.consistency_visit_counts
     split_half_correlation = compute_split_half_rate_map_correlations(
         representation,
         position_xy,
@@ -252,24 +253,9 @@ def test_revisit_stability_metrics_reward_consistent_per_bin_activity() -> None:
         smoothing_sigma=0.0,
         min_occupancy=1e-6,
     )
-    episode_rate_map_correlation = compute_episode_rate_map_correlations(
-        representation,
-        position_xy,
-        valid_mask=None,
-        num_bins_x=4,
-        num_bins_y=1,
-        smoothing_sigma=0.0,
-        min_occupancy=1e-6,
-    )
-    split_half_agreement_maps, split_half_support_counts = compute_split_half_agreement_maps(
-        representation,
-        position_xy,
-        valid_mask=None,
-        num_bins_x=4,
-        num_bins_y=1,
-        smoothing_sigma=0.0,
-        min_occupancy=1e-6,
-    )
+    episode_rate_map_correlation = metrics.episode_rate_map_correlation
+    split_half_agreement_maps = metrics.split_half_agreement_maps
+    split_half_support_counts = metrics.split_half_agreement_support_counts
 
     np.testing.assert_allclose(visit_counts, np.ones((1, 4), dtype=np.float32) * 4.0)
     np.testing.assert_allclose(split_half_support_counts, np.ones((1, 4), dtype=np.float32) * 2.0)
@@ -339,15 +325,15 @@ def test_map_correlations_rank_a_stable_field_above_a_shifting_one() -> None:
         smoothing_sigma=0.0,
         min_occupancy=1e-6,
     )
-    episode_rate_map_correlation = compute_episode_rate_map_correlations(
+    episode_rate_map_correlation = compute_revisit_activity_metrics(
         representation,
         position_xy,
-        valid_mask=None,
-        num_bins_x=num_bins,
-        num_bins_y=1,
+        None,
+        num_bins,
+        1,
         smoothing_sigma=0.0,
         min_occupancy=1e-6,
-    )
+    ).episode_rate_map_correlation
 
     assert float(split_half_correlation[0]) > 0.99
     assert float(episode_rate_map_correlation[0]) > 0.99
@@ -385,26 +371,21 @@ def test_support_thresholds_can_mask_under_sampled_bins() -> None:
         dtype=bool,
     )
 
-    consistency_maps, _, _ = compute_bin_consistency_maps(
+    metrics = compute_revisit_activity_metrics(
         representation,
         position_xy,
         sparse_valid_mask,
-        num_bins_x=4,
-        num_bins_y=1,
+        4,
+        1,
+        smoothing_sigma=0.0,
+        min_occupancy=1e-6,
         minimum_visited_episodes=3,
         active_bin_peak_fraction=0.05,
         active_episode_threshold_fraction_of_bin_mean=0.5,
-    )
-    split_half_agreement_maps, _ = compute_split_half_agreement_maps(
-        representation,
-        position_xy,
-        sparse_valid_mask,
-        num_bins_x=4,
-        num_bins_y=1,
-        smoothing_sigma=0.0,
-        min_occupancy=1e-6,
         minimum_episodes_per_half=2,
     )
+    consistency_maps = metrics.bin_consistency_maps
+    split_half_agreement_maps = metrics.split_half_agreement_maps
 
     assert np.isnan(consistency_maps[0, 0, 1])
     assert np.isnan(consistency_maps[0, 0, 2])
@@ -412,7 +393,7 @@ def test_support_thresholds_can_mask_under_sampled_bins() -> None:
     assert np.isnan(split_half_agreement_maps[0, 0, 2])
 
 
-def test_revisit_activity_metrics_match_individual_metric_functions() -> None:
+def test_revisit_activity_split_half_correlation_matches_the_standalone_function() -> None:
     rng = np.random.default_rng(9)
     representation = rng.normal(size=(5, 8, 4)).astype(np.float32)
     position_xy = rng.uniform(low=-1.0, high=1.0, size=(5, 8, 2)).astype(np.float32)
@@ -435,32 +416,6 @@ def test_revisit_activity_metrics_match_individual_metric_functions() -> None:
         valid_mask,
         **kwargs,
     )
-    expected_consistency, expected_cv, expected_visits = compute_bin_consistency_maps(
-        representation,
-        position_xy,
-        valid_mask,
-        num_bins_x=kwargs["num_bins_x"],
-        num_bins_y=kwargs["num_bins_y"],
-        minimum_visited_episodes=kwargs["minimum_visited_episodes"],
-        active_bin_peak_fraction=kwargs["active_bin_peak_fraction"],
-        active_episode_threshold_fraction_of_bin_mean=(
-            kwargs["active_episode_threshold_fraction_of_bin_mean"]
-        ),
-        unit_chunk_size=kwargs["unit_chunk_size"],
-    )
-    expected_agreement, expected_support, _even_odd_correlation = (
-        compute_split_half_agreement_maps_and_correlations(
-            representation,
-            position_xy,
-            valid_mask,
-            num_bins_x=kwargs["num_bins_x"],
-            num_bins_y=kwargs["num_bins_y"],
-            smoothing_sigma=kwargs["smoothing_sigma"],
-            min_occupancy=kwargs["min_occupancy"],
-            minimum_episodes_per_half=kwargs["minimum_episodes_per_half"],
-            unit_chunk_size=kwargs["unit_chunk_size"],
-        )
-    )
     expected_split_correlation = compute_split_half_rate_map_correlations(
         representation,
         position_xy,
@@ -472,36 +427,8 @@ def test_revisit_activity_metrics_match_individual_metric_functions() -> None:
         minimum_episodes_per_half=kwargs["minimum_episodes_per_half"],
         unit_chunk_size=kwargs["unit_chunk_size"],
     )
-    expected_episode_correlation = compute_episode_rate_map_correlations(
-        representation,
-        position_xy,
-        valid_mask,
-        num_bins_x=kwargs["num_bins_x"],
-        num_bins_y=kwargs["num_bins_y"],
-        smoothing_sigma=kwargs["smoothing_sigma"],
-        min_occupancy=kwargs["min_occupancy"],
-        unit_chunk_size=kwargs["unit_chunk_size"],
-    )
 
-    np.testing.assert_allclose(
-        combined.bin_consistency_maps,
-        expected_consistency,
-        equal_nan=True,
-    )
-    np.testing.assert_allclose(
-        combined.bin_coefficient_of_variation_maps,
-        expected_cv,
-        equal_nan=True,
-    )
-    np.testing.assert_allclose(combined.consistency_visit_counts, expected_visits)
-    np.testing.assert_allclose(
-        combined.split_half_agreement_maps,
-        expected_agreement,
-        equal_nan=True,
-    )
-    np.testing.assert_allclose(combined.split_half_agreement_support_counts, expected_support)
     np.testing.assert_allclose(combined.split_half_rate_map_correlation, expected_split_correlation)
-    np.testing.assert_allclose(combined.episode_rate_map_correlation, expected_episode_correlation)
 
 
 def _quantised_activations(seed: int = 0) -> np.ndarray:
