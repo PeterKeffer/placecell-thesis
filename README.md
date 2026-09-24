@@ -53,6 +53,32 @@ starts from the second), their stored forward passes and measures, one navigatio
 summaries, in about ten minutes on a laptop. Without `--only` the smoke runs all 154 jobs of the
 plan in about 90 minutes and 1.7 GB on an M-series Mac. Everything goes to `smoke/`, which git ignores.
 
+## Minimal one-file version
+
+`minimal/place_cells.py` is the baseline model and its pipeline in one file of about 600 lines, to
+be read from top to bottom: the WallGap environment, the random walk, the autoencoder, the encoder
+with the competition, the predictor, the target encoder, the losses, the training loop and three
+measures. It needs torch, numpy, gymnasium, miniworld and matplotlib, and not this package.
+
+```bash
+python minimal/place_cells.py --smoke    # about a minute on a laptop
+python minimal/place_cells.py            # the baseline at thesis size
+```
+
+It prints the ridge decoding error of position, the spatial information above the shift null
+averaged over all 512 units and the share of silent units, and writes the episodes,
+`rate_maps.png` and `training_curves.png` to `--output-dir` (default `place_cells_run/`). The
+defaults are the values of `configs/thesis/baseline.yaml`. At thesis size it needs a GPU, about
+50 GB of disk and 32 GB of memory. It was run on macOS; on headless Linux, MiniWorld needs the EGL
+settings of `scripts/slurm/env_miniworld.sh`.
+
+`tests/test_minimal_matches_package.py` gives both models the same weights and batch and checks
+that place codes, predicted and target codes, each loss term, one optimizer step and the target
+encoder update agree, and that the defaults, the spatial information and the ridge decoder match
+the package. The environment renders the same frames as the package's collector for the same seed.
+The file leaves out parallel collection, Zarr storage, validation during training (the thesis
+measures read the last weights) and all other measures; the episode order within an epoch differs.
+
 ## How a run works
 
 `pc pipeline --config <config>` runs the stages in order. Each stage writes an immutable artifact
@@ -357,6 +383,7 @@ src/placecell_research/
   artifacts/ tracking/       artifact registry, run records, logging
   utils/                     small shared helpers
 docs/                        guides: your own computer, the lab cluster hpc3, any SLURM cluster
+minimal/place_cells.py       the baseline model and its pipeline in one file
 scripts/
   setup_env.sh               creates the conda environment and runs pc doctor
   slurm/                     per-job environment setup (common, MiniWorld/EGL, JAXenstein)
