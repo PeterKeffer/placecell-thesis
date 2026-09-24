@@ -43,7 +43,8 @@ def register(app: typer.Typer) -> None:
             [
                 path
                 for path in files
-                if not path.name.endswith("_units.csv") and path.resolve() != output.resolve()
+                if not path.name.endswith(("_units.csv", "_within_episode.csv"))
+                and path.resolve() != output.resolve()
             ]
         )
         write_rows(output, rows)

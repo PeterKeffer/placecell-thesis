@@ -5,7 +5,12 @@ import math
 
 import numpy as np
 
-from placecell_research.measures.decoding import decode, stack_features, supported_rows
+from placecell_research.measures.decoding import (
+    decode,
+    stack_features,
+    supported_rows,
+    within_episode_error,
+)
 from placecell_research.measures.navigation import absorbing_tail, learning_curve
 from placecell_research.measures.similarity import binned_mean, half_distance
 from placecell_research.measures.single_unit import single_unit_measures
@@ -72,11 +77,16 @@ def test_ridge_decoder_recovers_a_linear_position_code():
         features[split], targets[split], counts = supported_rows(
             stack_features(codes, 1), position, heading, valid
         )
-    scores = decode(features, targets, counts, nonlinear=False)
+    scores, position_decoder = decode(features, targets, counts, nonlinear=False)
     assert scores["position_ridge_rmse"] < 0.05
     assert scores["position_ridge_r2"] > 0.99
     assert scores["heading_ridge_median_error_degrees"] < 2.0
     assert scores["position_ridge_shift_control_rmse"] > 1.0
+    assert scores["position_ridge_shuffled_code_rmse"] > 1.0
+    assert scores["heading_ridge_shuffled_code_median_error_degrees"] > 45.0
+    per_step = within_episode_error(position_decoder, codes, position, valid)
+    assert per_step.shape == (120,)
+    assert per_step.max() < 0.1
 
 
 def test_stack_features_keeps_sixteen_causal_frames():

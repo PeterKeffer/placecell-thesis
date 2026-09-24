@@ -27,7 +27,7 @@ from .data import (
     load_split,
     representation_sources,
 )
-from .decoding import decode, stack_features, supported_rows
+from .decoding import decode, stack_features, supported_rows, within_episode_error
 from .similarity import similarity_half_distances
 from .single_unit import single_unit_measures
 from .table import full_analysis_row, single_unit_row, write_rows
@@ -37,7 +37,7 @@ INPUT_FEATURES = {"visual_latent": 1, "latent_stack_16": 16}
 
 
 def _decode_split_features(directory: Path, source: str | None, frames: int, top_k: int):
-    features, targets, row_counts = {}, {}, []
+    features, targets = {}, {}
     for split in SPLITS:
         arrays = load_split(directory, split, [source] if source else [], read_time_top_k=top_k)
         values = arrays.sources[source] if source else arrays.latent
@@ -45,21 +45,33 @@ def _decode_split_features(directory: Path, source: str | None, frames: int, top
             stack_features(values, frames), arrays.position_xy, arrays.heading, arrays.valid_steps
         )
         if split == "test":
-            row_counts = counts
-    return features, targets, row_counts
+            row_counts, test = counts, (values, arrays.position_xy, arrays.valid_steps)
+    return features, targets, row_counts, test
 
 
-def decoding_row(directory: Path, top_k: int, *, include_inputs: bool) -> dict[str, float]:
-    row = {}
+def decoding_row(
+    directory: Path, top_k: int, *, include_inputs: bool
+) -> tuple[dict[str, float], dict[str, np.ndarray]]:
+    """Decoding scores, and the position error at each test step of the single-frame sets."""
+    row, curves = {}, {}
     feature_sets = [(source, source, 1) for source in representation_sources(directory)]
     if include_inputs:
         feature_sets += [(name, None, frames) for name, frames in INPUT_FEATURES.items()]
     for label, source, frames in feature_sets:
         print(f"[measures] decoding {label}", file=sys.stderr, flush=True)
-        features, targets, row_counts = _decode_split_features(directory, source, frames, top_k)
-        scores = decode(features, targets, row_counts)
+        features, targets, row_counts, test = _decode_split_features(
+            directory, source, frames, top_k
+        )
+        scores, position_decoder = decode(features, targets, row_counts)
         row |= {f"decode_{label}_{key}": value for key, value in scores.items()}
-    return row
+        if frames == 1:
+            curve = within_episode_error(position_decoder, *test)
+            curves[f"decode_{label}_position_ridge_rmse"] = curve
+            row[f"decode_{label}_position_ridge_first_step_rmse"] = float(curve[0])
+            row[f"decode_{label}_position_ridge_last_512_steps_rmse"] = float(
+                np.nanmean(curve[-512:])
+            )
+    return row, curves
 
 
 def full_test_codes(registry: ArtifactRegistry, directory: Path, checkpoint: str, top_k: int):
@@ -80,7 +92,7 @@ def full_test_codes(registry: ArtifactRegistry, directory: Path, checkpoint: str
 
 
 def measure_model(config_path: Path, overrides: list[str], *, include_inputs: bool = False) -> Path:
-    """Write <output_dir>/<condition>__seed<seed>__<model>.csv and a per-unit table beside it."""
+    """Write <output_dir>/<condition>__seed<seed>__<model>.csv, per-unit and per-step tables."""
     config = load_experiment_config(config_path, overrides)
     settings = config.measures
     repo_root = find_repo_root(config_path.resolve())
@@ -133,7 +145,8 @@ def measure_model(config_path: Path, overrides: list[str], *, include_inputs: bo
         **population,
         **unit_row,
     }
-    row |= decoding_row(directory, top_k, include_inputs=include_inputs)
+    decoding, curves = decoding_row(directory, top_k, include_inputs=include_inputs)
+    row |= decoding
     similarity_inputs = {"place_code": codes}
     if test.latent is not None:
         similarity_inputs["visual_latent"] = test.latent
@@ -170,6 +183,13 @@ def measure_model(config_path: Path, overrides: list[str], *, include_inputs: bo
         [
             {"unit": unit, **{key: float(value[unit]) for key, value in unit_columns.items()}}
             for unit in range(codes.shape[-1])
+        ],
+    )
+    write_rows(
+        output_dir / f"{stem}_within_episode.csv",
+        [
+            {"step": step + 1, **{key: float(curve[step]) for key, curve in curves.items()}}
+            for step in range(test.valid_steps.shape[1])
         ],
     )
     return output_dir / f"{stem}.csv"

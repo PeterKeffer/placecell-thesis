@@ -123,16 +123,41 @@ def fit_mlp(data: dict[str, tuple[np.ndarray, np.ndarray]]) -> np.ndarray:
     return predict_mlp(model, data["test"][0], mean, scale, target_mean, target_scale)
 
 
-def ridge_predictions(data: dict[str, tuple[np.ndarray, np.ndarray]]) -> np.ndarray:
+def fit_ridge(data: dict[str, tuple[np.ndarray, np.ndarray]]) -> MatchedPositionDecoder:
+    """Ridge fitted on train, its regularization selected on validation."""
     decoder = MatchedPositionDecoder.fit(*data["train"])
     decoder.score(*data["validation"], select=True)
-    x, y = data["test"]
-    prediction = np.empty_like(y)
+    return decoder
+
+
+def ridge_predict(decoder: MatchedPositionDecoder, x: np.ndarray) -> np.ndarray:
+    prediction = np.empty((len(x), 2), np.float32)
     for start in range(0, len(x), BATCH):
         prediction[start : start + BATCH] = (
             x[start : start + BATCH] - decoder.mean
         ) @ decoder.weights[decoder.selected] + decoder.target_mean
     return prediction
+
+
+def shuffled_code(
+    data: dict[str, tuple[np.ndarray, np.ndarray]],
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Train and validation rows paired with the targets of random other rows: the chance level."""
+    rng = np.random.default_rng(SEED)
+    return {
+        split: (x, y if split == "test" else y[rng.permutation(len(y))])
+        for split, (x, y) in data.items()
+    }
+
+
+def within_episode_error(
+    decoder: MatchedPositionDecoder, values: np.ndarray, position_xy: np.ndarray, valid: np.ndarray
+) -> np.ndarray:
+    """Mean over episodes of the position error (RMSE over x and y) at each step."""
+    prediction = ridge_predict(decoder, values.reshape(-1, values.shape[-1]))
+    squared = (prediction.reshape(position_xy.shape).astype(np.float64) - position_xy) ** 2
+    error = np.where(valid, np.sqrt(squared.mean(-1)), np.nan)
+    return np.nanmean(error, axis=0)
 
 
 def shift_control(prediction: np.ndarray, row_counts: list[int]) -> np.ndarray:
@@ -159,18 +184,25 @@ def decode(
     test_row_counts: list[int],
     *,
     nonlinear: bool = True,
-) -> dict[str, float]:
-    """Ridge and MLP scores of position and heading for one feature set."""
+) -> tuple[dict[str, float], MatchedPositionDecoder]:
+    """Ridge and MLP scores of position and heading for one feature set, and the position ridge."""
     result = {}
     for task, columns in (("position", slice(0, 2)), ("heading", slice(2, 4))):
         data = {split: (features[split], targets[split][:, columns]) for split in features}
         truth = data["test"][1]
-        prediction = ridge_predictions(data)
+        decoder = fit_ridge(data)
+        if task == "position":
+            position_decoder = decoder
+        prediction = ridge_predict(decoder, data["test"][0])
         result |= {f"{task}_ridge_{k}": v for k, v in scores(prediction, truth, task).items()}
         shifted = shift_control(prediction, test_row_counts)
         result |= {
             f"{task}_ridge_shift_control_{k}": v for k, v in scores(shifted, truth, task).items()
         }
+        chance = ridge_predict(fit_ridge(shuffled_code(data)), data["test"][0])
+        result |= {
+            f"{task}_ridge_shuffled_code_{k}": v for k, v in scores(chance, truth, task).items()
+        }
         if nonlinear:
             result |= {f"{task}_mlp_{k}": v for k, v in scores(fit_mlp(data), truth, task).items()}
-    return result
+    return result, position_decoder
