@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 import platform
 import shutil
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -95,13 +97,53 @@ def _check_torch(report: _Report) -> None:
     report.line(status, "torch", detail)
 
 
-def _check_jax(report: _Report, render: bool) -> None:
+class _StartupErrors(logging.Handler):
+    """Keeps JAX start-up errors as one line each instead of printing their tracebacks."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.WARNING)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        error = record.exc_info[1] if record.exc_info else None
+        text = str(error) if error is not None else record.getMessage()
+        self.messages.append(" ".join(text.split())[:200])
+
+
+def _jax_devices() -> tuple[Any, list[Any], list[str]]:
+    """Import jax and list its devices; on a node without a GPU the CUDA plugin fails loudly."""
+    jax_logger = logging.getLogger("jax")
+    errors = _StartupErrors()
+    propagate = jax_logger.propagate
+    jax_logger.addHandler(errors)
+    jax_logger.propagate = False
     try:
         import jax
-    except Exception:
+
+        return jax, jax.devices(), errors.messages
+    finally:
+        jax_logger.removeHandler(errors)
+        jax_logger.propagate = propagate
+
+
+def _check_jax(report: _Report, render: bool) -> None:
+    try:
+        jax, devices, startup_errors = _jax_devices()
+    except ImportError:
         report.line("WARN", "jax", "not installed (needed for the museum; install the jax extra)")
         return
-    report.line("OK", "jax", f"{jax.__version__}; devices {jax.devices()}")
+    except Exception as exc:
+        report.line("FAIL", "jax", f"{type(exc).__name__}: {exc}")
+        return
+    import torch
+
+    if any(device.platform == "gpu" for device in devices):
+        report.line("OK", "jax", f"{jax.__version__}; devices {devices}")
+    elif not torch.cuda.is_available():
+        report.line("OK", "jax", f"{jax.__version__}; no GPU visible, so jax runs on CPU")
+    else:
+        reason = startup_errors[0] if startup_errors else "no CUDA plugin installed"
+        report.line("WARN", "jax", f"{jax.__version__} on CPU although a GPU is visible: {reason}")
     if _module_version("jaxenstein") is None:
         report.line("FAIL", "jaxenstein", "not importable")
         return
