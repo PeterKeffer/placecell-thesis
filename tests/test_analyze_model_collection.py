@@ -8,16 +8,16 @@ import torch
 
 from placecell_research.stages import analyze_model as analyze_model_stage
 from placecell_research.stages.analyze_model import (
+    AnalysisSourceReference,
+    CollectionPlan,
+    SingleAnalysisWorkItem,
     _analysis_config_with_available_layer_targets,
-    _AnalysisSourceReference,
     _build_analysis_input,
     _build_dataset_coverage_analysis_input,
     _collection_plans_by_source_group,
-    _CollectionPlan,
     _required_batch_keys,
     _required_comparative_batch_keys,
     _single_work_items_by_source_group,
-    _SingleAnalysisWorkItem,
     _source_collection_group_key,
 )
 
@@ -88,7 +88,7 @@ def test_build_analysis_input_collects_all_sources_for_shared_dataset_pass(
         lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
-    encoder_reference = _AnalysisSourceReference(
+    encoder_reference = AnalysisSourceReference(
         label="encoder_place_cells",
         source_name="encoder.place_codes",
         model_artifact_id="model_a",
@@ -97,7 +97,7 @@ def test_build_analysis_input_collects_all_sources_for_shared_dataset_pass(
         split_artifact_id="split_a",
         split_name="validation",
     )
-    predictor_reference = _AnalysisSourceReference(
+    predictor_reference = AnalysisSourceReference(
         label="predictor_hidden_state",
         source_name="predictor.hidden_state",
         model_artifact_id="model_a",
@@ -106,7 +106,7 @@ def test_build_analysis_input_collects_all_sources_for_shared_dataset_pass(
         split_artifact_id="split_a",
         split_name="validation",
     )
-    collection_plan = _CollectionPlan(
+    collection_plan = CollectionPlan(
         source_names=("encoder.place_codes", "predictor.hidden_state"),
         include_batch_keys=("rgb",),
     )
@@ -203,7 +203,7 @@ def test_build_analysis_input_can_request_layerwise_hidden_state_sources(
         lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
-    layer_reference = _AnalysisSourceReference(
+    layer_reference = AnalysisSourceReference(
         label="encoder_hidden_state_layer_1",
         source_name="encoder.hidden_state_layer_1",
         model_artifact_id="model_a",
@@ -217,7 +217,7 @@ def test_build_analysis_input_can_request_layerwise_hidden_state_sources(
         registry=FakeRegistry(),
         device=torch.device("cpu"),
         model_cache=model_cache,
-        collection_plan=_CollectionPlan(source_names=("encoder.hidden_state_layer_1",)),
+        collection_plan=CollectionPlan(source_names=("encoder.hidden_state_layer_1",)),
         collection_cache=collection_cache,
         batch_size=8,
         max_episodes=16,
@@ -283,14 +283,14 @@ def test_dataset_coverage_analysis_input_reads_positions_without_model_inference
         "collect_representations",
         fail_collect_representations,
     )
-    monkeypatch.setattr(analyze_model_stage, "_require_zarr", lambda: (FakeZarr(), None))
+    monkeypatch.setattr(analyze_model_stage, "require_zarr", lambda: (FakeZarr(), None))
     monkeypatch.setattr(
         analyze_model_stage,
         "load_dataset_manifest",
         lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
-    reference = _AnalysisSourceReference(
+    reference = AnalysisSourceReference(
         label="encoder_place_cells",
         source_name="encoder.place_codes",
         model_artifact_id="model_a",
@@ -321,7 +321,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
         "_required_batch_keys",
         fake_required_batch_keys,
     )
-    encoder_reference = _AnalysisSourceReference(
+    encoder_reference = AnalysisSourceReference(
         label="encoder_place_cells",
         source_name="encoder.place_codes",
         model_artifact_id="model_a",
@@ -330,7 +330,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
         split_artifact_id="split_a",
         split_name="validation",
     )
-    predictor_reference = _AnalysisSourceReference(
+    predictor_reference = AnalysisSourceReference(
         label="predictor_place_cells",
         source_name="predictor.place_codes",
         model_artifact_id="model_a",
@@ -339,7 +339,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
         split_artifact_id="split_a",
         split_name="validation",
     )
-    hidden_reference = _AnalysisSourceReference(
+    hidden_reference = AnalysisSourceReference(
         label="encoder_hidden_state_layer_0",
         source_name="encoder.hidden_state_layer_0",
         model_artifact_id="model_a",
@@ -348,7 +348,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
         split_artifact_id="split_a",
         split_name="validation",
     )
-    train_reference = _AnalysisSourceReference(
+    train_reference = AnalysisSourceReference(
         label="encoder_place_cells",
         source_name="encoder.place_codes",
         model_artifact_id="model_a",
@@ -358,7 +358,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
         split_name="train",
     )
     work_items = [
-        _SingleAnalysisWorkItem(
+        SingleAnalysisWorkItem(
             progress_label="encoder_place_cells",
             reference=encoder_reference,
             module_names=[
@@ -371,7 +371,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
                 "episode_dynamics",
             ],
         ),
-        _SingleAnalysisWorkItem(
+        SingleAnalysisWorkItem(
             progress_label="predictor_place_cells",
             reference=predictor_reference,
             module_names=[
@@ -383,7 +383,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
                 "rate_map_coding_purity",
             ],
         ),
-        _SingleAnalysisWorkItem(
+        SingleAnalysisWorkItem(
             progress_label="encoder_hidden_state_layer_0",
             reference=hidden_reference,
             module_names=[
@@ -395,7 +395,7 @@ def test_single_source_collection_plans_group_targets_by_shared_inputs(monkeypat
                 "rate_map_coding_purity",
             ],
         ),
-        _SingleAnalysisWorkItem(
+        SingleAnalysisWorkItem(
             progress_label="encoder_place_cells:dataset_coverage:train",
             reference=train_reference,
             module_names=["dataset_coverage"],
@@ -468,7 +468,7 @@ def test_build_analysis_input_populates_latent_when_collected(monkeypatch, tmp_p
         lambda _path: SimpleNamespace(env_id="MiniWorld-WallGapAsymLarge-v0"),
     )
 
-    reference = _AnalysisSourceReference(
+    reference = AnalysisSourceReference(
         label="encoder_place_cells",
         source_name="encoder.place_codes",
         model_artifact_id="model_a",
@@ -482,7 +482,7 @@ def test_build_analysis_input_populates_latent_when_collected(monkeypatch, tmp_p
         registry=FakeRegistry(),
         device=torch.device("cpu"),
         model_cache={"model_a": object()},
-        collection_plan=_CollectionPlan(
+        collection_plan=CollectionPlan(
             source_names=("encoder.place_codes",), include_batch_keys=("latent",)
         ),
         collection_cache={},

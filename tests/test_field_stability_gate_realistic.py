@@ -18,7 +18,7 @@ from wallgap_gate_fixtures import (
 
 from placecell_research.analysis.field_stability import FieldStabilityMetricsModule
 from placecell_research.analysis.per_episode_rate_maps import PerEpisodeRateMapsModule
-from placecell_research.numerics.bin_maps import _smooth_flat_bin_maps
+from placecell_research.numerics.bin_maps import smooth_flat_bin_maps
 from placecell_research.numerics.occupancy import reachable_bin_visited_fractions
 
 
@@ -96,7 +96,7 @@ def test_gate_is_identical_at_every_smoothing_sigma(tmp_path: Path) -> None:
         bounds=wallgap_bounds(),
     )
     smoothed_coverage = np.mean(
-        _smooth_flat_bin_maps(
+        smooth_flat_bin_maps(
             step_counts.astype(np.float32),
             num_bins_y=num_bins_y,
             num_bins_x=num_bins_x,

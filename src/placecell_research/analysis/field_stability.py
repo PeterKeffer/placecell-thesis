@@ -9,7 +9,7 @@ from time import perf_counter
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..numerics.bin_maps import _smooth_flat_bin_maps, bin_center_grids
+from ..numerics.bin_maps import bin_center_grids, smooth_flat_bin_maps
 from ..numerics.occupancy import (
     iter_episode_activity_sum_chunks,
     reachable_bin_visited_fractions,
@@ -37,7 +37,7 @@ class _FieldMapMetrics:
     centroids_y: np.ndarray
 
 
-def _field_map_metrics(
+def field_map_metrics(
     rate_maps: np.ndarray,
     threshold_fraction: float,
     *,
@@ -120,7 +120,7 @@ def _compute_field_stability_episode_metrics(
         np.float32,
         copy=False,
     )
-    episode_occupancy = _smooth_flat_bin_maps(
+    episode_occupancy = smooth_flat_bin_maps(
         episode_step_counts,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -153,7 +153,7 @@ def _compute_field_stability_episode_metrics(
         unit_chunk_size=16,
     ):
         chunk_rate_maps = (
-            _smooth_flat_bin_maps(
+            smooth_flat_bin_maps(
                 chunk_activity_sums[:, valid_episode_indices],
                 num_bins_y=num_bins_y,
                 num_bins_x=num_bins_x,
@@ -161,7 +161,7 @@ def _compute_field_stability_episode_metrics(
             )
             / safe_valid_occupancy[None, :, :, :]
         ).astype(np.float32, copy=False)
-        chunk_metrics = _field_map_metrics(
+        chunk_metrics = field_map_metrics(
             chunk_rate_maps,
             field_threshold_fraction,
             x_center_grid=x_center_grid,
@@ -237,7 +237,7 @@ class _FieldStabilityModuleBase:
         section_started_at = perf_counter()
         num_units = analysis_input.representation.shape[-1]
         num_episodes = analysis_input.representation.shape[0]
-        pooled_metrics = _field_map_metrics(
+        pooled_metrics = field_map_metrics(
             pooled_rate_maps.rate_maps,
             field_threshold_fraction,
             x_center_grid=x_center_grid,

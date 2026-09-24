@@ -21,7 +21,7 @@ from .world_overlay import (
 )
 
 
-def _normalize_observation_frame(
+def normalize_observation_frame(
     rgb_frame: np.ndarray | None, latent_frame: np.ndarray | None
 ) -> np.ndarray:
     if rgb_frame is not None:
@@ -50,13 +50,13 @@ def _top_unit_indices(representation: np.ndarray, top_k: int) -> np.ndarray:
     return np.argsort(scores)[::-1][:top_k]
 
 
-def _selected_unit_indices(representation: np.ndarray, requested_top_k: int) -> np.ndarray:
+def select_unit_indices(representation: np.ndarray, requested_top_k: int) -> np.ndarray:
     if requested_top_k <= 0 or requested_top_k >= representation.shape[1]:
         return np.arange(representation.shape[1], dtype=np.int32)
     return _top_unit_indices(representation, top_k=requested_top_k).astype(np.int32, copy=False)
 
 
-def _select_episode_index(
+def select_episode_index(
     valid_mask: np.ndarray,
     *,
     requested_episode_index: int,
@@ -76,7 +76,7 @@ def _select_episode_index(
     return int(random_number_generator.choice(valid_episode_indices))
 
 
-def _choose_unit_grid_shape(num_units: int) -> tuple[int, int]:
+def choose_unit_grid_shape(num_units: int) -> tuple[int, int]:
     if num_units <= 0:
         return 0, 0
     best_rows = 1
@@ -94,14 +94,14 @@ def _choose_unit_grid_shape(num_units: int) -> tuple[int, int]:
     return best_rows, best_columns
 
 
-def _activation_grid(values: np.ndarray, *, rows: int, columns: int) -> np.ndarray:
+def arrange_activation_grid(values: np.ndarray, *, rows: int, columns: int) -> np.ndarray:
     grid = np.full((rows, columns), np.nan, dtype=np.float32)
     flat_grid = grid.reshape(-1)
     flat_grid[: values.size] = values.astype(np.float32, copy=False)
     return grid
 
 
-def _activation_style(values: np.ndarray) -> tuple[str, colors.Normalize]:
+def activation_style(values: np.ndarray) -> tuple[str, colors.Normalize]:
     finite_values = values[np.isfinite(values)]
     if finite_values.size == 0:
         return "turbo", colors.Normalize(vmin=0.0, vmax=1.0)
@@ -113,7 +113,7 @@ def _activation_style(values: np.ndarray) -> tuple[str, colors.Normalize]:
     return "turbo", colors.Normalize(vmin=0.0, vmax=max(max_value, 1e-6))
 
 
-def _draw_heading_arrow(
+def draw_heading_arrow(
     axis: plt.Axes,
     positions: np.ndarray,
     headings: np.ndarray | None,
@@ -208,7 +208,7 @@ def _episode_frame(
         draw_world_segments_on_axis(axes[0, 1], world_overlay.segments, line_color="#404040")
         draw_landmarks_on_axis(axes[0, 1], world_overlay)
     apply_plot_bounds(axes[0, 1], env_id=env_id, position_xy=positions)
-    _draw_heading_arrow(axes[0, 1], positions, headings, current_index)
+    draw_heading_arrow(axes[0, 1], positions, headings, current_index)
     axes[0, 1].set_title(f"Trajectory step {current_index + 1}/{len(positions)}")
     axes[0, 1].set_xlabel(POSITION_X_LABEL)
     axes[0, 1].set_ylabel(POSITION_Y_LABEL)
@@ -221,7 +221,7 @@ def _episode_frame(
     )
     _draw_heading_compass(axes[1, 0], heading_value)
 
-    activation_grid = _activation_grid(
+    activation_grid = arrange_activation_grid(
         current_values,
         rows=activation_grid_rows,
         columns=activation_grid_columns,
@@ -262,7 +262,7 @@ class EpisodeDynamicsModule:
     def run(self, analysis_input: AnalysisInput, output_dir: Path, config: dict) -> AnalysisResult:
         requested_episode_index = int(config.get("example_episode_index", -1))
         random_seed = config.get("example_episode_random_seed")
-        episode_index = _select_episode_index(
+        episode_index = select_episode_index(
             analysis_input.valid_mask,
             requested_episode_index=requested_episode_index,
             random_seed=None if random_seed in {None, ""} else int(random_seed),
@@ -272,14 +272,14 @@ class EpisodeDynamicsModule:
 
         top_k = int(config.get("example_episode_top_k", 0))
         episode_representation = analysis_input.representation[episode_index, :episode_length]
-        selected_unit_indices = _selected_unit_indices(
+        selected_unit_indices = select_unit_indices(
             episode_representation, requested_top_k=top_k
         )
         selected_activations = episode_representation[:, selected_unit_indices]
-        activation_grid_rows, activation_grid_columns = _choose_unit_grid_shape(
+        activation_grid_rows, activation_grid_columns = choose_unit_grid_shape(
             len(selected_unit_indices)
         )
-        activation_cmap_name, activation_norm = _activation_style(selected_activations)
+        activation_cmap_name, activation_norm = activation_style(selected_activations)
         positions = analysis_input.position_xy[episode_index, :episode_length]
         headings = (
             None
@@ -310,7 +310,7 @@ class EpisodeDynamicsModule:
 
         frames: list[np.ndarray] = []
         for timestep in range(episode_length):
-            observation_frame = _normalize_observation_frame(
+            observation_frame = normalize_observation_frame(
                 None if rgb_episode is None else rgb_episode[timestep],
                 None if latent_episode is None else latent_episode[timestep],
             )
@@ -339,7 +339,7 @@ class EpisodeDynamicsModule:
         summary_figure.suptitle(
             f"{analysis_input.source_name} example episode summary", fontsize=12
         )
-        summary_observation = _normalize_observation_frame(
+        summary_observation = normalize_observation_frame(
             None if rgb_episode is None else rgb_episode[0],
             None if latent_episode is None else latent_episode[0],
         )
@@ -365,7 +365,7 @@ class EpisodeDynamicsModule:
             env_id=str(analysis_input.metadata.get("env_id", "")),
             position_xy=positions,
         )
-        _draw_heading_arrow(axes[1], positions, headings, len(positions) - 1)
+        draw_heading_arrow(axes[1], positions, headings, len(positions) - 1)
         axes[1].set_title("Episode trajectory")
         axes[1].set_xlabel(POSITION_X_LABEL)
         axes[1].set_ylabel(POSITION_Y_LABEL)

@@ -39,7 +39,7 @@ def _blas_thread_count() -> int:
     return max(1, max(limits, default=1))
 
 
-def _worker_limit(env_var: str) -> int:
+def worker_limit(env_var: str) -> int:
     """How wide a pool may run."""
     override = os.environ.get(env_var, "").strip()
     if override.isdigit():
@@ -52,12 +52,12 @@ def _worker_limit(env_var: str) -> int:
 
 def analysis_worker_count(num_blocks: int) -> int:
     """Threads to use for num_blocks independent blocks of work."""
-    return max(1, min(_worker_limit(WORKER_COUNT_ENV_VAR), num_blocks))
+    return max(1, min(worker_limit(WORKER_COUNT_ENV_VAR), num_blocks))
 
 
 def process_pool_plan(num_jobs: int) -> tuple[int, int]:
     """Worker processes for num_jobs independent jobs, and the thread limit each one may use."""
-    worker_count = max(1, min(_worker_limit(WORKER_COUNT_ENV_VAR), num_jobs))
+    worker_count = max(1, min(worker_limit(WORKER_COUNT_ENV_VAR), num_jobs))
     return worker_count, max(1, _available_cpu_count() // worker_count)
 
 

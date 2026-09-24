@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..numerics.circular import _EPS, circular_vector, peak_to_mean
+from ..numerics.circular import EPS, circular_vector, peak_to_mean
 from ..numerics.place_cell_quality import benjamini_hochberg
 from ..numerics.rate_map_kernels import (
     compute_spatial_bin_assignments,
@@ -15,9 +15,9 @@ from ..numerics.rate_map_kernels import (
 )
 from ..numerics.work_blocks import run_over_index_blocks
 from .base import AnalysisInput, AnalysisResult
-from .directionality import _valid_steps_per_episode
+from .directionality import valid_steps_per_episode
 from .helpers import write_csv
-from .shift_nulls import _circular_shift_step_layout, _draw_circular_shift_offsets
+from .shift_nulls import circular_shift_step_layout, draw_circular_shift_offsets
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
 _TWO_PI = 2.0 * np.pi
@@ -281,7 +281,7 @@ def _head_direction_metrics_per_unit(
         if not np.any(finite_spatial):
             continue
         peak_spatial_rate = float(np.nanmax(unit_spatial_mean[finite_spatial]))
-        if peak_spatial_rate <= _EPS:
+        if peak_spatial_rate <= EPS:
             continue
         active_spatial = finite_spatial & (
             unit_spatial_mean >= active_threshold_fraction * peak_spatial_rate
@@ -336,7 +336,7 @@ def _head_direction_metrics_per_unit(
             heading_occupancy=heading_occupancy,
             sampled_heading_mask=sampled_heading_mask,
             heading_vectors=heading_vectors,
-            episode_lengths=_valid_steps_per_episode(representation, valid_mask),
+            episode_lengths=valid_steps_per_episode(representation, valid_mask),
             num_null_shuffles=num_null_shuffles,
         )
         null_finite = np.isfinite(null_matrix)
@@ -388,10 +388,10 @@ def _heading_vector_length_null_matrix(
 
     rng = np.random.default_rng(_NULL_RNG_SEED)
     shuffle_offsets = [
-        _draw_circular_shift_offsets(episode_lengths, rng, _NULL_MIN_SHIFT_FRACTION)
+        draw_circular_shift_offsets(episode_lengths, rng, _NULL_MIN_SHIFT_FRACTION)
         for _ in range(num_null_shuffles)
     ]
-    step_layout = _circular_shift_step_layout(episode_lengths, np.arange(num_samples))
+    step_layout = circular_shift_step_layout(episode_lengths, np.arange(num_samples))
     null_matrix = np.full((num_null_shuffles, num_units), np.nan, dtype=np.float32)
 
     batch_size = _null_shuffle_batch(num_samples, num_null_shuffles)
@@ -406,7 +406,7 @@ def _heading_vector_length_null_matrix(
 
         projected = sample_weights @ rates
         total_rates, cosine_parts, sine_parts = projected[0::3], projected[1::3], projected[2::3]
-        has_rate = total_rates > _EPS
+        has_rate = total_rates > EPS
         null_matrix[start : start + batch][has_rate] = (
             np.hypot(cosine_parts[has_rate], sine_parts[has_rate]) / total_rates[has_rate]
         )
@@ -459,19 +459,19 @@ def _normalized_spatial_information(
 ) -> float:
     rates = spatial_mean[finite_spatial].astype(np.float64, copy=False)
     occupancies = occupancy[finite_spatial].astype(np.float64, copy=False)
-    if rates.size <= 1 or float(np.sum(occupancies)) <= _EPS:
+    if rates.size <= 1 or float(np.sum(occupancies)) <= EPS:
         return 0.0
     probabilities = occupancies / float(np.sum(occupancies))
     mean_rate = float(np.sum(probabilities * rates))
-    if mean_rate <= _EPS:
+    if mean_rate <= EPS:
         return 0.0
     rate_ratio = rates / mean_rate
-    positive = rate_ratio > _EPS
+    positive = rate_ratio > EPS
     spatial_information = float(
         np.sum(probabilities[positive] * rate_ratio[positive] * np.log2(rate_ratio[positive]))
     )
     maximum_information = float(np.log2(rates.size))
-    if maximum_information <= _EPS:
+    if maximum_information <= EPS:
         return 0.0
     return float(np.clip(spatial_information / maximum_information, 0.0, 1.0))
 
@@ -494,12 +494,12 @@ def _position_invariance_score(
         local_sampled_heading[candidate_bins], local_heading_mean[candidate_bins], 0.0
     )
     total_rates = local_rates.sum(axis=1)
-    resolved = total_rates > _EPS
+    resolved = total_rates > EPS
     if int(np.count_nonzero(resolved)) < min_active_spatial_bins:
         return float("nan")
     weights = np.maximum(spatial_mean[candidate_bins][resolved], 0.0)
     total_weight = float(weights.sum())
-    if total_weight <= _EPS:
+    if total_weight <= EPS:
         return float("nan")
     local_vectors = (local_rates[resolved] * heading_vectors).sum(axis=1) / total_rates[resolved]
     preferred_vectors = np.exp(1j * np.angle(local_vectors))

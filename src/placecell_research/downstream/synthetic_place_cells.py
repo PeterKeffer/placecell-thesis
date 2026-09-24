@@ -51,12 +51,12 @@ def resolve_environment_reachable_regions(
     """Disjoint (min_x, max_x, min_z, max_z) rectangles the agent can actually occupy."""
     if env_id == "MiniWorld-WallGapAsymLarge-v0":
         from placecell_research.envs.miniworld_wallgap_asym_large import (
-            _FULL_ROOM_BOUNDS_BY_NAME,
+            FULL_ROOM_BOUNDS_BY_NAME,
         )
 
         return tuple(
             tuple(float(value) for value in bounds)  # type: ignore[misc]
-            for bounds in _FULL_ROOM_BOUNDS_BY_NAME.values()
+            for bounds in FULL_ROOM_BOUNDS_BY_NAME.values()
         )
     return None
 

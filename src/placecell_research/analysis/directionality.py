@@ -14,7 +14,7 @@ from ..numerics.rate_map_kernels import (
 from ..numerics.work_blocks import run_over_index_blocks
 from .base import AnalysisInput, AnalysisResult
 from .helpers import write_csv
-from .shift_nulls import _circular_shift_step_layout, _draw_circular_shift_offsets
+from .shift_nulls import circular_shift_step_layout, draw_circular_shift_offsets
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
 _EPS = 1e-9
@@ -44,7 +44,7 @@ class _DirectionalStatistics:
     episode_lengths: np.ndarray
 
 
-def _valid_steps_per_episode(
+def valid_steps_per_episode(
     representation: np.ndarray,
     valid_mask: np.ndarray | None,
 ) -> np.ndarray:
@@ -116,7 +116,7 @@ def _prepare_directional_statistics(
         fire_rate=fire_rate,
         negative_fraction=negative_fraction,
         num_spatial_bins=num_spatial_bins,
-        episode_lengths=_valid_steps_per_episode(representation, valid_mask),
+        episode_lengths=valid_steps_per_episode(representation, valid_mask),
     )
 
 
@@ -325,13 +325,13 @@ def _null_modulation_matrix(
     """[num_shuffles, num_units] R under episode-preserving circular shifts of the activity."""
     layout = _occupied_bin_layout(statistics, gates)
     step_episode, episode_start, episode_length, step_within_episode = (
-        _circular_shift_step_layout(
+        circular_shift_step_layout(
             statistics.episode_lengths, np.arange(statistics.bin_index.size)
         )
     )
     rng = np.random.default_rng(_NULL_RNG_SEED)
     shuffle_offsets = [
-        _draw_circular_shift_offsets(statistics.episode_lengths, rng, _NULL_MIN_SHIFT_FRACTION)
+        draw_circular_shift_offsets(statistics.episode_lengths, rng, _NULL_MIN_SHIFT_FRACTION)
         for _ in range(num_shuffles)
     ]
 

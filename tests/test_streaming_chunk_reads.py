@@ -49,7 +49,7 @@ def test_streaming_cache_does_not_alias_returned_batches():
 def test_single_episode_and_oversized_chunks_use_direct_reads(monkeypatch, chunks):
     import placecell_research.datasets.batch_iterator as batch_iterator
 
-    monkeypatch.setattr(batch_iterator, "_TARGET_CHUNK_RAW_BYTES", 64)
+    monkeypatch.setattr(batch_iterator, "TARGET_CHUNK_RAW_BYTES", 64)
     values = np.arange(64).reshape(8, 8)
     reader = _EpisodeChunkReader(zarr.array(values, chunks=chunks))
     np.testing.assert_array_equal(reader.read([7, 2, 2, -1]), values[[7, 2, 2, -1]])

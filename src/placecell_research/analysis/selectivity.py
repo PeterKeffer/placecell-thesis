@@ -12,7 +12,7 @@ from placecell_research.evaluation.decode import chunked_ridge_fit_predict
 
 from .base import AnalysisInput, AnalysisResult
 from .helpers import subsample_indices, write_csv
-from .probing import _distance_to_points, _distance_to_segments, _episode_split_indices
+from .probing import distance_to_points, distance_to_segments, episode_split_indices
 from .world_overlay import overlay_bounds, resolve_world_overlay
 
 _GROUP_LABELS = {
@@ -207,7 +207,7 @@ class SelectivityPartitionModule:
             positions, heading, kinematics, time_fraction, latent, bounds, config
         )
 
-        train_indices, validation_indices = _episode_split_indices(
+        train_indices, validation_indices = episode_split_indices(
             episode_ids, train_fraction=train_fraction, random_seed=split_seed
         )
         targets_validation = representation[validation_indices]
@@ -565,16 +565,16 @@ class SpatialCodeTypeModule:
         }
         overlay = resolve_world_overlay(env_id, analysis_input.metadata.get("env_kwargs"))
         if overlay is not None and overlay.segments:
-            wall_distance = _distance_to_segments(
+            wall_distance = distance_to_segments(
                 positions[:, None, :], overlay.segments
             ).reshape(-1)
             models["boundary_vector"] = _scalar_with_square(wall_distance)
             goal_points = _goal_or_landmark_points(overlay)
             if goal_points is not None:
-                goal_distance = _distance_to_points(positions[:, None, :], goal_points).reshape(-1)
+                goal_distance = distance_to_points(positions[:, None, :], goal_points).reshape(-1)
                 models["goal_vector"] = _scalar_with_square(goal_distance)
 
-        train_indices, validation_indices = _episode_split_indices(
+        train_indices, validation_indices = episode_split_indices(
             episode_ids, train_fraction=train_fraction, random_seed=split_seed
         )
         targets_validation = representation[validation_indices]

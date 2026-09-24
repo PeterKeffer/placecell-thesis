@@ -7,8 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from .rate_map_kernels import (
-    _all_steps_valid,
     compute_spatial_bin_assignments,
+    every_step_valid,
     flatten_positions,
     infer_bounds,
 )
@@ -60,7 +60,7 @@ def prepare_episode_bin_statistics(
 ) -> EpisodeBinStatistics | None:
     """Resolve valid-step episode/bin bookkeeping once for all revisit metrics."""
     num_episodes, num_steps, num_units = representation.shape
-    if _all_steps_valid(valid_mask):
+    if every_step_valid(valid_mask):
         flat_positions = position_xy.reshape(-1, position_xy.shape[-1])
         flat_values = representation.reshape(-1, num_units).astype(np.float32, copy=False)
         episode_ids = np.repeat(np.arange(num_episodes, dtype=np.int32), num_steps)
@@ -192,7 +192,7 @@ def gate_episodes_by_coverage(
     )
 
 
-def _unit_chunk_bounds(num_units: int, unit_chunk_size: int) -> list[tuple[int, int]]:
+def unit_chunk_ranges(num_units: int, unit_chunk_size: int) -> list[tuple[int, int]]:
     """Half-open [start, stop) unit ranges the revisit metrics are computed in."""
     chunk_size = max(1, min(int(unit_chunk_size), num_units))
     return [
@@ -201,7 +201,7 @@ def _unit_chunk_bounds(num_units: int, unit_chunk_size: int) -> list[tuple[int, 
     ]
 
 
-def _episode_activity_sums(
+def episode_activity_sums(
     statistics: EpisodeBinStatistics,
     start_index: int,
     stop_index: int,
@@ -236,5 +236,5 @@ def iter_episode_activity_sum_chunks(
     unit_chunk_size: int,
 ):
     """Yield chunked [units, episodes, bins] activity sums for revisit metrics."""
-    for start_index, stop_index in _unit_chunk_bounds(statistics.num_units, unit_chunk_size):
-        yield start_index, stop_index, _episode_activity_sums(statistics, start_index, stop_index)
+    for start_index, stop_index in unit_chunk_ranges(statistics.num_units, unit_chunk_size):
+        yield start_index, stop_index, episode_activity_sums(statistics, start_index, stop_index)

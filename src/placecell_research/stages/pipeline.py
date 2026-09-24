@@ -21,9 +21,9 @@ from placecell_research.config.diff import (
     compute_salient_diff,
 )
 from placecell_research.config.loader import (
-    _load_yaml,
-    _resolve_defaults,
     load_raw_config_payload,
+    load_yaml,
+    resolve_defaults,
 )
 from placecell_research.stages.collect_dataset import raw_dataset_stage_fingerprint
 from placecell_research.stages.create_split import split_stage_fingerprint
@@ -212,7 +212,7 @@ def _find_matching_encoded_dataset(
     )
 
 
-def _inject_automatic_reuse_overrides(
+def inject_automatic_reuse_overrides(
     *,
     config_path: Path,
     active_overrides: list[str],
@@ -272,7 +272,7 @@ def find_reusable_data_overrides(config_path: Path, overrides: list[str]) -> lis
     config = load_experiment_config(config_path, probe_overrides)
     registry = ArtifactRegistry(find_repo_root(config_path) / config.tracking.artifact_root)
     resolved = list(probe_overrides)
-    _inject_automatic_reuse_overrides(
+    inject_automatic_reuse_overrides(
         config_path=config_path, active_overrides=resolved, registry=registry
     )
     found = resolved[len(probe_overrides) :]
@@ -311,7 +311,7 @@ def _write_pipeline_runtime(
     run_directory: RunDirectory,
     repo_root: Path,
 ) -> None:
-    base_payload = _resolve_defaults(config_path, _load_yaml(config_path))
+    base_payload = resolve_defaults(config_path, load_yaml(config_path))
     slurm_metadata = _capture_slurm_runtime_metadata(
         repo_root=repo_root,
         run_root=Path(config.tracking.run_root),
@@ -1102,7 +1102,7 @@ def run(
     initial_config = load_experiment_config(config_path, overrides)
     registry = ArtifactRegistry(repo_root / initial_config.tracking.artifact_root)
     active_overrides = list(overrides)
-    _inject_automatic_reuse_overrides(
+    inject_automatic_reuse_overrides(
         config_path=config_path,
         active_overrides=active_overrides,
         registry=registry,
@@ -1145,11 +1145,11 @@ def run(
         active_overrides=active_overrides,
         config=config,
         salient_diff=compute_salient_diff(
-            _resolve_defaults(config_path, _load_yaml(config_path)),
+            resolve_defaults(config_path, load_yaml(config_path)),
             raw_payload,
         ),
         config_diff=compute_config_diff(
-            _resolve_defaults(config_path, _load_yaml(config_path)),
+            resolve_defaults(config_path, load_yaml(config_path)),
             raw_payload,
         ),
         run_directory=pipeline_run_directory,

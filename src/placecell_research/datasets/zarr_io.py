@@ -25,7 +25,7 @@ def _is_supported_array_key(key: str) -> bool:
     return False
 
 
-def _require_zarr() -> Any:
+def require_zarr() -> Any:
     try:
         import zarr  # type: ignore
         from numcodecs import Blosc  # type: ignore
@@ -35,11 +35,11 @@ def _require_zarr() -> Any:
 
 
 def _default_compressor() -> Any:
-    _, blosc = _require_zarr()
+    _, blosc = require_zarr()
     return blosc(cname="zstd", clevel=3, shuffle=blosc.BITSHUFFLE)
 
 
-_TARGET_CHUNK_RAW_BYTES = 8 * 1024 * 1024
+TARGET_CHUNK_RAW_BYTES = 8 * 1024 * 1024
 
 
 def _episodes_per_chunk(
@@ -51,7 +51,7 @@ def _episodes_per_chunk(
     if key == RGB_KEY:
         return 1
     per_episode_bytes = max(1, int(np.prod(shape[1:], dtype=np.int64)) * int(itemsize))
-    episodes = _TARGET_CHUNK_RAW_BYTES // per_episode_bytes
+    episodes = TARGET_CHUNK_RAW_BYTES // per_episode_bytes
     return int(min(max(1, episodes), max(1, int(shape[0]))))
 
 
@@ -160,7 +160,7 @@ def save_dataset_zarr_atomic(
     manifest_summary: DatasetSummary,
 ) -> None:
     """Write dataset arrays to a temp directory, validate, then atomically publish."""
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     _raise_if_output_disk_too_small(
@@ -250,7 +250,7 @@ class DatasetZarrStreamWriter:
     def open(self) -> DatasetZarrStreamWriter:
         if self._group is not None:
             return self
-        zarr, _ = _require_zarr()
+        zarr, _ = require_zarr()
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         _raise_if_output_disk_too_small(
             self.output_path,
@@ -349,7 +349,7 @@ class DatasetZarrStreamWriter:
 
 def validate_dataset_store(path: Path) -> None:
     """Open and touch every stored array to catch malformed writes."""
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     group = zarr.open_group(str(path), mode="r")
     for key in NUMERIC_ARRAY_KEYS:
         branch, name = key.rsplit("/", 1)

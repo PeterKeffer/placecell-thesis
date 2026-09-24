@@ -48,7 +48,7 @@ class PairDiagnostics:
     active_jaccard: float
 
 
-def _pairwise_map_correlation(
+def pairwise_map_correlation(
     first_maps: np.ndarray,
     second_maps: np.ndarray,
 ) -> tuple[np.ndarray, float]:
@@ -86,22 +86,22 @@ def remapping_pair_name(first_label: str, second_label: str) -> str:
     return f"{_safe_slug(first_label)}__{_safe_slug(second_label)}"
 
 
-def _finite_values(values: np.ndarray) -> np.ndarray:
+def finite_entries(values: np.ndarray) -> np.ndarray:
     return values[np.isfinite(values)]
 
 
 def _finite_mean(values: np.ndarray) -> float:
-    finite_values = _finite_values(values)
+    finite_values = finite_entries(values)
     return float(np.mean(finite_values)) if finite_values.size else 0.0
 
 
 def _finite_median(values: np.ndarray) -> float:
-    finite_values = _finite_values(values)
+    finite_values = finite_entries(values)
     return float(np.median(finite_values)) if finite_values.size else 0.0
 
 
 def _finite_iqr(values: np.ndarray) -> float:
-    finite_values = _finite_values(values)
+    finite_values = finite_entries(values)
     if finite_values.size == 0:
         return 0.0
     return float(np.percentile(finite_values, 75.0) - np.percentile(finite_values, 25.0))
@@ -273,7 +273,7 @@ def _shuffled_null_means(
         for unit_index, unit_values in enumerate(flat_first):
             shift = int(rng.integers(1, unit_values.size)) if unit_values.size > 1 else 0
             shuffled[unit_index] = np.roll(unit_values, shift)
-        _, mean_correlation = _pairwise_map_correlation(
+        _, mean_correlation = pairwise_map_correlation(
             shuffled.reshape(first_maps.shape),
             second_maps,
         )
@@ -304,7 +304,7 @@ def pair_diagnostics(
     shuffle_iterations: int,
     shuffle_seed: int,
 ) -> PairDiagnostics:
-    unit_correlations, _ = _pairwise_map_correlation(
+    unit_correlations, _ = pairwise_map_correlation(
         first_result.rate_maps,
         second_result.rate_maps,
     )

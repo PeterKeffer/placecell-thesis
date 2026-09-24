@@ -13,7 +13,7 @@ from .schema import (
     EnvironmentConfig,
     LauncherConfig,
     TrackingConfig,
-    _dump_config,
+    dump_config,
 )
 
 VectorFeatureSource = Literal[
@@ -214,4 +214,4 @@ class DownstreamRunConfig:
     launcher: LauncherConfig = field(default_factory=LauncherConfig)
 
     def to_dict(self) -> dict[str, Any]:
-        return _dump_config(self)
+        return dump_config(self)

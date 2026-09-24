@@ -220,7 +220,7 @@ def _nearest_wall_distance_target(analysis_input: AnalysisInput) -> _ProbeTarget
     )
     if overlay is None or not overlay.segments:
         return None
-    distances = _distance_to_segments(analysis_input.position_xy, overlay.segments)
+    distances = distance_to_segments(analysis_input.position_xy, overlay.segments)
     return _ProbeTarget(
         name="distance_nearest_wall",
         values=distances[..., None].astype(np.float32, copy=False),
@@ -239,7 +239,7 @@ def _landmark_distance_targets(analysis_input: AnalysisInput) -> list[_ProbeTarg
     for layer in overlay.landmarks:
         if not layer.positions:
             continue
-        distances = _distance_to_points(analysis_input.position_xy, layer.positions)
+        distances = distance_to_points(analysis_input.position_xy, layer.positions)
         targets.append(
             _ProbeTarget(
                 name=f"distance_{_sanitize_probe_name(layer.label)}",
@@ -279,7 +279,7 @@ def _novelty_target(analysis_input: AnalysisInput, config: dict) -> _ProbeTarget
     return _ProbeTarget(name="novelty_steps_since_bin_visit", values=values, kind="regression")
 
 
-def _distance_to_segments(
+def distance_to_segments(
     positions: np.ndarray,
     segments: tuple[tuple[tuple[float, float], tuple[float, float]], ...],
 ) -> np.ndarray:
@@ -302,7 +302,7 @@ def _distance_to_segments(
     return np.min(distances, axis=1).reshape(positions.shape[:2]).astype(np.float32)
 
 
-def _distance_to_points(
+def distance_to_points(
     positions: np.ndarray,
     points: tuple[tuple[float, float], ...],
 ) -> np.ndarray:
@@ -355,7 +355,7 @@ def _flatten_probe_arrays(
     )
 
 
-def _episode_split_indices(
+def episode_split_indices(
     episode_ids: np.ndarray,
     *,
     train_fraction: float,
@@ -384,7 +384,7 @@ def _fit_and_score_probe(
     include_shuffle: bool,
     random_seed: int,
 ) -> _ProbeScore:
-    train_indices, validation_indices = _episode_split_indices(
+    train_indices, validation_indices = episode_split_indices(
         episode_ids,
         train_fraction=train_fraction,
         random_seed=random_seed,

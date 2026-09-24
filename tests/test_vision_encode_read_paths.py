@@ -22,7 +22,7 @@ from placecell_research.datasets.schema import (
     VALID_MASK_KEY,
     DatasetSummary,
 )
-from placecell_research.datasets.zarr_io import _require_zarr, save_dataset_zarr_atomic
+from placecell_research.datasets.zarr_io import require_zarr, save_dataset_zarr_atomic
 from placecell_research.utils import cpu_budget
 from placecell_research.vision.builder import FrameDataset, _RawEpisodeReadDataset
 
@@ -65,7 +65,7 @@ def _write_raw_dataset(artifact_dir: Path, arrays: dict[str, np.ndarray]) -> Pat
 
 def _write_legacy_raw_dataset(artifact_dir: Path, arrays: dict[str, np.ndarray]) -> Path:
     """One chunk file per episode for every array."""
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     artifact_dir.mkdir(parents=True, exist_ok=True)
     from placecell_research.datasets.zarr_io import _default_compressor
 

@@ -17,9 +17,9 @@ from .base import AnalysisInput, AnalysisResult
 from .helpers import get_or_compute_rate_maps
 from .reanchoring_gridness import benjamini_hochberg
 from .transition_geometry import (
-    _build_transition_counts,
-    _flatten_valid_episode_bins,
-    _transition_laplacian_modes,
+    build_transition_counts,
+    flatten_valid_episode_bins,
+    transition_laplacian_modes,
 )
 from .world_overlay import (
     apply_plot_bounds,
@@ -441,21 +441,21 @@ class EigenmodeMorphologyModule:
                 num_bins_x=num_bins_x,
                 num_bins_y=num_bins_y,
             )
-        episode_bins, occupancy_counts = _flatten_valid_episode_bins(
+        episode_bins, occupancy_counts = flatten_valid_episode_bins(
             analysis_input.position_xy,
             analysis_input.valid_mask,
             num_bins_x=num_bins_x,
             num_bins_y=num_bins_y,
             bounds=bounds,
         )
-        transition_counts, transitions_used = _build_transition_counts(
+        transition_counts, transitions_used = build_transition_counts(
             episode_bins,
             num_bins=num_bins_x * num_bins_y,
             include_self_transitions=include_self_transitions,
         )
         if transitions_used <= 0:
             raise ValueError("Eigenmode morphology found no valid spatial transitions.")
-        eigenvalues, _mode_indices, mode_maps = _transition_laplacian_modes(
+        eigenvalues, _mode_indices, mode_maps = transition_laplacian_modes(
             transition_counts,
             occupancy_counts=occupancy_counts,
             num_bins_x=num_bins_x,

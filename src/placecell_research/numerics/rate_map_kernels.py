@@ -86,7 +86,7 @@ def resolve_place_metric_settings(analysis_config: Any) -> PlaceMetricSettings:
     )
 
 
-def _all_steps_valid(valid_mask: np.ndarray | None) -> bool:
+def every_step_valid(valid_mask: np.ndarray | None) -> bool:
     return valid_mask is None or bool(np.all(valid_mask))
 
 
@@ -98,7 +98,7 @@ def flatten_valid_steps(
     """Flatten [N, T, D] sequences and filter invalid steps."""
     flat_representation = representation.reshape(-1, representation.shape[-1])
     flat_positions = position_xy.reshape(-1, 2)
-    if _all_steps_valid(valid_mask):
+    if every_step_valid(valid_mask):
         return flat_representation, flat_positions
     flattened_mask = valid_mask.reshape(-1).astype(bool, copy=False)
     return flat_representation[flattened_mask], flat_positions[flattened_mask]
@@ -262,7 +262,7 @@ def flatten_vector_field(
     if values is None:
         return None
     flattened = values.reshape(-1, *values.shape[2:]) if values.ndim > 2 else values.reshape(-1)
-    if _all_steps_valid(valid_mask):
+    if every_step_valid(valid_mask):
         return flattened
     flattened_mask = valid_mask.reshape(-1).astype(bool, copy=False)
     return flattened[flattened_mask]
@@ -271,7 +271,7 @@ def flatten_vector_field(
 def flatten_positions(position_xy: np.ndarray, valid_mask: np.ndarray | None) -> np.ndarray:
     """Flatten XY positions and keep only valid steps."""
     flat_positions = position_xy.reshape(-1, position_xy.shape[-1])
-    if _all_steps_valid(valid_mask):
+    if every_step_valid(valid_mask):
         return flat_positions
     flattened_mask = valid_mask.reshape(-1).astype(bool, copy=False)
     return flat_positions[flattened_mask]

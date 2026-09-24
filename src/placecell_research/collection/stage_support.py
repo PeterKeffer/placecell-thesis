@@ -12,7 +12,7 @@ from placecell_research.artifacts.ids import config_fingerprint
 from placecell_research.artifacts.registry import ArtifactRegistry
 from placecell_research.config import load_experiment_config, validate_experiment_config
 from placecell_research.config.diff import build_comparison_card, compute_salient_diff
-from placecell_research.config.loader import _load_yaml, _resolve_defaults, load_raw_config_payload
+from placecell_research.config.loader import load_raw_config_payload, load_yaml, resolve_defaults
 from placecell_research.config.schema import ExperimentConfig
 from placecell_research.tracking import (
     RunDirectory,
@@ -82,7 +82,7 @@ def initialize_stage_runtime(
     """Create run folders and load both raw and typed configs."""
     config_path = config_path.resolve()
     repo_root = find_repo_root(config_path)
-    base_payload = _resolve_defaults(config_path, _load_yaml(config_path))
+    base_payload = resolve_defaults(config_path, load_yaml(config_path))
     raw_payload = load_raw_config_payload(config_path, overrides)
     config = load_experiment_config(config_path, overrides)
     validate_experiment_config(config)

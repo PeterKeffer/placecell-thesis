@@ -31,7 +31,7 @@ from .schema import (
     VALID_MASK_KEY,
 )
 from .staging import stage_dataset_dir
-from .zarr_io import _require_zarr, load_dataset_manifest
+from .zarr_io import load_dataset_manifest, require_zarr
 
 
 def _read_selected_episodes(array: Any, episode_selection: np.ndarray) -> np.ndarray:
@@ -96,7 +96,7 @@ class TrajectoryDataset(Dataset):
 
     def _open(self) -> Any:
         if self._group is None:
-            zarr, _ = _require_zarr()
+            zarr, _ = require_zarr()
             self._group = zarr.open_group(str(self.dataset_dir / "dataset.zarr"), mode="r")
         return self._group
 

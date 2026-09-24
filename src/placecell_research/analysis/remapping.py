@@ -20,11 +20,11 @@ from .helpers import (
     write_csv,
 )
 from .remapping_metrics import (
-    _finite_values,
-    _pairwise_map_correlation,
     add_pair_metrics,
     add_pair_per_unit_metrics,
+    finite_entries,
     pair_diagnostics,
+    pairwise_map_correlation,
     remapping_pair_name,
     save_map,
     write_pair_tables,
@@ -146,7 +146,7 @@ class RemappingComparisonModule:
             for column_index, second_label in enumerate(labels):
                 if column_index < row_index:
                     continue
-                _, mean_correlation = _pairwise_map_correlation(
+                _, mean_correlation = pairwise_map_correlation(
                     rate_maps_by_label[first_label].rate_maps,
                     rate_maps_by_label[second_label].rate_maps,
                 )
@@ -167,7 +167,7 @@ class RemappingComparisonModule:
                 add_pair_per_unit_metrics(per_unit_metrics, pair_name, diagnostics)
                 figures[f"{pair_name}__unit_correlation_histogram"] = save_histogram(
                     module_dir / f"remapping_unit_correlation_histogram__{pair_name}.png",
-                    _finite_values(diagnostics.unit_correlations),
+                    finite_entries(diagnostics.unit_correlations),
                     f"Unit remapping correlations: {first_label} vs {second_label}",
                     "unit correlation",
                 )

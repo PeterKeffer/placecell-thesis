@@ -15,7 +15,7 @@ from .schema import ExperimentConfig, StudyConfig
 ConfigT = TypeVar("ConfigT")
 
 
-def _load_yaml(path: Path) -> dict[str, Any]:
+def load_yaml(path: Path) -> dict[str, Any]:
     payload = yaml.safe_load(path.read_text()) or {}
     if not isinstance(payload, dict):
         raise TypeError(f"YAML root must be a mapping: {path}")
@@ -32,13 +32,13 @@ def _merge(base: dict[str, Any], update: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
-def _resolve_defaults(config_path: Path, payload: dict[str, Any]) -> dict[str, Any]:
+def resolve_defaults(config_path: Path, payload: dict[str, Any]) -> dict[str, Any]:
     defaults = payload.pop("defaults", [])
     merged: dict[str, Any] = {}
     for item in defaults:
         if isinstance(item, str):
             default_path = (config_path.parent / item).with_suffix(".yaml")
-            merged = _merge(merged, _resolve_defaults(default_path, _load_yaml(default_path)))
+            merged = _merge(merged, resolve_defaults(default_path, load_yaml(default_path)))
             continue
         if not isinstance(item, dict):
             raise TypeError(f"Unsupported defaults entry in {config_path}: {item!r}")
@@ -46,7 +46,7 @@ def _resolve_defaults(config_path: Path, payload: dict[str, Any]) -> dict[str, A
             if group == "_self_":
                 continue
             default_path = config_path.parents[1] / group / f"{name}.yaml"
-            resolved_group_payload = _resolve_defaults(default_path, _load_yaml(default_path))
+            resolved_group_payload = resolve_defaults(default_path, load_yaml(default_path))
             if (
                 isinstance(resolved_group_payload, dict)
                 and set(resolved_group_payload) == {group}
@@ -85,7 +85,7 @@ def _resolve_group_override_payload(
     group_path = next((candidate for candidate in candidates if candidate.exists()), None)
     if group_path is None:
         return None
-    resolved_group_payload = _resolve_defaults(group_path, _load_yaml(group_path))
+    resolved_group_payload = resolve_defaults(group_path, load_yaml(group_path))
     if (
         isinstance(resolved_group_payload, dict)
         and set(resolved_group_payload) == {group}
@@ -182,7 +182,7 @@ def materialize_dataclass(cls: type[ConfigT], payload: Any) -> ConfigT:
 
 def load_raw_config_payload(config_path: Path, overrides: list[str]) -> dict[str, Any]:
     """Load config including keys not represented in typed dataclasses."""
-    payload = _resolve_defaults(config_path, _load_yaml(config_path))
+    payload = resolve_defaults(config_path, load_yaml(config_path))
     return apply_overrides(payload, overrides, config_path=config_path)
 
 
@@ -192,7 +192,7 @@ def load_experiment_config(
 ) -> ExperimentConfig:
     """Load and compose an experiment config."""
     path = Path(config_path)
-    payload = _resolve_defaults(path, _load_yaml(path))
+    payload = resolve_defaults(path, load_yaml(path))
     payload = apply_overrides(payload, overrides, config_path=path)
     return _materialize_dataclass(ExperimentConfig, payload)
 
@@ -200,7 +200,7 @@ def load_experiment_config(
 def load_study_config(config_path: str | Path, overrides: list[str] | None = None) -> StudyConfig:
     """Load and compose a study config."""
     path = Path(config_path)
-    payload = _resolve_defaults(path, _load_yaml(path))
+    payload = resolve_defaults(path, load_yaml(path))
     payload = apply_overrides(payload, overrides, config_path=path)
     return _materialize_dataclass(StudyConfig, payload)
 
@@ -211,6 +211,6 @@ def load_downstream_run_config(
 ) -> DownstreamRunConfig:
     """Load a downstream RL single-run config."""
     path = Path(config_path)
-    payload = _resolve_defaults(path, _load_yaml(path))
+    payload = resolve_defaults(path, load_yaml(path))
     payload = apply_overrides(payload, overrides, config_path=path)
     return _materialize_dataclass(DownstreamRunConfig, payload)

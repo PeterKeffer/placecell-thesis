@@ -16,7 +16,7 @@ from ..numerics.rate_map_kernels import (
 )
 
 
-def _circular_shift_step_layout(
+def circular_shift_step_layout(
     episode_lengths: np.ndarray,
     step_order: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -115,7 +115,7 @@ def _log_circular_shift_working_set(
     )
 
 
-def _draw_circular_shift_offsets(
+def draw_circular_shift_offsets(
     episode_lengths: np.ndarray,
     rng: np.random.Generator,
     min_shift_fraction: float,
@@ -199,11 +199,11 @@ def circular_shift_spatial_information_null(
         episode_start,
         episode_length,
         step_within_episode,
-    ) = _circular_shift_step_layout(episode_lengths, sort_order)
+    ) = circular_shift_step_layout(episode_lengths, sort_order)
 
     rng = np.random.default_rng(rng_seed)
     shuffle_offsets = [
-        _draw_circular_shift_offsets(episode_lengths, rng, min_shift_fraction)
+        draw_circular_shift_offsets(episode_lengths, rng, min_shift_fraction)
         for _ in range(num_shuffles)
     ]
     total_valid_steps = int(flat_activity.shape[0])

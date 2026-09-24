@@ -109,7 +109,7 @@ def test_streamed_stage_can_feed_consumers_without_loading_the_model(
     monkeypatch.setattr(analyze_model, "load_model_checkpoint", fail_load)
     model_cache = {}
     analysis_input = analyze_model._build_analysis_input(
-        analyze_model._AnalysisSourceReference(
+        analyze_model.AnalysisSourceReference(
             "test",
             "encoder.place_codes",
             "model",
@@ -121,7 +121,7 @@ def test_streamed_stage_can_feed_consumers_without_loading_the_model(
         registry=registry,
         device=torch.device("cpu"),
         model_cache=model_cache,
-        collection_plan=analyze_model._CollectionPlan(
+        collection_plan=analyze_model.CollectionPlan(
             ("encoder.place_codes",), include_batch_keys=("rgb", "latent")
         ),
         collection_cache={},

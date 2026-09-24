@@ -11,8 +11,8 @@ from placecell_research.analysis import occupancy, reliability_splits
 from placecell_research.analysis.base import AnalysisInput
 from placecell_research.analysis.rate_map_metrics import compute_rate_map_metric_bundle
 from placecell_research.analysis.rate_map_rendering import (
-    _population_is_signed,
     _style_for_family,
+    is_population_signed,
 )
 from placecell_research.analysis.rate_maps import (
     RateMapFieldsModule,
@@ -240,13 +240,13 @@ def test_rate_map_metric_bundle_reuses_episode_activity_sum_chunks(monkeypatch) 
         metadata={},
     )
     summed_unit_ranges: list[tuple[int, int]] = []
-    original_activity_sums = reliability_splits._episode_activity_sums
+    original_activity_sums = reliability_splits.episode_activity_sums
 
     def recorded_activity_sums(statistics, start_index, stop_index):
         summed_unit_ranges.append((start_index, stop_index))
         return original_activity_sums(statistics, start_index, stop_index)
 
-    monkeypatch.setattr(reliability_splits, "_episode_activity_sums", recorded_activity_sums)
+    monkeypatch.setattr(reliability_splits, "episode_activity_sums", recorded_activity_sums)
 
     compute_rate_map_metric_bundle(
         analysis_input,
@@ -907,9 +907,9 @@ def test_population_colormap_family_and_palette() -> None:
     signed_rate_map = np.asarray([[-0.4, 0.0], [0.3, 0.8]], dtype=np.float32)
     negligible_negative = np.asarray([[-0.001, 0.2], [0.5, 1.0]], dtype=np.float32)
 
-    assert _population_is_signed(signed_rate_map) is True
-    assert _population_is_signed(positive_rate_map) is False
-    assert _population_is_signed(negligible_negative) is False
+    assert is_population_signed(signed_rate_map) is True
+    assert is_population_signed(positive_rate_map) is False
+    assert is_population_signed(negligible_negative) is False
 
     assert _style_for_family(positive_rate_map, is_signed=False, colormap_mode="reds")[0] == "Reds"
     assert (

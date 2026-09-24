@@ -12,13 +12,13 @@ from matplotlib import colors
 
 from .base import AnalysisInput, AnalysisResult
 from .episode_dynamics import (
-    _activation_grid,
-    _activation_style,
-    _choose_unit_grid_shape,
-    _draw_heading_arrow,
-    _normalize_observation_frame,
-    _select_episode_index,
-    _selected_unit_indices,
+    activation_style,
+    arrange_activation_grid,
+    choose_unit_grid_shape,
+    draw_heading_arrow,
+    normalize_observation_frame,
+    select_episode_index,
+    select_unit_indices,
 )
 from .figures import figure_to_rgb_array
 from .world_overlay import (
@@ -106,13 +106,13 @@ def _build_source_views(
     source_views: list[_EpisodeSourceView] = []
     for analysis_input in inputs:
         episode_representation = analysis_input.representation[episode_index, :episode_length]
-        selected_unit_indices = _selected_unit_indices(
+        selected_unit_indices = select_unit_indices(
             episode_representation,
             requested_top_k=requested_top_k,
         )
         selected_activations = episode_representation[:, selected_unit_indices]
-        grid_rows, grid_columns = _choose_unit_grid_shape(len(selected_unit_indices))
-        cmap_name, norm = _activation_style(selected_activations)
+        grid_rows, grid_columns = choose_unit_grid_shape(len(selected_unit_indices))
+        cmap_name, norm = activation_style(selected_activations)
         source_views.append(
             _EpisodeSourceView(
                 label=analysis_input.label,
@@ -161,7 +161,7 @@ def _draw_topdown_panel(
         draw_world_segments_on_axis(axis, world_overlay.segments, line_color="#404040")
         draw_landmarks_on_axis(axis, world_overlay, marker_size=18.0)
     apply_plot_bounds(axis, env_id=env_id, position_xy=positions)
-    _draw_heading_arrow(axis, positions, headings, current_index)
+    draw_heading_arrow(axis, positions, headings, current_index)
     axis.set_title("Top-Down Map", fontsize=11)
     axis.set_xlabel(POSITION_X_LABEL)
     axis.set_ylabel(POSITION_Y_LABEL)
@@ -226,7 +226,7 @@ class _EpisodeFrameRenderer:
         self.activation_images = []
         for panel_index, source_view in enumerate(source_views, start=2):
             axis = flat_axes[panel_index]
-            activation_grid = _activation_grid(
+            activation_grid = arrange_activation_grid(
                 source_view.activations[0],
                 rows=source_view.grid_rows,
                 columns=source_view.grid_columns,
@@ -271,13 +271,13 @@ class _EpisodeFrameRenderer:
             self.heading_arrow.remove()
             self.heading_arrow = None
         patches_before = len(self.topdown_axis.patches)
-        _draw_heading_arrow(self.topdown_axis, self.positions, self.headings, current_index)
+        draw_heading_arrow(self.topdown_axis, self.positions, self.headings, current_index)
         if len(self.topdown_axis.patches) > patches_before:
             self.heading_arrow = self.topdown_axis.patches[-1]
         for image, source_view in zip(self.activation_images, self.source_views, strict=False):
             image.set_data(
                 np.ma.masked_invalid(
-                    _activation_grid(
+                    arrange_activation_grid(
                         source_view.activations[current_index],
                         rows=source_view.grid_rows,
                         columns=source_view.grid_columns,
@@ -375,7 +375,7 @@ class CombinedEpisodeDynamicsModule:
         _validate_aligned_inputs(inputs)
         requested_episode_index = int(config.get("example_episode_index", -1))
         random_seed = config.get("example_episode_random_seed")
-        episode_index = _select_episode_index(
+        episode_index = select_episode_index(
             inputs[0].valid_mask,
             requested_episode_index=requested_episode_index,
             random_seed=None if random_seed in {None, ""} else int(random_seed),
@@ -398,7 +398,7 @@ class CombinedEpisodeDynamicsModule:
         gif_path = module_dir / f"combined_example_episode__{inputs[0].split_name}.gif"
         summary_path = module_dir / f"combined_example_episode_summary__{inputs[0].split_name}.png"
 
-        first_observation_frame = _normalize_observation_frame(
+        first_observation_frame = normalize_observation_frame(
             None if rgb is None else rgb[episode_index, 0],
             None if latent is None else latent[episode_index, 0],
         )
@@ -418,7 +418,7 @@ class CombinedEpisodeDynamicsModule:
                 duration=float(config.get("example_episode_frame_duration", 0.14)),
             ) as gif_writer:
                 for timestep in range(episode_length):
-                    observation_frame = _normalize_observation_frame(
+                    observation_frame = normalize_observation_frame(
                         None if rgb is None else rgb[episode_index, timestep],
                         None if latent is None else latent[episode_index, timestep],
                     )

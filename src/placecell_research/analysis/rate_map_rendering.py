@@ -31,7 +31,7 @@ def _sequential_colormap_name(colormap_mode: str) -> str:
     return "Reds"
 
 
-def _population_is_signed(
+def is_population_signed(
     values: np.ndarray, *, negative_fraction: float = _SIGNED_NEGATIVE_FRACTION
 ) -> bool:
     """Decide once, from the whole population, whether maps should use a diverging map."""
@@ -48,14 +48,14 @@ def _style_for_family(
     values: np.ndarray, *, is_signed: bool, colormap_mode: str
 ) -> tuple[str, colors.Normalize]:
     """Colormap + norm for the chosen family."""
-    return _style_for_limit(
-        _family_limit(values, is_signed=is_signed),
+    return style_for_limit(
+        family_limit(values, is_signed=is_signed),
         is_signed=is_signed,
         colormap_mode=colormap_mode,
     )
 
 
-def _family_limit(values: np.ndarray, *, is_signed: bool) -> float:
+def family_limit(values: np.ndarray, *, is_signed: bool) -> float:
     """The peak the family's norm is scaled to: largest magnitude, or largest value."""
     finite_values = values[np.isfinite(values)]
     if is_signed:
@@ -63,7 +63,7 @@ def _family_limit(values: np.ndarray, *, is_signed: bool) -> float:
     return max(float(np.max(finite_values)) if finite_values.size else 1.0, 1e-6)
 
 
-def _style_for_limit(
+def style_for_limit(
     limit: float, *, is_signed: bool, colormap_mode: str
 ) -> tuple[str, colors.Normalize]:
     """Colormap + norm for a family already reduced to its peak."""
@@ -175,14 +175,14 @@ def _colorbar_ticks_for_norm(norm: colors.Normalize) -> list[float]:
     return [float(norm.vmin), float(norm.vmax)]
 
 
-def _bounds_to_extent(
+def bounds_to_extent(
     bounds: tuple[tuple[float, float], tuple[float, float]],
 ) -> tuple[float, float, float, float]:
     x_bounds, y_bounds = bounds
     return (x_bounds[0], x_bounds[1], y_bounds[0], y_bounds[1])
 
 
-def _apply_world_context(
+def apply_world_context(
     axis: plt.Axes,
     *,
     bounds: tuple[tuple[float, float], tuple[float, float]],
@@ -286,14 +286,14 @@ def draw_unit_rate_map(
     image = axis.imshow(
         values,
         origin="lower",
-        extent=_bounds_to_extent(bounds),
+        extent=bounds_to_extent(bounds),
         cmap=cmap_name,
         norm=norm,
         interpolation="nearest",
     )
     _apply_heatmap_grid_context(axis, bounds=bounds, world_overlay=world_overlay)
     if draw_colorbar:
-        _attach_gutter_colorbar(axis.figure, axis, mappable=image, norm=norm, label="activity")
+        attach_gutter_colorbar(axis.figure, axis, mappable=image, norm=norm, label="activity")
     return image
 
 
@@ -384,7 +384,7 @@ def _panel_metric_caption(
     )
 
 
-def _attach_gutter_colorbar(
+def attach_gutter_colorbar(
     figure: plt.Figure,
     axis: plt.Axes,
     *,
@@ -435,7 +435,7 @@ def build_summary_panel_figure(
     show_captions: bool,
 ) -> tuple[plt.Figure, list[plt.Axes]]:
     """Build the 3-column per-unit summary panel (rate / combined / reliability)."""
-    population_is_signed = _population_is_signed(rate_maps[ranked_indices])
+    population_is_signed = is_population_signed(rate_maps[ranked_indices])
     common_cmap_name = None
     common_norm = None
     if shared_color_scale:
@@ -462,7 +462,7 @@ def build_summary_panel_figure(
     axes[0, 1].set_title(combined_title, fontsize=10)
     axes[0, 2].set_title(reliability_title, fontsize=10)
 
-    extent = _bounds_to_extent(bounds)
+    extent = bounds_to_extent(bounds)
     reliability_cmap_name = _panel_metric_cmap_name(panel_metric_name=panel_metric_name)
     reliability_norm = colors.Normalize(vmin=0.0, vmax=1.0)
     combined_uses_activity_colors = panel_metric_name in {
@@ -528,21 +528,21 @@ def build_summary_panel_figure(
         )
 
         show_x_tick_labels = row_index == len(ranked_indices) - 1
-        _apply_world_context(
+        apply_world_context(
             rate_axis,
             bounds=bounds,
             world_overlay=world_overlay,
             show_x_tick_labels=show_x_tick_labels,
             show_y_tick_labels=True,
         )
-        _apply_world_context(
+        apply_world_context(
             combined_axis,
             bounds=bounds,
             world_overlay=world_overlay,
             show_x_tick_labels=show_x_tick_labels,
             show_y_tick_labels=False,
         )
-        _apply_world_context(
+        apply_world_context(
             reliability_axis,
             bounds=bounds,
             world_overlay=world_overlay,
@@ -566,11 +566,11 @@ def build_summary_panel_figure(
                 labelpad=2.5,
             )
 
-        _attach_gutter_colorbar(
+        attach_gutter_colorbar(
             figure, rate_axis, mappable=rate_image, norm=unit_norm, label="activity"
         )
         if combined_uses_activity_colors:
-            _attach_gutter_colorbar(
+            attach_gutter_colorbar(
                 figure,
                 combined_axis,
                 mappable=plt.cm.ScalarMappable(norm=unit_norm, cmap=unit_cmap_name),
@@ -578,14 +578,14 @@ def build_summary_panel_figure(
                 label="activity",
             )
         else:
-            _attach_gutter_colorbar(
+            attach_gutter_colorbar(
                 figure,
                 combined_axis,
                 mappable=plt.cm.ScalarMappable(norm=reliability_norm, cmap=reliability_cmap_name),
                 norm=reliability_norm,
                 label=reliability_title.lower(),
             )
-        _attach_gutter_colorbar(
+        attach_gutter_colorbar(
             figure,
             reliability_axis,
             mappable=plt.cm.ScalarMappable(norm=reliability_norm, cmap=reliability_cmap_name),
@@ -616,7 +616,7 @@ def build_rate_map_grid_figure(
 ) -> tuple[plt.Figure, list[plt.Axes]]:
     """Build the scan-friendly rate-map grid."""
     rows, columns = _choose_grid_shape(len(ranked_indices))
-    population_is_signed = _population_is_signed(rate_maps[ranked_indices])
+    population_is_signed = is_population_signed(rate_maps[ranked_indices])
     common_cmap_name = None
     common_norm = None
     if shared_color_scale:
@@ -641,7 +641,7 @@ def build_rate_map_grid_figure(
     _, _, metric_short_label = _panel_metric_label(panel_metric_name)
 
     activity_image = None
-    extent = _bounds_to_extent(bounds)
+    extent = bounds_to_extent(bounds)
     heatmap_axes: list[plt.Axes] = []
     for flat_index, unit_index in enumerate(ranked_indices):
         row_index = flat_index // columns
@@ -678,7 +678,7 @@ def build_rate_map_grid_figure(
                 labelpad=2.0,
             )
         if not shared_color_scale:
-            _attach_gutter_colorbar(
+            attach_gutter_colorbar(
                 figure, axis, mappable=rate_image, norm=unit_norm, label="activity"
             )
         heatmap_axes.append(axis)

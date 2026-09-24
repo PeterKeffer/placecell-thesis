@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from placecell_research.analysis.base import AnalysisInput
-from placecell_research.analysis.probing import _distance_to_segments
+from placecell_research.analysis.probing import distance_to_segments
 from placecell_research.analysis.registry import ANALYSIS_MODULES
 from placecell_research.analysis.selectivity import (
     SelectivityPartitionModule,
@@ -124,7 +124,7 @@ def _code_type_input(env_id: str = "MiniWorld-WallGapAsymLarge-v0") -> AnalysisI
     y = rng.uniform(y_low, y_high, size=(episodes, steps)).astype(np.float32)
     positions = np.stack([x, y], axis=-1).astype(np.float32)
 
-    wall_distance = _distance_to_segments(positions, overlay.segments)
+    wall_distance = distance_to_segments(positions, overlay.segments)
     center_x, center_y = 0.3 * x_high, 0.3 * y_high
     sigma = 0.2 * (x_high - x_low)
     place_unit = np.exp(-((x - center_x) ** 2 + (y - center_y) ** 2) / (2.0 * sigma**2))

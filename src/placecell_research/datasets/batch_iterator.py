@@ -13,7 +13,7 @@ import torch
 from placecell_research.utils.angles import wrap_radians
 
 from .staging import stage_dataset_dir
-from .zarr_io import _TARGET_CHUNK_RAW_BYTES, _require_zarr
+from .zarr_io import TARGET_CHUNK_RAW_BYTES, require_zarr
 
 _SPLIT_ALIASES = {
     "train": ["train_episode_ids", "train"],
@@ -35,7 +35,7 @@ class _EpisodeChunkReader:
             * np.dtype(array.dtype).itemsize
         )
         self._cache_enabled = (
-            self._episodes_per_chunk > 1 and chunk_bytes <= _TARGET_CHUNK_RAW_BYTES
+            self._episodes_per_chunk > 1 and chunk_bytes <= TARGET_CHUNK_RAW_BYTES
         )
 
     def read(self, episode_ids: list[int]) -> np.ndarray:
@@ -92,7 +92,7 @@ def iterate_dataset_batches(
     max_episodes: int | None = None,
 ) -> Iterator[dict[str, torch.Tensor]]:
     """Read batches directly from the canonical dataset Zarr schema."""
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     dataset_group = zarr.open(str(stage_dataset_dir(dataset_directory) / "dataset.zarr"), mode="r")
     episode_ids = load_split_indices(split_directory, split_name)
     if max_episodes is not None and max_episodes > 0:

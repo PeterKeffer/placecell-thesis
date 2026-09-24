@@ -32,12 +32,12 @@ from placecell_research.utils.memory_watchdog import read_current_rss_mb
 
 if TYPE_CHECKING:
     from placecell_research.stages.analyze_model import (
-        _AnalysisSourceReference,
-        _CollectionCacheKey,
-        _CollectionCacheValue,
-        _CollectionPlan,
-        _SingleAnalysisWorkItem,
-        _SourceCollectionGroupKey,
+        AnalysisSourceReference,
+        CollectionCacheKey,
+        CollectionCacheValue,
+        CollectionPlan,
+        SingleAnalysisWorkItem,
+        SourceCollectionGroupKey,
     )
 
 
@@ -78,7 +78,7 @@ _TrackedCollection = tuple[str, "weakref.ReferenceType[object]", int]
 def _track_group_collections(
     tracked_collections: list[_TrackedCollection],
     group_label: str,
-    collection_cache: dict[_CollectionCacheKey, _CollectionCacheValue],
+    collection_cache: dict[CollectionCacheKey, CollectionCacheValue],
 ) -> None:
     """Record a weak reference to every representation array a source group collected."""
     for representations, _metadata, _position_cache in collection_cache.values():
@@ -142,11 +142,11 @@ def build_target_work_items(
     default_dataset_type: str,
     default_split_id: str,
     default_split_name: str,
-    make_reference: Callable[..., _AnalysisSourceReference],
-    make_work_item: Callable[..., _SingleAnalysisWorkItem],
-) -> list[_SingleAnalysisWorkItem]:
+    make_reference: Callable[..., AnalysisSourceReference],
+    make_work_item: Callable[..., SingleAnalysisWorkItem],
+) -> list[SingleAnalysisWorkItem]:
     """Build the single-target work items, expanding dataset_coverage over extra splits."""
-    target_work_items: list[_SingleAnalysisWorkItem] = []
+    target_work_items: list[SingleAnalysisWorkItem] = []
     for target_name, target_payload in target_config.items():
         if not target_payload.get("enabled", True):
             continue
@@ -202,13 +202,13 @@ def build_comparative_work_items(
     default_split_id: str,
     default_split_name: str,
     registry,
-    resolve_reference: Callable[..., _AnalysisSourceReference],
-    reference_from_payload: Callable[..., _AnalysisSourceReference],
+    resolve_reference: Callable[..., AnalysisSourceReference],
+    reference_from_payload: Callable[..., AnalysisSourceReference],
     comparative_input_payloads: Callable[[str, dict[str, object]], list[dict[str, object]]],
-) -> list[tuple[str, dict[str, object], list[_AnalysisSourceReference]]]:
+) -> list[tuple[str, dict[str, object], list[AnalysisSourceReference]]]:
     """Resolve each enabled comparative analysis to its concrete source references."""
     comparative_work_items: list[
-        tuple[str, dict[str, object], list[_AnalysisSourceReference]]
+        tuple[str, dict[str, object], list[AnalysisSourceReference]]
     ] = []
     for analysis_name, analysis_payload in enabled_comparative_items:
         references = [
@@ -233,11 +233,11 @@ def build_comparative_work_items(
 
 
 def execute_single_work_items(
-    target_work_items: list[_SingleAnalysisWorkItem],
+    target_work_items: list[SingleAnalysisWorkItem],
     *,
     single_results: dict[str, AnalysisResult],
     comparative_results: dict[str, AnalysisResult],
-    collection_plans_by_group: dict[_SourceCollectionGroupKey, _CollectionPlan],
+    collection_plans_by_group: dict[SourceCollectionGroupKey, CollectionPlan],
     analysis_config: dict[str, object],
     analysis_workspace: Path,
     partial_analysis_dir: Path,
@@ -250,10 +250,10 @@ def execute_single_work_items(
     used_input_artifact_ids: set,
     progress,
     single_work_items_by_source_group: Callable[
-        [list[_SingleAnalysisWorkItem]],
-        list[tuple[_SourceCollectionGroupKey, list[_SingleAnalysisWorkItem]]],
+        [list[SingleAnalysisWorkItem]],
+        list[tuple[SourceCollectionGroupKey, list[SingleAnalysisWorkItem]]],
     ],
-    work_item_needs_model_inference: Callable[[_SingleAnalysisWorkItem], bool],
+    work_item_needs_model_inference: Callable[[SingleAnalysisWorkItem], bool],
     build_analysis_input: Callable[..., AnalysisInput],
     build_dataset_coverage_analysis_input: Callable[..., AnalysisInput],
     snapshot_partial_and_refresh: Callable[..., None],
@@ -264,7 +264,7 @@ def execute_single_work_items(
     tracked_collections: list[_TrackedCollection] = []
     for group_key, group_work_items in single_work_items_by_source_group(target_work_items):
         collection_plan = collection_plans_by_group[group_key]
-        single_collection_cache: dict[_CollectionCacheKey, _CollectionCacheValue] = {}
+        single_collection_cache: dict[CollectionCacheKey, CollectionCacheValue] = {}
         analysis_input: AnalysisInput | None = None
         for work_item in group_work_items:
             analysis_input = None
@@ -344,7 +344,7 @@ def execute_single_work_items(
 
 
 def execute_comparative_work_items(
-    comparative_work_items: list[tuple[str, dict[str, object], list[_AnalysisSourceReference]]],
+    comparative_work_items: list[tuple[str, dict[str, object], list[AnalysisSourceReference]]],
     *,
     single_results: dict[str, AnalysisResult],
     comparative_results: dict[str, AnalysisResult],
@@ -359,7 +359,7 @@ def execute_comparative_work_items(
     analysis_max_episodes: int | None,
     used_input_artifact_ids: set,
     progress,
-    make_collection_plan: Callable[..., _CollectionPlan],
+    make_collection_plan: Callable[..., CollectionPlan],
     required_comparative_batch_keys: Callable[[dict[str, object]], list[str]],
     build_analysis_input: Callable[..., AnalysisInput],
     snapshot_partial_and_refresh: Callable[..., None],
@@ -393,7 +393,7 @@ def execute_comparative_work_items(
             source_names=tuple(sorted({reference.source_name for reference in references})),
             include_batch_keys=tuple(required_comparative_batch_keys(analysis_payload)),
         )
-        collection_cache: dict[_CollectionCacheKey, _CollectionCacheValue] = {}
+        collection_cache: dict[CollectionCacheKey, CollectionCacheValue] = {}
         analysis_inputs = [
             build_analysis_input(
                 reference,

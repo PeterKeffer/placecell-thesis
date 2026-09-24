@@ -119,7 +119,7 @@ def test_transition_geometry_modules_share_graph_and_alignment_computation(
         "smoothing_sigma": 0.0,
         "min_occupancy": 1e-6,
     }
-    real_modes = transition_geometry._transition_laplacian_modes
+    real_modes = transition_geometry.transition_laplacian_modes
     mode_calls = 0
 
     def count_modes(*args, **kwargs):
@@ -127,7 +127,7 @@ def test_transition_geometry_modules_share_graph_and_alignment_computation(
         mode_calls += 1
         return real_modes(*args, **kwargs)
 
-    monkeypatch.setattr(transition_geometry, "_transition_laplacian_modes", count_modes)
+    monkeypatch.setattr(transition_geometry, "transition_laplacian_modes", count_modes)
 
     TransitionGeometryGraphModule().run(analysis_input, tmp_path, config)
     TransitionGeometryAlignmentModule().run(analysis_input, tmp_path, config)

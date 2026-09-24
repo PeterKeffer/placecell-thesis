@@ -29,7 +29,7 @@ from placecell_research.datasets.zarr_io import (
     _default_compressor,
     _episodes_per_chunk,
     _raise_if_output_disk_too_small,
-    _require_zarr,
+    require_zarr,
     save_dataset_zarr_atomic,
     save_dataset_zarr_streaming_atomic,
     validate_dataset_store,
@@ -80,7 +80,7 @@ def test_save_dataset_zarr_streaming_atomic_rewrites_no_space_left_error(
         free = 3 * 1024**3
 
     monkeypatch.setattr(
-        "placecell_research.datasets.zarr_io._require_zarr",
+        "placecell_research.datasets.zarr_io.require_zarr",
         lambda: (_FakeZarr(), object()),
     )
     monkeypatch.setattr(
@@ -129,7 +129,7 @@ def test_validate_dataset_store_skips_missing_zarr_branches(tmp_path: Path, monk
             return _FakeGroup()
 
     monkeypatch.setattr(
-        "placecell_research.datasets.zarr_io._require_zarr",
+        "placecell_research.datasets.zarr_io.require_zarr",
         lambda: (_FakeZarr(), object()),
     )
 
@@ -182,7 +182,7 @@ def _summary(modality: str) -> DatasetSummary:
 
 
 def _chunk_shapes(dataset_zarr: Path) -> dict[str, tuple[int, ...]]:
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     group = zarr.open_group(str(dataset_zarr), mode="r")
     shapes: dict[str, tuple[int, ...]] = {}
     for branch_name in group.group_keys():
@@ -235,7 +235,7 @@ def test_rgb_store_keeps_one_episode_per_chunk(tmp_path: Path) -> None:
 
 def _write_legacy_layout(dataset_zarr: Path, arrays: dict[str, np.ndarray]) -> None:
     """One chunk file per episode, for every array."""
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     group = zarr.open_group(str(dataset_zarr), mode="w")
     compressor = _default_compressor()
     for key, array in arrays.items():
@@ -291,7 +291,7 @@ def test_preload_and_batch_sweep_are_indifferent_to_chunk_layout(
     tmp_path: Path, monkeypatch
 ) -> None:
     """The two paths that actually read an encoded dataset: RAM preload and eval/analysis sweep."""
-    monkeypatch.setattr(zarr_io, "_TARGET_CHUNK_RAW_BYTES", 2 * _STEPS * _LATENT_DIM * 4)
+    monkeypatch.setattr(zarr_io, "TARGET_CHUNK_RAW_BYTES", 2 * _STEPS * _LATENT_DIM * 4)
     arrays = _latent_arrays()
     summary = _summary("latent")
 
@@ -376,7 +376,7 @@ def test_streaming_writer_buffers_whole_chunks_without_changing_values(
     save_dataset_zarr_atomic(whole_dir / "dataset.zarr", arrays, summary)
 
     assert _chunk_shapes(streamed_dir / "dataset.zarr") == _chunk_shapes(whole_dir / "dataset.zarr")
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     streamed = zarr.open_group(str(streamed_dir / "dataset.zarr"), mode="r")
     for key, expected in arrays.items():
         np.testing.assert_array_equal(np.asarray(streamed[key]), expected, err_msg=key)
@@ -398,7 +398,7 @@ def test_streaming_writer_flushes_a_partial_chunk_on_a_gap(tmp_path: Path) -> No
         summary,
     )
 
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     written = zarr.open_group(str(out_dir / "dataset.zarr"), mode="r")
     for key, expected in arrays.items():
         np.testing.assert_array_equal(np.asarray(written[key]), expected, err_msg=key)

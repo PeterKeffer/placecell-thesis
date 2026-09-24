@@ -139,7 +139,7 @@ def resolve_rate_map_colormap_mode(config: dict) -> str:
     return _normalize_rate_map_colormap_mode(config.get("rate_map_colormap_mode", "reds"))
 
 @dataclass(frozen=True, slots=True)
-class _PanelSettings:
+class PanelSettings:
     """Every rendering knob the module reads out of the analysis config, resolved once."""
 
     panel_metric_name: str
@@ -164,7 +164,7 @@ class _PanelSettings:
 
 
 @dataclass(frozen=True, slots=True)
-class _RankedUnits:
+class RankedUnits:
     """Which units the panel and the grid show, and in what order."""
 
     summary_indices: np.ndarray
@@ -192,7 +192,7 @@ class GridOutcome:
     page_paths: list[str] = field(default_factory=list)
     clean_page_paths: list[str] = field(default_factory=list)
 
-_METRIC_KEYS_BY_GROUP: dict[str, set[str]] = {
+METRIC_KEYS_BY_GROUP: dict[str, set[str]] = {
     "fields": {
         "mean_peak_rate",
         "max_peak_rate",
@@ -256,7 +256,7 @@ _METRIC_KEYS_BY_GROUP: dict[str, set[str]] = {
     },
 }
 
-_PER_UNIT_KEYS_BY_GROUP: dict[str, set[str]] = {
+PER_UNIT_KEYS_BY_GROUP: dict[str, set[str]] = {
     "fields": {
         "place_field_metrics_supported",
         "peak_rate",
@@ -347,9 +347,9 @@ def panel_metric_family(
 
 def select_ranked_units(
     bundle: RateMapMetricBundle,
-    settings: _PanelSettings,
+    settings: PanelSettings,
     config: dict,
-) -> _RankedUnits:
+) -> RankedUnits:
     """Take the top-k of the ranking for each figure, then optionally regroup by field position."""
     ranked_indices = bundle.ranked_indices
     render_all_panel_units = bool(config["rate_map_panel_show_all_units"])
@@ -369,7 +369,7 @@ def select_ranked_units(
         bounds = bundle.rate_map_result.bounds
         summary_indices = _order_indices_by_field_position(summary_indices, rate_maps, bounds)
         grid_indices = _order_indices_by_field_position(grid_indices, rate_maps, bounds)
-    return _RankedUnits(
+    return RankedUnits(
         summary_indices=summary_indices,
         grid_indices=grid_indices,
         render_all_panel_units=render_all_panel_units,

@@ -307,7 +307,7 @@ def test_shifted_heading_labels_are_a_per_episode_roll() -> None:
 
     shifted = head_direction_tuning._shifted_heading_labels(
         heading_bins,
-        step_layout=head_direction_tuning._circular_shift_step_layout(
+        step_layout=head_direction_tuning.circular_shift_step_layout(
             episode_lengths, np.arange(heading_bins.size)
         ),
         offsets=offsets,

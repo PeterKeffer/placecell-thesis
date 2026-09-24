@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from placecell_research.artifacts.ids import slugify
-from placecell_research.config.loader import _load_yaml, _resolve_defaults, load_raw_config_payload
+from placecell_research.config.loader import load_raw_config_payload, load_yaml, resolve_defaults
 from placecell_research.tracking.naming import RunIdentity, capture_git_state, make_run_id
 from placecell_research.tracking.run_directory import RunDirectory
 from placecell_research.utils.environment_info import capture_environment_info
@@ -34,7 +34,7 @@ def initialize_downstream_session(
 ) -> DownstreamSession:
     config_path = config_path.resolve()
     repo_root = find_repo_root(config_path)
-    _ = _resolve_defaults(config_path, _load_yaml(config_path))
+    _ = resolve_defaults(config_path, load_yaml(config_path))
     raw_payload = load_raw_config_payload(config_path, overrides)
     variant_slug = slugify(config_name)
     run_identity = RunIdentity(

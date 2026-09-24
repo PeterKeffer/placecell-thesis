@@ -24,7 +24,7 @@ _ALLOWED_REGION_BOUNDS_BY_NAME = {
     "woodplank_yard": (-21.0, -9.0, -27.0, 1.5),
     "concrete_yard": (9.0, 21.0, -27.0, 1.5),
 }
-_FULL_ROOM_BOUNDS_BY_NAME = {
+FULL_ROOM_BOUNDS_BY_NAME = {
     "northern_courtyard": (-18.0, 18.0, 6.0, 36.0),
     "central_corridor": (-6.0, 6.0, -6.0, 6.0),
     "southern_yard_left": (-24.0, -6.0, -30.0, 4.5),
@@ -115,7 +115,7 @@ class WallGapAsymLarge(MiniWorldEnv, utils.EzPickle):
             else default_regions
         )
         self.allowed_spawn_bounds_by_name = dict(_ALLOWED_REGION_BOUNDS_BY_NAME)
-        self.full_room_bounds_by_name = dict(_FULL_ROOM_BOUNDS_BY_NAME)
+        self.full_room_bounds_by_name = dict(FULL_ROOM_BOUNDS_BY_NAME)
 
         MiniWorldEnv.__init__(self, max_episode_steps=max_episode_steps, **init_kwargs)
         utils.EzPickle.__init__(

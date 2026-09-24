@@ -18,7 +18,7 @@ from placecell_research.analysis.directionality import (
     _resolve_field_gates,
 )
 from placecell_research.analysis.registry import ANALYSIS_MODULES
-from placecell_research.analysis.shift_nulls import _draw_circular_shift_offsets
+from placecell_research.analysis.shift_nulls import draw_circular_shift_offsets
 from placecell_research.analysis.world_overlay import overlay_bounds, resolve_world_overlay
 from placecell_research.numerics.rate_map_kernels import scatter_add_over_units
 
@@ -400,7 +400,7 @@ def _dense_circular_shift_null_reference(statistics, num_shuffles: int) -> np.nd
     """The null the fast path must reproduce: one whole-array np.roll per episode."""
     rng = np.random.default_rng(_NULL_RNG_SEED)
     shuffle_offsets = [
-        _draw_circular_shift_offsets(statistics.episode_lengths, rng, _NULL_MIN_SHIFT_FRACTION)
+        draw_circular_shift_offsets(statistics.episode_lengths, rng, _NULL_MIN_SHIFT_FRACTION)
         for _ in range(num_shuffles)
     ]
     episode_bounds = np.concatenate(([0], np.cumsum(statistics.episode_lengths)))

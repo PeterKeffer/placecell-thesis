@@ -22,7 +22,7 @@ from placecell_research.stages import (
     train_place_model,
     train_vision_encoder,
 )
-from placecell_research.stages.pipeline import _inject_automatic_reuse_overrides
+from placecell_research.stages.pipeline import inject_automatic_reuse_overrides
 from placecell_research.studies.curriculum import CurriculumStageRunners, run_curriculum
 from placecell_research.studies.summary import write_study_summary, write_sweep_comparison_links
 from placecell_research.studies.sweep import run_sweep
@@ -169,7 +169,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                     )
 
                 trial_overrides = [*propagated_tracking_overrides, *stage_overrides]
-                _inject_automatic_reuse_overrides(
+                inject_automatic_reuse_overrides(
                     config_path=path,
                     active_overrides=trial_overrides,
                     registry=registry,

@@ -43,7 +43,7 @@ def _assign_bins_with_shared_bounds(
     return linear_bins
 
 
-def _flatten_valid_episode_bins(
+def flatten_valid_episode_bins(
     position_xy: np.ndarray,
     valid_mask: np.ndarray | None,
     *,
@@ -75,7 +75,7 @@ def _flatten_valid_episode_bins(
     return episode_bins, occupancy_counts
 
 
-def _build_transition_counts(
+def build_transition_counts(
     episode_bins: list[np.ndarray],
     *,
     num_bins: int,
@@ -122,7 +122,7 @@ def _orient_mode(mode_vector: np.ndarray) -> np.ndarray:
     return mode_vector
 
 
-def _transition_laplacian_modes(
+def transition_laplacian_modes(
     transition_counts: np.ndarray,
     *,
     occupancy_counts: np.ndarray,
@@ -299,7 +299,7 @@ class _TransitionGeometryModuleBase:
                     num_bins_x=num_bins_x,
                     num_bins_y=num_bins_y,
                 )
-            episode_bins, occupancy_counts = _flatten_valid_episode_bins(
+            episode_bins, occupancy_counts = flatten_valid_episode_bins(
                 analysis_input.position_xy,
                 analysis_input.valid_mask,
                 num_bins_x=num_bins_x,
@@ -309,7 +309,7 @@ class _TransitionGeometryModuleBase:
             record_timing(timing_seconds, "prepare_bins", section_started_at)
 
             section_started_at = perf_counter()
-            transition_counts, transitions_used = _build_transition_counts(
+            transition_counts, transitions_used = build_transition_counts(
                 episode_bins,
                 num_bins=num_bins_x * num_bins_y,
                 include_self_transitions=include_self_transitions,
@@ -323,7 +323,7 @@ class _TransitionGeometryModuleBase:
 
             section_started_at = perf_counter()
             selected_eigenvalues, selected_mode_indices, mode_maps = (
-                _transition_laplacian_modes(
+                transition_laplacian_modes(
                     transition_counts,
                     occupancy_counts=occupancy_counts,
                     num_bins_x=num_bins_x,

@@ -24,7 +24,7 @@ PYDANTIC_CONFIG = ConfigDict(validate_assignment=True, extra="forbid")
 ContextChannel = str
 
 
-def _dump_config(value: Any) -> dict[str, Any]:
+def dump_config(value: Any) -> dict[str, Any]:
     if not is_dataclass(value):
         raise TypeError(f"Expected a dataclass config object, got {type(value)!r}.")
     return TypeAdapter(type(value)).dump_python(value, mode="json")
@@ -1674,7 +1674,7 @@ class ExperimentConfig:
     measures: MeasuresConfig = field(default_factory=MeasuresConfig)
 
     def to_dict(self) -> dict[str, Any]:
-        return _dump_config(self)
+        return dump_config(self)
 
 
 @dataclass(config=PYDANTIC_CONFIG)
@@ -1732,4 +1732,4 @@ class StudyConfig:
     launcher: LauncherConfig = field(default_factory=LauncherConfig)
 
     def to_dict(self) -> dict[str, Any]:
-        return _dump_config(self)
+        return dump_config(self)

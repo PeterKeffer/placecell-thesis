@@ -12,7 +12,7 @@ from matplotlib import colors as mpl_colors
 from matplotlib.patches import Patch
 
 from .base import AnalysisInput, AnalysisResult
-from .episode_dynamics import _draw_heading_arrow, _select_episode_index
+from .episode_dynamics import draw_heading_arrow, select_episode_index
 from .figures import figure_to_rgb_array, save_gif
 from .helpers import get_or_compute_rate_maps
 from .world_overlay import (
@@ -168,7 +168,7 @@ def _render_overlay_frame(
         s=46,
         zorder=5,
     )
-    _draw_heading_arrow(axis, positions, headings, current_index)
+    draw_heading_arrow(axis, positions, headings, current_index)
     finalize_arena_axis(
         axis,
         x_bounds=(extent[0], extent[1]),
@@ -248,7 +248,7 @@ class PlaceFieldOverlayModule:
         active_selection_limit = kwinners_k if kwinners_k > 0 else effective_max_cells
 
         random_seed = config.get("example_episode_random_seed")
-        episode_index = _select_episode_index(
+        episode_index = select_episode_index(
             analysis_input.valid_mask,
             requested_episode_index=int(config.get("example_episode_index", -1)),
             random_seed=None if random_seed in {None, ""} else int(random_seed),

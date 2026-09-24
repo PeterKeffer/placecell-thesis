@@ -167,7 +167,7 @@ def make_jaxenstein_rollout(
 
 
 def _package_episodes(trajectory, *, num_envs, base_seed, keep_rgb_on_device):
-    from .collector import _compute_kinematics
+    from .collector import compute_kinematics
 
     if keep_rgb_on_device:
         import jax.numpy as jnp
@@ -194,7 +194,7 @@ def _package_episodes(trajectory, *, num_envs, base_seed, keep_rgb_on_device):
                 "observations/rgb": rgb[env_index],
                 "position_xy": position_xy[env_index],
                 "heading": heading[env_index],
-                "kinematics": _compute_kinematics(
+                "kinematics": compute_kinematics(
                     position_xy[env_index], heading[env_index]
                 ).astype(np.float32),
                 "actions": actions[env_index],

@@ -21,7 +21,7 @@ from ..numerics.rate_map_kernels import (
 from .base import AnalysisInput, AnalysisResult
 from .helpers import get_or_compute_rate_maps
 from .timing import log_timing, record_timing
-from .transition_geometry import _build_transition_counts, _flatten_valid_episode_bins
+from .transition_geometry import build_transition_counts, flatten_valid_episode_bins
 from .world_overlay import (
     apply_plot_bounds,
     draw_landmarks_on_axis,
@@ -223,14 +223,14 @@ class CognitiveMapGeometryModule:
         record_timing(timing_seconds, "rate_maps", section_started_at)
 
         section_started_at = perf_counter()
-        episode_bins, occupancy_counts = _flatten_valid_episode_bins(
+        episode_bins, occupancy_counts = flatten_valid_episode_bins(
             analysis_input.position_xy,
             analysis_input.valid_mask,
             num_bins_x=num_bins_x,
             num_bins_y=num_bins_y,
             bounds=bounds,
         )
-        transition_counts, transitions_used = _build_transition_counts(
+        transition_counts, transitions_used = build_transition_counts(
             episode_bins, num_bins=num_bins_x * num_bins_y, include_self_transitions=False
         )
         if transitions_used <= 0:

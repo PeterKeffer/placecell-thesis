@@ -37,7 +37,7 @@ from placecell_research.collection.stage_support import (
 from placecell_research.config import artifact_match_fingerprint, resolve_matching_artifact
 from placecell_research.config.validator import HARD_K_SPARSIFIER_TYPES
 from placecell_research.datasets.batch_iterator import available_split_names, load_split_indices
-from placecell_research.datasets.zarr_io import _require_zarr, load_dataset_manifest
+from placecell_research.datasets.zarr_io import load_dataset_manifest, require_zarr
 from placecell_research.evaluation.inference import (
     InputBatchCache,
     collect_representations,
@@ -51,11 +51,11 @@ from placecell_research.evaluation.representation_store import (
     resolve_representations,
 )
 from placecell_research.evaluation.runtime import (
-    _resolve_unique_direct_input_artifact,
     resolve_registry_reference,
     resolve_stage_dataset_reference,
     resolve_stage_reference,
     resolve_stage_split_reference,
+    resolve_unique_direct_input_artifact,
 )
 from placecell_research.numerics.error_metrics import RMSE_AGGREGATION
 from placecell_research.stages._analyze_model_run import (
@@ -80,7 +80,7 @@ from placecell_research.utils.source_fingerprint import package_source_fingerpri
 
 
 @dataclass(frozen=True, slots=True)
-class _AnalysisSourceReference:
+class AnalysisSourceReference:
     label: str
     source_name: str
     model_artifact_id: str
@@ -91,7 +91,7 @@ class _AnalysisSourceReference:
 
 
 @dataclass(slots=True)
-class _CollectionPlan:
+class CollectionPlan:
     """Representations and batch metadata needed for one local analysis pass."""
 
     source_names: tuple[str, ...]
@@ -99,11 +99,11 @@ class _CollectionPlan:
 
 
 @dataclass(frozen=True, slots=True)
-class _SingleAnalysisWorkItem:
+class SingleAnalysisWorkItem:
     """One concrete single-source analysis execution."""
 
     progress_label: str
-    reference: _AnalysisSourceReference
+    reference: AnalysisSourceReference
     module_names: list[str]
     result_key_overrides: dict[str, str] = field(default_factory=dict)
 
@@ -111,9 +111,9 @@ class _SingleAnalysisWorkItem:
         return self.result_key_overrides.get(module_name, f"{self.reference.label}.{module_name}")
 
 
-_CollectionCacheKey = tuple[str, str, str, str, str, tuple[str, ...], tuple[str, ...]]
-_CollectionCacheValue = tuple[dict[str, object], dict[str, object], dict[Hashable, object]]
-_SourceCollectionGroupKey = tuple[str, str, str, str, str, str]
+CollectionCacheKey = tuple[str, str, str, str, str, tuple[str, ...], tuple[str, ...]]
+CollectionCacheValue = tuple[dict[str, object], dict[str, object], dict[Hashable, object]]
+SourceCollectionGroupKey = tuple[str, str, str, str, str, str]
 _COMPARATIVE_SHARED_ANALYSIS_KEYS = (
     "num_bins_x",
     "num_bins_y",
@@ -326,14 +326,14 @@ def _reference_from_payload(
     default_split_artifact_id: str,
     default_split_name: str,
     default_source_name: str,
-) -> _AnalysisSourceReference:
+) -> AnalysisSourceReference:
     label = str(
         payload.get("label")
         or f"{payload.get('model_artifact_id', default_model_artifact_id)}__"
         f"{payload.get('dataset_artifact_id', default_dataset_artifact_id)}__"
         f"{payload.get('split_name', default_split_name)}"
     )
-    return _AnalysisSourceReference(
+    return AnalysisSourceReference(
         label=label,
         source_name=str(payload.get("source", default_source_name)),
         model_artifact_id=str(payload.get("model_artifact_id", default_model_artifact_id)),
@@ -347,9 +347,9 @@ def _reference_from_payload(
 
 
 def _collection_cache_key(
-    reference: _AnalysisSourceReference,
-    collection_plan: _CollectionPlan,
-) -> _CollectionCacheKey:
+    reference: AnalysisSourceReference,
+    collection_plan: CollectionPlan,
+) -> CollectionCacheKey:
     return (
         reference.model_artifact_id,
         reference.dataset_artifact_type,
@@ -362,8 +362,8 @@ def _collection_cache_key(
 
 
 def _source_collection_group_key(
-    reference: _AnalysisSourceReference,
-) -> _SourceCollectionGroupKey:
+    reference: AnalysisSourceReference,
+) -> SourceCollectionGroupKey:
     return (
         reference.model_artifact_id,
         reference.dataset_artifact_type,
@@ -381,9 +381,9 @@ def _source_collection_sharing_key(source_name: str) -> str:
 
 
 def _collection_plans_by_source_group(
-    work_items: list[_SingleAnalysisWorkItem],
-) -> dict[_SourceCollectionGroupKey, _CollectionPlan]:
-    collection_plans: dict[_SourceCollectionGroupKey, _CollectionPlan] = {}
+    work_items: list[SingleAnalysisWorkItem],
+) -> dict[SourceCollectionGroupKey, CollectionPlan]:
+    collection_plans: dict[SourceCollectionGroupKey, CollectionPlan] = {}
     for group_key, group_work_items in _single_work_items_by_source_group(work_items):
         source_names = tuple(
             sorted({work_item.reference.source_name for work_item in group_work_items})
@@ -397,7 +397,7 @@ def _collection_plans_by_source_group(
                 }
             )
         )
-        collection_plans[group_key] = _CollectionPlan(
+        collection_plans[group_key] = CollectionPlan(
             source_names=source_names,
             include_batch_keys=required_batch_keys,
         )
@@ -405,10 +405,10 @@ def _collection_plans_by_source_group(
 
 
 def _single_work_items_by_source_group(
-    work_items: list[_SingleAnalysisWorkItem],
-) -> list[tuple[_SourceCollectionGroupKey, list[_SingleAnalysisWorkItem]]]:
-    grouped_items: dict[_SourceCollectionGroupKey, list[_SingleAnalysisWorkItem]] = {}
-    group_order: list[_SourceCollectionGroupKey] = []
+    work_items: list[SingleAnalysisWorkItem],
+) -> list[tuple[SourceCollectionGroupKey, list[SingleAnalysisWorkItem]]]:
+    grouped_items: dict[SourceCollectionGroupKey, list[SingleAnalysisWorkItem]] = {}
+    group_order: list[SourceCollectionGroupKey] = []
     for work_item in work_items:
         group_key = _source_collection_group_key(work_item.reference)
         if group_key not in grouped_items:
@@ -419,10 +419,10 @@ def _single_work_items_by_source_group(
 
 
 def _resolve_analysis_source_reference(
-    reference: _AnalysisSourceReference,
+    reference: AnalysisSourceReference,
     *,
     registry,
-) -> _AnalysisSourceReference:
+) -> AnalysisSourceReference:
     model_artifact = resolve_registry_reference(
         registry,
         "place_model",
@@ -431,7 +431,7 @@ def _resolve_analysis_source_reference(
     dataset_reference = str(reference.dataset_artifact_id).strip()
     dataset_type_reference = str(reference.dataset_artifact_type).strip()
     if dataset_reference == "auto":
-        dataset_artifact = _resolve_unique_direct_input_artifact(
+        dataset_artifact = resolve_unique_direct_input_artifact(
             registry,
             source_artifact=model_artifact,
             expected_types=("raw_dataset", "encoded_dataset"),
@@ -461,7 +461,7 @@ def _resolve_analysis_source_reference(
 
     split_reference = str(reference.split_artifact_id).strip()
     if split_reference == "auto":
-        split_artifact = _resolve_unique_direct_input_artifact(
+        split_artifact = resolve_unique_direct_input_artifact(
             registry,
             source_artifact=model_artifact,
             expected_types=("split_set",),
@@ -469,7 +469,7 @@ def _resolve_analysis_source_reference(
         )
     else:
         split_artifact = resolve_registry_reference(registry, "split_set", split_reference)
-    return _AnalysisSourceReference(
+    return AnalysisSourceReference(
         label=reference.label,
         source_name=reference.source_name,
         model_artifact_id=model_artifact.artifact_id,
@@ -481,13 +481,13 @@ def _resolve_analysis_source_reference(
 
 
 def _build_analysis_input(
-    reference: _AnalysisSourceReference,
+    reference: AnalysisSourceReference,
     *,
     registry,
     device,
     model_cache: dict[str, object],
-    collection_plan: _CollectionPlan,
-    collection_cache: dict[_CollectionCacheKey, _CollectionCacheValue],
+    collection_plan: CollectionPlan,
+    collection_cache: dict[CollectionCacheKey, CollectionCacheValue],
     batch_size: int,
     max_episodes: int | None,
     input_batch_cache: InputBatchCache | None = None,
@@ -586,7 +586,7 @@ def _build_analysis_input(
     )
 
 
-def _work_item_needs_model_inference(work_item: _SingleAnalysisWorkItem) -> bool:
+def _work_item_needs_model_inference(work_item: SingleAnalysisWorkItem) -> bool:
     return any(module_name != "dataset_coverage" for module_name in work_item.module_names)
 
 
@@ -607,7 +607,7 @@ def _analysis_max_episodes(raw_max_episodes: int) -> int | None:
 
 
 def _build_dataset_coverage_analysis_input(
-    reference: _AnalysisSourceReference,
+    reference: AnalysisSourceReference,
     *,
     registry,
 ) -> AnalysisInput:
@@ -624,7 +624,7 @@ def _build_dataset_coverage_analysis_input(
             f"Split '{reference.split_name}' in {split_indices_path} contains no episode ids."
         )
 
-    zarr, _ = _require_zarr()
+    zarr, _ = require_zarr()
     dataset_group = zarr.open(str(dataset_artifact.path / "dataset.zarr"), mode="r")
     position_xy = np.asarray(
         dataset_group["state"]["position_xy"][episode_ids],
@@ -1280,8 +1280,8 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 default_dataset_type=default_dataset_type,
                 default_split_id=default_split_id,
                 default_split_name=default_split_name,
-                make_reference=_AnalysisSourceReference,
-                make_work_item=_SingleAnalysisWorkItem,
+                make_reference=AnalysisSourceReference,
+                make_work_item=SingleAnalysisWorkItem,
             )
             comparative_work_items = build_comparative_work_items(
                 enabled_comparative_items,
@@ -1350,7 +1350,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, object]:
                 analysis_max_episodes=analysis_max_episodes,
                 used_input_artifact_ids=used_input_artifact_ids,
                 progress=progress,
-                make_collection_plan=_CollectionPlan,
+                make_collection_plan=CollectionPlan,
                 required_comparative_batch_keys=_required_comparative_batch_keys,
                 build_analysis_input=_build_analysis_input_for_run,
                 snapshot_partial_and_refresh=_snapshot_partial_and_refresh,

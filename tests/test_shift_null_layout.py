@@ -32,7 +32,7 @@ def _reference_null(activity, positions, valid, selected, sigma):
     rng = np.random.default_rng(7)
     scores = np.full((7, activity.shape[-1]), np.nan, dtype=np.float32)
     for shuffle in range(7):
-        offsets = shift_nulls._draw_circular_shift_offsets(lengths, rng, 0.05)
+        offsets = shift_nulls.draw_circular_shift_offsets(lengths, rng, 0.05)
         rolled = np.concatenate(
             [
                 np.roll(episode, offset, axis=0)

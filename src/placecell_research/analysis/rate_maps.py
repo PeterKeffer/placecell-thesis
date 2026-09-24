@@ -13,12 +13,12 @@ from ..numerics.rate_map_kernels import (
 )
 from .base import AnalysisInput, AnalysisResult
 from .rate_map_computation import (
-    _METRIC_KEYS_BY_GROUP,
-    _PER_UNIT_KEYS_BY_GROUP,
+    METRIC_KEYS_BY_GROUP,
+    PER_UNIT_KEYS_BY_GROUP,
     GridOutcome,
     PanelFamilyOutcome,
-    _PanelSettings,
-    _RankedUnits,
+    PanelSettings,
+    RankedUnits,
     normalize_panel_reliability_metric,
     panel_metric_family,
     rate_map_per_unit_metrics,
@@ -29,8 +29,8 @@ from .rate_map_computation import (
     use_shared_rate_map_color_scale,
 )
 from .rate_map_export import (
-    _rate_map_page_ranges,
     export_per_unit_rate_maps,
+    rate_map_page_ranges,
     render_grid_pages,
     render_panel_family,
     render_support_map,
@@ -73,11 +73,11 @@ class _RateMapModuleBase:
     def required_representations(self) -> set[str]:
         return set()
 
-    def _resolve_panel_settings(self, config: dict) -> _PanelSettings:
+    def _resolve_panel_settings(self, config: dict) -> PanelSettings:
         panel_metric_name = normalize_panel_reliability_metric(
             config.get("rate_map_panel_reliability_metric", "quantile_thresholded_reliability")
         )
-        return _PanelSettings(
+        return PanelSettings(
             panel_metric_name=panel_metric_name,
             panel_metric_fill_sigma_bins=float(
                 config.get("rate_map_panel_metric_fill_sigma_bins", 1.0)
@@ -116,7 +116,7 @@ class _RateMapModuleBase:
             .lower(),
         )
 
-    def _renders_extra_family(self, settings: _PanelSettings, metric_name: str) -> bool:
+    def _renders_extra_family(self, settings: PanelSettings, metric_name: str) -> bool:
         """Whether a non-primary panel family is drawn for metric_name."""
         emits_family = (
             settings.emit_thresholded_reliability_panel
@@ -131,8 +131,8 @@ class _RateMapModuleBase:
         self,
         analysis_input: AnalysisInput,
         bundle: RateMapMetricBundle,
-        settings: _PanelSettings,
-        ranked_units: _RankedUnits,
+        settings: PanelSettings,
+        ranked_units: RankedUnits,
         *,
         module_dir: Path,
         figures: dict[str, Path],
@@ -142,7 +142,7 @@ class _RateMapModuleBase:
         """Draw the primary panel family, the support map, and any extra reliability families."""
         summary_indices = ranked_units.summary_indices
         page_ranges = (
-            _rate_map_page_ranges(len(summary_indices), page_size=self.all_units_page_size)
+            rate_map_page_ranges(len(summary_indices), page_size=self.all_units_page_size)
             if ranked_units.render_all_panel_units
             and len(summary_indices) > self.all_units_page_size
             else [(0, len(summary_indices))]
@@ -425,10 +425,10 @@ class _RateMapModuleBase:
             section_names=(*timing_order, *metric_bundle_timing_order),
         )
         selected_metric_keys = set().union(
-            *(_METRIC_KEYS_BY_GROUP[group] for group in self.metric_groups)
+            *(METRIC_KEYS_BY_GROUP[group] for group in self.metric_groups)
         )
         selected_per_unit_keys = set().union(
-            *(_PER_UNIT_KEYS_BY_GROUP[group] for group in self.metric_groups)
+            *(PER_UNIT_KEYS_BY_GROUP[group] for group in self.metric_groups)
         )
         filtered_metrics = {
             key: value
@@ -467,8 +467,8 @@ class _RateMapModuleBase:
         self,
         analysis_input: AnalysisInput,
         bundle: RateMapMetricBundle,
-        settings: _PanelSettings,
-        ranked_units: _RankedUnits,
+        settings: PanelSettings,
+        ranked_units: RankedUnits,
         *,
         panel_families: dict[str, PanelFamilyOutcome],
         grid: GridOutcome,

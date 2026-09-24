@@ -6,7 +6,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 
 
-def _smooth_flat_bin_maps(
+def smooth_flat_bin_maps(
     flat_maps: np.ndarray,
     *,
     num_bins_y: int,
@@ -36,7 +36,7 @@ def rate_maps_from_activity_sums_with_safe_occupancy(
     smoothing_sigma: float,
 ) -> np.ndarray:
     """Convert flattened activity sums using a pre-smoothed safe occupancy map."""
-    activity_maps = _smooth_flat_bin_maps(
+    activity_maps = smooth_flat_bin_maps(
         activity_sums,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -94,7 +94,7 @@ def smoothed_safe_occupancy(
     smoothing_sigma: float,
     min_occupancy: float,
 ) -> np.ndarray:
-    occupancy_maps = _smooth_flat_bin_maps(
+    occupancy_maps = smooth_flat_bin_maps(
         occupancy_counts,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,

@@ -7,22 +7,22 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..numerics.bin_maps import (
-    _smooth_flat_bin_maps,
     batched_masked_map_correlation,
     rate_maps_from_activity_sums_with_safe_occupancy,
+    smooth_flat_bin_maps,
     smoothed_safe_occupancy,
 )
 from ..numerics.occupancy import (
     EpisodeBinStatistics,
-    _episode_activity_sums,
-    _unit_chunk_bounds,
+    episode_activity_sums,
     iter_episode_activity_sum_chunks,
     prepare_episode_bin_statistics,
+    unit_chunk_ranges,
 )
 from ..numerics.split_half import (
-    _accumulate_multi_split_correlations,
-    _finalize_multi_split_correlations,
-    _prepare_balanced_split_supports,
+    accumulate_multi_split_correlations,
+    finalize_multi_split_correlations,
+    prepare_balanced_split_supports,
 )
 from ..numerics.work_blocks import run_over_index_blocks
 
@@ -239,13 +239,13 @@ def _episode_rate_map_correlation_support(
     if not np.any(supported_episode_mask):
         return None
 
-    smoothed_episode_occupancy = _smooth_flat_bin_maps(
+    smoothed_episode_occupancy = smooth_flat_bin_maps(
         step_counts,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
         smoothing_sigma=smoothing_sigma,
     )
-    smoothed_total_occupancy = _smooth_flat_bin_maps(
+    smoothed_total_occupancy = smooth_flat_bin_maps(
         total_occupancy[None, :],
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -276,13 +276,13 @@ def _compute_episode_rate_map_correlation_chunk(
     smoothing_sigma: float,
 ) -> np.ndarray:
     total_activity = chunk_activity_sums.sum(axis=1, dtype=np.float32)
-    smoothed_episode_activity = _smooth_flat_bin_maps(
+    smoothed_episode_activity = smooth_flat_bin_maps(
         chunk_activity_sums,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
         smoothing_sigma=smoothing_sigma,
     )
-    smoothed_total_activity = _smooth_flat_bin_maps(
+    smoothed_total_activity = smooth_flat_bin_maps(
         total_activity,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -890,7 +890,7 @@ def compute_revisit_activity_metrics(
         smoothing_sigma=smoothing_sigma,
         min_occupancy=min_occupancy,
     )
-    split_supports = _prepare_balanced_split_supports(
+    split_supports = prepare_balanced_split_supports(
         step_counts,
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -903,12 +903,12 @@ def compute_revisit_activity_metrics(
     split_correlation_sums = np.zeros((statistics.num_units,), dtype=np.float64)
     split_correlation_counts = np.zeros((statistics.num_units,), dtype=np.int64)
 
-    unit_chunk_bounds = _unit_chunk_bounds(statistics.num_units, unit_chunk_size)
+    unit_chunk_bounds = unit_chunk_ranges(statistics.num_units, unit_chunk_size)
 
     def process_unit_chunks(chunk_indices: range) -> None:
         for chunk_index in chunk_indices:
             start_index, stop_index = unit_chunk_bounds[chunk_index]
-            chunk_activity_sums = _episode_activity_sums(statistics, start_index, stop_index)
+            chunk_activity_sums = episode_activity_sums(statistics, start_index, stop_index)
             (
                 bin_consistency_maps[start_index:stop_index],
                 bin_coefficient_of_variation_maps[start_index:stop_index],
@@ -939,7 +939,7 @@ def compute_revisit_activity_metrics(
                 smoothing_sigma=smoothing_sigma,
                 epsilon=epsilon,
             )
-            _accumulate_multi_split_correlations(
+            accumulate_multi_split_correlations(
                 chunk_activity_sums,
                 split_supports,
                 split_correlation_sums[start_index:stop_index],
@@ -966,7 +966,7 @@ def compute_revisit_activity_metrics(
 
     run_over_index_blocks(len(unit_chunk_bounds), process_unit_chunks)
 
-    split_half_rate_map_correlation = _finalize_multi_split_correlations(
+    split_half_rate_map_correlation = finalize_multi_split_correlations(
         split_correlation_sums, split_correlation_counts
     )
     visit_counts = statistics.visited_episode_counts.reshape(num_bins_y, num_bins_x).astype(

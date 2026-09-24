@@ -15,24 +15,24 @@ from .parallel import render_block_count, render_pool
 from .rate_map_computation import (
     GridOutcome,
     PanelFamilyOutcome,
-    _PanelSettings,
-    _RankedUnits,
+    PanelSettings,
+    RankedUnits,
 )
 from .rate_map_metrics import (
     RateMapMetricBundle,
     nanmean_or_nan,
 )
 from .rate_map_rendering import (
-    _apply_world_context,
-    _attach_gutter_colorbar,
-    _bounds_to_extent,
-    _family_limit,
-    _population_is_signed,
-    _style_for_limit,
     agg_safe_dpi,
+    apply_world_context,
+    attach_gutter_colorbar,
+    bounds_to_extent,
     build_rate_map_grid_figure,
     build_summary_panel_figure,
     empty_rate_map_figure,
+    family_limit,
+    is_population_signed,
+    style_for_limit,
     support_map_style,
 )
 from .world_overlay import (
@@ -116,7 +116,7 @@ def _rate_map_render_dpi(*, render_all_units: bool) -> int:
         return 72
     return 170
 
-def _rate_map_page_ranges(num_items: int, *, page_size: int) -> list[tuple[int, int]]:
+def rate_map_page_ranges(num_items: int, *, page_size: int) -> list[tuple[int, int]]:
     if num_items <= 0:
         return []
     ranges: list[tuple[int, int]] = []
@@ -301,9 +301,9 @@ def render_support_map(
         cmap=cmap_name,
         norm=norm,
         interpolation="nearest",
-        extent=_bounds_to_extent(bounds),
+        extent=bounds_to_extent(bounds),
     )
-    _apply_world_context(
+    apply_world_context(
         axis,
         bounds=bounds,
         world_overlay=world_overlay,
@@ -311,7 +311,7 @@ def render_support_map(
         show_y_tick_labels=True,
     )
     axis.set_title(title, fontsize=11)
-    _attach_gutter_colorbar(
+    attach_gutter_colorbar(
         figure,
         axis,
         mappable=plt.cm.ScalarMappable(norm=norm, cmap=cmap_name),
@@ -340,14 +340,14 @@ class _PerUnitRenderChunk:
 
 
 def _render_per_unit_chunk(chunk: _PerUnitRenderChunk) -> None:
-    extent = _bounds_to_extent(chunk.bounds)
+    extent = bounds_to_extent(chunk.bounds)
     for rate_map, png_path in zip(chunk.rate_maps, chunk.png_paths, strict=False):
         limit = (
             chunk.common_style_limit
             if chunk.common_style_limit is not None
-            else _family_limit(rate_map, is_signed=chunk.population_is_signed)
+            else family_limit(rate_map, is_signed=chunk.population_is_signed)
         )
-        cmap_name, norm = _style_for_limit(
+        cmap_name, norm = style_for_limit(
             limit,
             is_signed=chunk.population_is_signed,
             colormap_mode=chunk.colormap_mode,
@@ -407,9 +407,9 @@ def export_per_unit_rate_maps(
     units_dir = module_dir / _PER_UNIT_EXPORT_DIR_NAME
     units_dir.mkdir(parents=True, exist_ok=True)
     export_indices = np.sort(np.asarray(unit_indices, dtype=np.int64))
-    population_is_signed = _population_is_signed(rate_maps[export_indices])
+    population_is_signed = is_population_signed(rate_maps[export_indices])
     common_style_limit = (
-        _family_limit(rate_maps[export_indices], is_signed=population_is_signed)
+        family_limit(rate_maps[export_indices], is_signed=population_is_signed)
         if shared_color_scale
         else None
     )
@@ -489,8 +489,8 @@ def render_panel_family(
     *,
     analysis_input: AnalysisInput,
     bundle: RateMapMetricBundle,
-    settings: _PanelSettings,
-    ranked_units: _RankedUnits,
+    settings: PanelSettings,
+    ranked_units: RankedUnits,
     page_ranges: list[tuple[int, int]],
     figures: dict[str, Path],
     figure_key_prefix: str,
@@ -574,8 +574,8 @@ def render_grid_pages(
     *,
     analysis_input: AnalysisInput,
     bundle: RateMapMetricBundle,
-    settings: _PanelSettings,
-    ranked_units: _RankedUnits,
+    settings: PanelSettings,
+    ranked_units: RankedUnits,
     panel_metric_inside_fields: np.ndarray,
     module_dir: Path,
     all_units_page_size: int,
@@ -585,7 +585,7 @@ def render_grid_pages(
     """Render the companion rate-map grid across its pages."""
     grid_indices = ranked_units.grid_indices
     page_ranges = (
-        _rate_map_page_ranges(len(grid_indices), page_size=all_units_page_size)
+        rate_map_page_ranges(len(grid_indices), page_size=all_units_page_size)
         if ranked_units.render_all_grid_units and len(grid_indices) > all_units_page_size
         else [(0, len(grid_indices))]
     )

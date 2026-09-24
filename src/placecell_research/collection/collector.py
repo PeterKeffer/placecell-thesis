@@ -157,7 +157,7 @@ def _environment_config_for_collection(
     return replace(environment_config, env_kwargs=env_kwargs)
 
 
-def _compute_kinematics(position_xy: np.ndarray, heading: np.ndarray) -> np.ndarray:
+def compute_kinematics(position_xy: np.ndarray, heading: np.ndarray) -> np.ndarray:
     deltas = np.zeros_like(position_xy)
     deltas[1:] = position_xy[1:] - position_xy[:-1]
     step_displacement = np.linalg.norm(deltas, axis=-1)
@@ -262,7 +262,7 @@ def _collect_one_episode(
         if terminated or truncated:
             break
 
-    kinematics = _compute_kinematics(positions[:steps_taken], heading[:steps_taken])
+    kinematics = compute_kinematics(positions[:steps_taken], heading[:steps_taken])
     padded_kinematics = np.zeros((max_steps, kinematics.shape[-1]), dtype=np.float32)
     padded_kinematics[:steps_taken] = kinematics
     episode_payload: dict[str, np.ndarray | bool | int] = {

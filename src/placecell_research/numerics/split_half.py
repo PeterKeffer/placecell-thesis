@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from .bin_maps import (
-    _smooth_flat_bin_maps,
     batched_masked_map_correlation,
+    smooth_flat_bin_maps,
     smoothed_safe_occupancy,
 )
 from .occupancy import (
@@ -33,7 +33,7 @@ def _balanced_split_masks(
     return split_masks
 
 
-def _prepare_balanced_split_supports(
+def prepare_balanced_split_supports(
     step_counts: np.ndarray,
     *,
     num_bins_y: int,
@@ -78,7 +78,7 @@ def _prepare_balanced_split_supports(
     return split_supports
 
 
-def _accumulate_multi_split_correlations(
+def accumulate_multi_split_correlations(
     chunk_activity_sums: np.ndarray,
     split_supports: list[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
     correlation_sums: np.ndarray,
@@ -104,7 +104,7 @@ def _accumulate_multi_split_correlations(
         safe_half_occupancies += [safe_first_occupancy, safe_second_occupancy]
         supported_half_bins += [support_mask, support_mask]
 
-    half_maps = _smooth_flat_bin_maps(
+    half_maps = smooth_flat_bin_maps(
         np.stack(half_activity_sums),
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -123,7 +123,7 @@ def _accumulate_multi_split_correlations(
         correlation_counts[finite] += 1
 
 
-def _finalize_multi_split_correlations(
+def finalize_multi_split_correlations(
     correlation_sums: np.ndarray,
     correlation_counts: np.ndarray,
 ) -> np.ndarray:
@@ -164,7 +164,7 @@ def compute_split_half_rate_map_correlations(
     if statistics is None:
         return np.full((representation.shape[-1],), np.nan, dtype=np.float32)
 
-    split_supports = _prepare_balanced_split_supports(
+    split_supports = prepare_balanced_split_supports(
         statistics.episode_bin_step_counts.astype(np.float32, copy=False),
         num_bins_y=num_bins_y,
         num_bins_x=num_bins_x,
@@ -180,7 +180,7 @@ def compute_split_half_rate_map_correlations(
         statistics,
         unit_chunk_size=unit_chunk_size,
     ):
-        _accumulate_multi_split_correlations(
+        accumulate_multi_split_correlations(
             chunk_activity_sums,
             split_supports,
             correlation_sums[start_index:stop_index],
@@ -189,4 +189,4 @@ def compute_split_half_rate_map_correlations(
             num_bins_x=num_bins_x,
             smoothing_sigma=smoothing_sigma,
         )
-    return _finalize_multi_split_correlations(correlation_sums, correlation_counts)
+    return finalize_multi_split_correlations(correlation_sums, correlation_counts)

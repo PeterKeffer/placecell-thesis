@@ -83,7 +83,7 @@ def test_pairwise_map_correlation_ignores_jointly_unvisited_bins() -> None:
     first = np.array([[[1.0, np.nan, 2.0], [3.0, np.nan, 4.0]]], dtype=np.float32)
     second = np.array([[[1.0, np.nan, 2.0], [3.0, np.nan, 4.0]]], dtype=np.float32)
 
-    correlations, mean_correlation = remapping._pairwise_map_correlation(first, second)
+    correlations, mean_correlation = remapping.pairwise_map_correlation(first, second)
 
     assert correlations == pytest.approx(np.array([1.0], dtype=np.float32))
     assert mean_correlation == pytest.approx(1.0)
@@ -94,7 +94,7 @@ def test_pairwise_map_correlation_rejects_unit_count_mismatch() -> None:
     second = np.zeros((3, 2, 2), dtype=np.float32)
 
     with pytest.raises(ValueError, match="same number of units"):
-        remapping._pairwise_map_correlation(first, second)
+        remapping.pairwise_map_correlation(first, second)
 
 
 def test_remapping_uses_world_overlay_bounds_for_matching_environments(

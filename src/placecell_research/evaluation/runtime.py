@@ -42,7 +42,7 @@ def resolve_registry_reference(
     return registry.resolve_completed_reference(artifact_type, normalized_reference)
 
 
-def _resolve_unique_direct_input_artifact(
+def resolve_unique_direct_input_artifact(
     registry: ArtifactRegistry,
     *,
     source_artifact: RegisteredArtifact,
@@ -100,7 +100,7 @@ def resolve_stage_dataset_reference(
             fallback=fallback_model_artifact_id,
         )
         model_artifact = resolve_registry_reference(registry, "place_model", model_reference)
-        dataset_artifact = _resolve_unique_direct_input_artifact(
+        dataset_artifact = resolve_unique_direct_input_artifact(
             registry,
             source_artifact=model_artifact,
             expected_types=("raw_dataset", "encoded_dataset"),
@@ -158,7 +158,7 @@ def resolve_stage_split_reference(
             fallback=fallback_model_artifact_id,
         )
         model_artifact = resolve_registry_reference(registry, "place_model", model_reference)
-        split_artifact = _resolve_unique_direct_input_artifact(
+        split_artifact = resolve_unique_direct_input_artifact(
             registry,
             source_artifact=model_artifact,
             expected_types=("split_set",),
