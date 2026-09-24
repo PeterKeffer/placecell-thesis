@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import typer
+from typer.testing import CliRunner
 
+from placecell_research.launch.commands import remote, reproduce
 from placecell_research.launch.remote_entrypoints import default_launcher_overrides
 from placecell_research.launch.remote_run import resolve_remote_settings
 from placecell_research.launch.user_settings import load_user_settings, user_launcher_overrides
@@ -72,7 +75,7 @@ def test_override_order_is_profile_then_user_file_then_command_line(
 
 
 def test_remote_settings_need_a_host_and_a_checkout(tmp_path: Path, monkeypatch) -> None:
-    with pytest.raises(ValueError, match="remote host, repo_root"):
+    with pytest.raises(ValueError, match="remote host and repo_root"):
         resolve_remote_settings()
     _write(tmp_path, monkeypatch, "remote:\n  host: login\n  repo_root: /data/checkout\n")
     settings = resolve_remote_settings(remote_python="/env/bin/python")
@@ -81,3 +84,26 @@ def test_remote_settings_need_a_host_and_a_checkout(tmp_path: Path, monkeypatch)
         "/data/checkout",
         "/env/bin/python",
     )
+
+
+@pytest.mark.parametrize(
+    ("arguments", "has_remote_flags"),
+    [
+        (["reproduce", "--profile", "hpc3", "--remote"], False),
+        (["hpc", "--config", "configs/thesis/baseline.yaml"], True),
+        (["hpc-logs"], True),
+        (["remote-sync"], True),
+    ],
+)
+def test_remote_commands_without_settings_print_one_error_line(
+    arguments: list[str], has_remote_flags: bool
+) -> None:
+    app = typer.Typer()
+    remote.register(app)
+    reproduce.register(app)
+    result = CliRunner().invoke(app, arguments)
+    assert result.exit_code == 1
+    assert result.output.count("\n") == 1
+    assert str(load_user_settings().path) in result.output
+    assert "PLACECELL_REMOTE_HOST" in result.output
+    assert ("--remote-host" in result.output) == has_remote_flags

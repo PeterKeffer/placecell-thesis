@@ -91,6 +91,10 @@ _CURRENT_REMOTE_JOB: _ActiveRemoteJob | None = None
 _CONSOLE = Console(stderr=True, markup=False, highlight=False, soft_wrap=True)
 
 
+class MissingRemoteSettingsError(ValueError):
+    """The remote host or checkout is set nowhere."""
+
+
 def _run_subprocess(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, capture_output=True, text=True, check=False)
 
@@ -162,10 +166,9 @@ def resolve_remote_settings(
     )
     missing = [name for name in ("host", "repo_root") if not getattr(resolved, name)]
     if missing:
-        raise ValueError(
-            f"Missing remote {', '.join(missing)}. Set remote.host and remote.repo_root in "
-            f"{user_config_path()}, export PLACECELL_REMOTE_HOST / PLACECELL_REMOTE_REPO_ROOT, "
-            "or pass --remote-host / --remote-repo-root."
+        raise MissingRemoteSettingsError(
+            f"Missing remote {' and '.join(missing)}. Set remote.host and remote.repo_root in "
+            f"{user_config_path()} or export PLACECELL_REMOTE_HOST and PLACECELL_REMOTE_REPO_ROOT"
         )
     return resolved
 

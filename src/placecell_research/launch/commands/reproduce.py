@@ -8,6 +8,8 @@ from pathlib import Path
 import typer
 import yaml
 
+from placecell_research.launch.commands import remote_settings_or_exit
+
 
 def _split(text: str | None) -> list[str]:
     return [item.strip() for item in str(text or "").split(",") if item.strip()]
@@ -118,11 +120,11 @@ def register(app: typer.Typer) -> None:
 
 
 def _run_remotely(config_root: Path, arguments: list[str], sync_repo: bool) -> int:
-    from placecell_research.launch.remote_run import resolve_remote_settings, run_remote_cli
+    from placecell_research.launch.remote_run import run_remote_cli
 
     return run_remote_cli(
         config_root / "thesis" / "baseline.yaml",
         arguments,
-        resolve_remote_settings(),
+        remote_settings_or_exit(),
         sync_repo=sync_repo,
     )

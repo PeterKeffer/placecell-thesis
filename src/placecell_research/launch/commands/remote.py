@@ -7,7 +7,10 @@ from pathlib import Path
 import typer
 import yaml
 
+from placecell_research.launch.commands import remote_settings_or_exit
+
 REMOTE_OPTION_HELP = "Defaults come from the user file (pc doctor prints its path)."
+REMOTE_FLAG_HINT = ", or pass --remote-host and --remote-repo-root"
 
 
 def register(app: typer.Typer) -> None:
@@ -91,12 +94,10 @@ def register(app: typer.Typer) -> None:
         force_recompute: bool = typer.Option(False, "--force-recompute"),
     ) -> None:
         """Sync the repo to the cluster over SSH, submit one job there, and stream its log."""
-        from placecell_research.launch.remote_run import (
-            resolve_remote_settings,
-            run_remote_slurm_job,
-        )
+        from placecell_research.launch.remote_run import run_remote_slurm_job
 
-        settings = resolve_remote_settings(
+        settings = remote_settings_or_exit(
+            REMOTE_FLAG_HINT,
             remote_host=remote_host,
             remote_repo_root=remote_repo_root,
             remote_setup=remote_setup,
@@ -149,10 +150,10 @@ def register(app: typer.Typer) -> None:
         from placecell_research.launch.remote_run import (
             attach_to_remote_slurm_job,
             list_remote_active_slurm_jobs,
-            resolve_remote_settings,
         )
 
-        settings = resolve_remote_settings(
+        settings = remote_settings_or_exit(
+            REMOTE_FLAG_HINT,
             remote_host=remote_host,
             remote_repo_root=remote_repo_root,
             ssh_options=ssh_option or [],
@@ -184,13 +185,11 @@ def register(app: typer.Typer) -> None:
         ),
     ) -> None:
         """Rsync this checkout to the remote checkout (outputs and caches excluded)."""
-        from placecell_research.launch.remote_run import (
-            resolve_remote_settings,
-            sync_repo_to_remote,
-        )
+        from placecell_research.launch.remote_run import sync_repo_to_remote
         from placecell_research.utils.repo_paths import find_repo_root_from_path
 
-        settings = resolve_remote_settings(
+        settings = remote_settings_or_exit(
+            REMOTE_FLAG_HINT,
             remote_host=remote_host,
             remote_repo_root=remote_repo_root,
             ssh_options=ssh_option or [],
