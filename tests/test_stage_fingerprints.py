@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 
 from placecell_research.config import artifact_match_fingerprint
-from placecell_research.config.schema import ExperimentConfig
+from placecell_research.config.schema import DatasetReferenceConfig, ExperimentConfig
 from placecell_research.stages.encode_dataset import encoded_dataset_stage_fingerprint
 from placecell_research.stages.train_vision_encoder import (
     VISION_ARCHITECTURE_FINGERPRINT,
@@ -35,16 +35,21 @@ def test_vision_encoder_stage_fingerprint_sorts_dataset_ids() -> None:
 
 
 def test_encoded_dataset_stage_fingerprint_ignores_transient_dataset_handoff_fields() -> None:
-    stable = {"canonicality_policy": "latent_canonical", "keep_rgb": False}
-    reuse_check_payload = {"dataset": {**stable, "artifact_id": "", "artifact_type": ""}}
-    encode_time_payload = {
-        "dataset": {**stable, "artifact_id": "raw_xyz", "artifact_type": "raw_dataset"}
-    }
+    reuse_check_config = ExperimentConfig(
+        dataset=DatasetReferenceConfig(canonicality_policy="latent_canonical")
+    )
+    encode_time_config = ExperimentConfig(
+        dataset=DatasetReferenceConfig(
+            artifact_id="raw_xyz",
+            artifact_type="raw_dataset",
+            canonicality_policy="latent_canonical",
+        )
+    )
 
     fingerprint_kwargs = {
         "source_dataset_artifact_id": "raw_xyz",
         "vision_encoder_artifact_id": "vision_1",
     }
     assert encoded_dataset_stage_fingerprint(
-        reuse_check_payload, **fingerprint_kwargs
-    ) == encoded_dataset_stage_fingerprint(encode_time_payload, **fingerprint_kwargs)
+        reuse_check_config, **fingerprint_kwargs
+    ) == encoded_dataset_stage_fingerprint(encode_time_config, **fingerprint_kwargs)

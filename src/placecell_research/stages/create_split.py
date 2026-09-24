@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any
 
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import short_fingerprint, slugify
@@ -13,36 +12,28 @@ from placecell_research.collection.stage_support import (
     initialize_stage_runtime,
 )
 from placecell_research.config import artifact_match_fingerprint, resolve_matching_artifact
-from placecell_research.config.schema import SplitPolicyConfig
 from placecell_research.datasets.splits import build_split_artifact, create_split_indices
 from placecell_research.datasets.zarr_io import load_dataset_manifest
 from placecell_research.tracking import ConsoleProgressReporter, ProgressTracker
 
 
-def _explicit_split_seed(raw_config: Mapping[str, Any]) -> int | None:
-    seed_value = dict(raw_config.get("seed", {}) or {}).get("split_seed")
-    return None if seed_value is None else int(seed_value)
+def _split_seed(config) -> int:
+    return config.splits.seed if config.seed.split_seed is None else config.seed.split_seed
 
 
 def split_stage_fingerprint(
-    raw_config: Mapping[str, Any],
+    config,
     *,
     dataset_artifact_id: str,
     dataset_artifact_type: str,
 ) -> str:
-    payload: dict[str, Any] = {
-        "dataset_artifact_id": dataset_artifact_id,
-        "dataset_artifact_type": dataset_artifact_type,
-        "splits": raw_config.get("splits", {}),
-    }
-    splits_payload = dict(raw_config.get("splits", {}) or {})
-    explicit_split_seed = _explicit_split_seed(raw_config)
-    default_splits_seed = SplitPolicyConfig().seed
-    if explicit_split_seed is not None and explicit_split_seed != int(
-        splits_payload.get("seed", default_splits_seed)
-    ):
-        payload["split_seed_override"] = explicit_split_seed
-    return artifact_match_fingerprint(payload)
+    return artifact_match_fingerprint(
+        {
+            "dataset_artifact_id": dataset_artifact_id,
+            "dataset_artifact_type": dataset_artifact_type,
+            "splits": {**asdict(config.splits), "seed": _split_seed(config)},
+        }
+    )
 
 
 def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
@@ -54,7 +45,6 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     )
     progress.emit(detail="load dataset manifest")
     config = runtime.config
-    raw_config = runtime.raw_payload
     policies = config.policies
     if not config.dataset.artifact_id:
         raise ValueError(
@@ -64,7 +54,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     if dataset_type not in {"raw_dataset", "encoded_dataset"}:
         raise ValueError(f"Split stage does not support dataset type {dataset_type}.")
     stage_fingerprint = split_stage_fingerprint(
-        raw_config,
+        config,
         dataset_artifact_id=config.dataset.artifact_id,
         dataset_artifact_type=dataset_type,
     )
@@ -92,7 +82,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     dataset_artifact = runtime.artifact_registry.load(dataset_type, config.dataset.artifact_id)
     dataset_summary = load_dataset_manifest(dataset_artifact.path)
     progress.advance(detail="create split indices")
-    split_seed = config.splits.seed if config.seed.split_seed is None else config.seed.split_seed
+    split_seed = _split_seed(config)
     split_id = (
         f"split_{slugify(dataset_summary.env_id)}_"
         f"{config.splits.strategy}_seed{split_seed}_"
@@ -128,7 +118,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         )
         write_artifact_config_snapshots(
             temp_dir,
-            raw_config,
+            runtime.raw_payload,
             config.to_dict(),
             stage_name="create_split",
             section_names=["dataset", "splits", "seed", "policies", "tracking"],

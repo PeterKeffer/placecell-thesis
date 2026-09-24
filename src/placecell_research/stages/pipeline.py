@@ -142,9 +142,8 @@ def _find_matching_raw_dataset(
     *,
     registry: ArtifactRegistry,
     config,
-    raw_payload: dict[str, Any],
 ) -> RegisteredArtifact | None:
-    stage_fingerprint = raw_dataset_stage_fingerprint(config, raw_payload)
+    stage_fingerprint = raw_dataset_stage_fingerprint(config)
     return registry.find_matching(
         "raw_dataset",
         config_fingerprint=stage_fingerprint,
@@ -156,12 +155,12 @@ def _find_matching_raw_dataset(
 def _find_matching_split(
     *,
     registry: ArtifactRegistry,
-    raw_payload: dict[str, Any],
+    config,
     dataset_artifact_id: str,
     dataset_artifact_type: str,
 ) -> RegisteredArtifact | None:
     stage_fingerprint = split_stage_fingerprint(
-        raw_payload,
+        config,
         dataset_artifact_id=dataset_artifact_id,
         dataset_artifact_type=dataset_artifact_type,
     )
@@ -197,12 +196,12 @@ def _find_matching_vision_encoder(
 def _find_matching_encoded_dataset(
     *,
     registry: ArtifactRegistry,
-    raw_payload: dict[str, Any],
+    config,
     raw_dataset_artifact_id: str,
     vision_encoder_artifact_id: str,
 ) -> RegisteredArtifact | None:
     stage_fingerprint = encoded_dataset_stage_fingerprint(
-        raw_payload,
+        config,
         source_dataset_artifact_id=raw_dataset_artifact_id,
         vision_encoder_artifact_id=vision_encoder_artifact_id,
     )
@@ -222,21 +221,16 @@ def _inject_automatic_reuse_overrides(
     config = load_experiment_config(config_path, active_overrides)
     if config.policies.artifact_reuse != "reuse_if_config_match":
         return
-    raw_payload = load_raw_config_payload(config_path, active_overrides)
     if str(config.dataset.artifact_id or "").strip():
         return
-    raw_dataset = _find_matching_raw_dataset(
-        registry=registry,
-        config=config,
-        raw_payload=raw_payload,
-    )
+    raw_dataset = _find_matching_raw_dataset(registry=registry, config=config)
     if raw_dataset is None:
         return
 
     raw_dataset_id = raw_dataset.artifact_id
     split = _find_matching_split(
         registry=registry,
-        raw_payload=raw_payload,
+        config=config,
         dataset_artifact_id=raw_dataset_id,
         dataset_artifact_type="raw_dataset",
     )
@@ -251,7 +245,7 @@ def _inject_automatic_reuse_overrides(
     if vision is not None:
         encoded = _find_matching_encoded_dataset(
             registry=registry,
-            raw_payload=raw_payload,
+            config=config,
             raw_dataset_artifact_id=raw_dataset_id,
             vision_encoder_artifact_id=vision.artifact_id,
         )

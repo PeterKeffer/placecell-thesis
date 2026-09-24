@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
 
 from placecell_research.artifacts.config_snapshots import write_artifact_config_snapshots
 from placecell_research.artifacts.ids import generate_artifact_id
@@ -22,24 +20,18 @@ from placecell_research.config import artifact_match_fingerprint, resolve_matchi
 from placecell_research.tracking import ConsoleProgressReporter
 
 
-def _collection_config_snapshot(config, raw_config: Mapping[str, Any]) -> dict[str, Any]:
-    collection = dict(raw_config.get("collection", {}))
-    if config.collection.policy == "continuous_random":
-        collection["continuous_motion"] = asdict(config.collection.continuous_motion)
-    return collection
+def _collection_seed(config) -> int:
+    if config.seed.collection_seed is None:
+        return config.seed.global_seed
+    return config.seed.collection_seed
 
 
-def raw_dataset_stage_fingerprint(config, raw_config: Mapping[str, Any]) -> str:
-    collection_seed = (
-        config.seed.global_seed
-        if config.seed.collection_seed is None
-        else config.seed.collection_seed
-    )
+def raw_dataset_stage_fingerprint(config) -> str:
     return artifact_match_fingerprint(
         {
-            "environment": raw_config.get("environment", {}),
-            "collection": _collection_config_snapshot(config, raw_config),
-            "collection_seed": collection_seed,
+            "environment": asdict(config.environment),
+            "collection": asdict(config.collection),
+            "collection_seed": _collection_seed(config),
         }
     )
 
@@ -47,17 +39,9 @@ def raw_dataset_stage_fingerprint(config, raw_config: Mapping[str, Any]) -> str:
 def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     runtime = initialize_stage_runtime(config_path, overrides, "collect_dataset")
     config = runtime.config
-    raw_config = {
-        **runtime.raw_payload,
-        "collection": _collection_config_snapshot(config, runtime.raw_payload),
-    }
     policies = config.policies
-    collection_seed = (
-        config.seed.global_seed
-        if config.seed.collection_seed is None
-        else config.seed.collection_seed
-    )
-    stage_fingerprint = raw_dataset_stage_fingerprint(config, raw_config)
+    collection_seed = _collection_seed(config)
+    stage_fingerprint = raw_dataset_stage_fingerprint(config)
     matching_artifact = resolve_matching_artifact(
         runtime.artifact_registry,
         "raw_dataset",
@@ -113,7 +97,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         manifest.write(temp_dir / "manifest.json")
         write_artifact_config_snapshots(
             temp_dir,
-            raw_config,
+            runtime.raw_payload,
             config.to_dict(),
             stage_name="collect_dataset",
             section_names=[

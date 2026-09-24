@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import shutil
-from collections.abc import Mapping
+from dataclasses import asdict
 from itertools import chain
 from pathlib import Path
 from time import perf_counter
-from typing import Any
 
 import numpy as np
 import torch
@@ -45,16 +44,13 @@ from placecell_research.vision.builder import (
 
 
 def encoded_dataset_stage_fingerprint(
-    raw_payload: Mapping[str, Any],
+    config,
     *,
     source_dataset_artifact_id: str,
     vision_encoder_artifact_id: str,
 ) -> str:
-    dataset_config = {
-        key: value
-        for key, value in raw_payload.get("dataset", {}).items()
-        if key not in ("artifact_id", "artifact_type")
-    }
+    dataset_config = asdict(config.dataset)
+    del dataset_config["artifact_id"], dataset_config["artifact_type"]
     return artifact_match_fingerprint(
         {
             "dataset": dataset_config,
@@ -98,7 +94,6 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
     runtime = initialize_stage_runtime(config_path, overrides, "encode_dataset")
     progress_reporter = ConsoleProgressReporter("encode_dataset")
     config = runtime.config
-    raw_payload = runtime.raw_payload
     policies = config.policies
     if not config.dataset.artifact_id or config.dataset.artifact_type != "raw_dataset":
         raise ValueError(
@@ -112,7 +107,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
             "or pipeline injection into `vision.artifact_id`."
         )
     stage_fingerprint = encoded_dataset_stage_fingerprint(
-        raw_payload,
+        config,
         source_dataset_artifact_id=config.dataset.artifact_id,
         vision_encoder_artifact_id=encoder_artifact_id,
     )
@@ -286,7 +281,7 @@ def run(config_path: Path, overrides: list[str]) -> dict[str, str]:
         manifest.write(temp_dir / "manifest.json")
         write_artifact_config_snapshots(
             temp_dir,
-            raw_payload,
+            runtime.raw_payload,
             config.to_dict(),
             stage_name="encode_dataset",
             section_names=["dataset", "vision", "seed", "policies", "reuse", "tracking"],

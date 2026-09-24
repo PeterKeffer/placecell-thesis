@@ -10,8 +10,9 @@ from placecell_research.config import (
     artifact_match_fingerprint,
     load_experiment_config,
 )
-from placecell_research.config.loader import load_raw_config_payload
+from placecell_research.config.schema import ExperimentConfig, SeedBundleConfig, SplitPolicyConfig
 from placecell_research.stages import pipeline
+from placecell_research.stages.collect_dataset import raw_dataset_stage_fingerprint
 from placecell_research.stages.create_split import split_stage_fingerprint
 from placecell_research.stages.encode_dataset import encoded_dataset_stage_fingerprint
 from placecell_research.stages.train_vision_encoder import VISION_ARCHITECTURE_FINGERPRINT
@@ -571,22 +572,10 @@ def test_pipeline_auto_reuses_encoded_replacement_for_matching_pruned_raw_artifa
         "policies.artifact_reuse=reuse_if_config_match",
         "pipeline.stages=[collect_dataset,create_split,train_vision_encoder,encode_dataset,train_place_model]",
     ]
-    raw_payload = load_raw_config_payload(config_path, overrides)
     config = load_experiment_config(config_path, overrides)
-    collection_seed = (
-        config.seed.global_seed
-        if config.seed.collection_seed is None
-        else config.seed.collection_seed
-    )
-    raw_fingerprint = artifact_match_fingerprint(
-        {
-            "environment": raw_payload.get("environment", {}),
-            "collection": raw_payload.get("collection", {}),
-            "collection_seed": collection_seed,
-        }
-    )
+    raw_fingerprint = raw_dataset_stage_fingerprint(config)
     split_fingerprint = split_stage_fingerprint(
-        raw_payload,
+        config,
         dataset_artifact_id="raw_existing",
         dataset_artifact_type="raw_dataset",
     )
@@ -599,7 +588,7 @@ def test_pipeline_auto_reuses_encoded_replacement_for_matching_pruned_raw_artifa
         }
     )
     encoded_fingerprint = encoded_dataset_stage_fingerprint(
-        raw_payload,
+        config,
         source_dataset_artifact_id="raw_existing",
         vision_encoder_artifact_id="vision_existing",
     )
@@ -730,23 +719,18 @@ def test_resolve_pinned_dataset_artifact_type_infers_encoded_type_from_registry(
     assert "dataset.artifact_type=encoded_dataset" in overrides
 
 
-def test_split_stage_fingerprint_only_changes_when_explicit_split_seed_diverges() -> None:
-    splits_payload = {"strategy": "episode_random", "seed": 42}
-    fingerprint_kwargs = {
-        "dataset_artifact_id": "raw_fixture",
-        "dataset_artifact_type": "raw_dataset",
-    }
-    baseline = split_stage_fingerprint({"splits": splits_payload}, **fingerprint_kwargs)
-    unset_seed = split_stage_fingerprint(
-        {"splits": splits_payload, "seed": {"split_seed": None}}, **fingerprint_kwargs
-    )
-    matching_seed = split_stage_fingerprint(
-        {"splits": splits_payload, "seed": {"split_seed": 42}}, **fingerprint_kwargs
-    )
-    diverging_seed = split_stage_fingerprint(
-        {"splits": splits_payload, "seed": {"split_seed": 7}}, **fingerprint_kwargs
-    )
+def test_split_stage_fingerprint_depends_only_on_the_effective_split_seed() -> None:
+    def fingerprint(split_seed: int | None, splits_seed: int = 42) -> str:
+        config = ExperimentConfig(
+            seed=SeedBundleConfig(split_seed=split_seed),
+            splits=SplitPolicyConfig(seed=splits_seed),
+        )
+        return split_stage_fingerprint(
+            config, dataset_artifact_id="raw_fixture", dataset_artifact_type="raw_dataset"
+        )
 
-    assert unset_seed == baseline
-    assert matching_seed == baseline
-    assert diverging_seed != baseline
+    baseline = fingerprint(None)
+    assert fingerprint(42) == baseline
+    assert fingerprint(42, splits_seed=42) == baseline
+    assert fingerprint(7) != baseline
+    assert fingerprint(7) == fingerprint(None, splits_seed=7)
