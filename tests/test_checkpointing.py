@@ -6,10 +6,7 @@ import pytest
 import torch
 
 from placecell_research.config.schema import PolicyConfig
-from placecell_research.spatial_model.loading import (
-    _artifact_declared_selection,
-    select_place_model_checkpoint,
-)
+from placecell_research.spatial_model.loading import select_place_model_checkpoint
 from placecell_research.training.checkpointing import load_checkpoint
 
 
@@ -80,54 +77,12 @@ def test_select_checkpoint_path_raises_when_empty(tmp_path: Path) -> None:
         select_place_model_checkpoint(tmp_path)
 
 
-def _write_artifact_config(directory: Path, selection: str | None) -> None:
-    policies = "" if selection is None else f"policies:\n  checkpoint_selection: {selection}\n"
-    (directory / "resolved_config.yaml").write_text(f"name: x\n{policies}")
-
-
-def test_auto_honours_the_artifacts_own_declared_selection(tmp_path: Path) -> None:
-    _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
-    _write_artifact_config(tmp_path, "last")
-    assert _artifact_declared_selection(tmp_path) == "last"
-    assert select_place_model_checkpoint(tmp_path, selection="auto").name == "weights_last.pt"
-
-
-def test_auto_defaults_to_best_for_artifacts_predating_the_field(tmp_path: Path) -> None:
-    _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
-    _write_artifact_config(tmp_path, None)
-    assert _artifact_declared_selection(tmp_path) == "best"
-    assert (
-        select_place_model_checkpoint(tmp_path, selection="auto").name
-        == "weights_best_primary.pt"
-    )
-
-
-def test_auto_defaults_to_best_when_no_config_present(tmp_path: Path) -> None:
-    _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
-    assert (
-        select_place_model_checkpoint(tmp_path, selection="auto").name
-        == "weights_best_primary.pt"
-    )
-
-
-def test_explicit_selection_overrides_the_artifacts_declaration(tmp_path: Path) -> None:
-    _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
-    _write_artifact_config(tmp_path, "best")
-    assert select_place_model_checkpoint(tmp_path, selection="last").name == "weights_last.pt"
-
-
 def test_explicit_best_overrides_the_last_default(tmp_path: Path) -> None:
     _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
     assert (
         select_place_model_checkpoint(tmp_path, selection="best").name
         == "weights_best_primary.pt"
     )
-
-
-def test_unreadable_artifact_config_falls_back_to_best(tmp_path: Path) -> None:
-    _touch_checkpoints(tmp_path, ["weights_best_primary.pt", "weights_last.pt"])
-    (tmp_path / "resolved_config.yaml").write_text("{[not: valid: yaml")
-    assert _artifact_declared_selection(tmp_path) == "best"
 
 
 def test_checkpoint_selection_rejects_unknown_policy(tmp_path: Path) -> None:

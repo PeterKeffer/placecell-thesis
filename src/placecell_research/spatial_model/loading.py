@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import torch
-import yaml
 from torch import nn
 
 from placecell_research.config import materialize_dataclass
@@ -16,7 +15,7 @@ from placecell_research.objectives.registry import build_objectives
 
 from .builder import ModelBuildContext, build_place_model
 
-CheckpointSelection = Literal["auto", "best", "last"]
+CheckpointSelection = Literal["best", "last"]
 
 
 def _freeze(module: nn.Module) -> nn.Module:
@@ -26,37 +25,14 @@ def _freeze(module: nn.Module) -> nn.Module:
     return module
 
 
-def _artifact_declared_selection(model_directory: Path) -> str:
-    """The checkpoint policy the artifact's OWN run recorded, or 'best' when it says nothing."""
-    config_path = model_directory / "resolved_config.yaml"
-    if not config_path.exists():
-        return "best"
-    try:
-        payload = yaml.safe_load(config_path.read_text()) or {}
-    except (OSError, yaml.YAMLError):
-        return "best"
-    if not isinstance(payload, dict):
-        return "best"
-    policies = payload.get("policies")
-    if not isinstance(policies, dict):
-        return "best"
-    declared = policies.get("checkpoint_selection") or "best"
-    return "last" if declared == "last" else "best"
-
-
 def select_place_model_checkpoint(
     model_directory: Path,
     *,
     selection: CheckpointSelection = "last",
 ) -> Path:
     """Resolve one artifact checkpoint according to the configured selection policy."""
-    if selection not in {"auto", "best", "last"}:
-        raise ValueError(
-            "checkpoint selection must be 'auto', 'best', or 'last', "
-            f"got {selection!r}."
-        )
-    if selection == "auto":
-        selection = _artifact_declared_selection(model_directory)
+    if selection not in {"best", "last"}:
+        raise ValueError(f"checkpoint selection must be 'best' or 'last', got {selection!r}.")
     names = (
         ["weights_last.pt", "weights_best_validation_loss.pt", "weights_best_primary.pt"]
         if selection == "last"

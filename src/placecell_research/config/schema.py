@@ -153,7 +153,7 @@ class PolicyConfig:
     artifact_reuse: Literal["error", "reuse_if_config_match", "force_recompute"] = "error"
     training_resume: Literal["fresh", "weights_only", "weights_and_optimizer"] = "fresh"
     auto_resume_interrupted: bool = True
-    checkpoint_selection: Literal["auto", "best", "last"] = "last"
+    checkpoint_selection: Literal["best", "last"] = "last"
 
 
 @dataclass(config=PYDANTIC_CONFIG)

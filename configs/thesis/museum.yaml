@@ -3,8 +3,6 @@ name: museum
 environment:
   env_kwargs:
     uniform_spawn: true
-policies:
-  checkpoint_selection: last
 representation_collection:
   dataset_artifact_id: auto
   split_artifact_id: auto

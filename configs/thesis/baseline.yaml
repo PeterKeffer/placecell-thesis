@@ -1,7 +1,5 @@
 defaults: [../experiment/wallgap]
 name: baseline
-policies:
-  checkpoint_selection: last
 representation_collection:
   dataset_artifact_id: auto
   split_artifact_id: auto
