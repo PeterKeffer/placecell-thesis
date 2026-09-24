@@ -6,6 +6,12 @@ from pathlib import Path
 
 import pytest
 
+from placecell_research.config import (
+    load_downstream_run_config,
+    load_experiment_config,
+    validate_downstream_run_config,
+    validate_experiment_config,
+)
 from placecell_research.reproduce import execute
 from placecell_research.reproduce.execute import run_locally, submit_to_slurm
 from placecell_research.reproduce.plan import Step, build_plan
@@ -105,6 +111,19 @@ def test_smoke_plan_is_small_keeps_conditions_distinct_and_writes_to_smoke() -> 
     assert "spatial_model.encoder.layer_sizes=[8,8,8]" in narrow
     assert "tracking.artifact_root=smoke/artifacts" in baseline
     assert steps["summary"].arguments[1] == "smoke/measures"
+
+
+def test_every_smoke_job_config_resolves_and_validates() -> None:
+    for step in build_plan(CONFIG_ROOT, smoke=True):
+        arguments = list(step.arguments)
+        if "--config" not in arguments:
+            continue
+        config_path = Path(arguments[arguments.index("--config") + 1])
+        overrides = _overrides(step)
+        if step.downstream:
+            validate_downstream_run_config(load_downstream_run_config(config_path, overrides))
+        else:
+            validate_experiment_config(load_experiment_config(config_path, overrides))
 
 
 def _dry_run(steps, tmp_path, monkeypatch, profile="hpc3") -> list[str]:

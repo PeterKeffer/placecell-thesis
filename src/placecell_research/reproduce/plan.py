@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from placecell_research.config.loader import load_raw_config_payload
+from placecell_research.config.validator import HARD_K_SPARSIFIER_TYPES
 
 DATA_CHAIN_SECTIONS = ("environment", "collection", "dataset", "splits", "vision")
 NAVIGATION_TOKEN = "navigation"
@@ -120,6 +121,12 @@ def _smoke_model_overrides(raw: dict, smoke: dict) -> list[str]:
     if code_dim:
         smoke_code_dim = max(8, int(code_dim) // int(smoke["code_dim_divisor"]))
         overrides.append(f"spatial_model.training.code_dim={smoke_code_dim}")
+        sparsifier = _nested(raw, "spatial_model.sparsifier") or {}
+        if (
+            sparsifier.get("type") in HARD_K_SPARSIFIER_TYPES
+            and float(sparsifier["k_fraction"]) * smoke_code_dim < 1
+        ):
+            overrides.append(f"spatial_model.sparsifier.k_fraction={1 / smoke_code_dim}")
     for index, _phase in enumerate(_nested(raw, "spatial_model.training.phases") or []):
         overrides.append(f"spatial_model.training.phases.{index}.epochs=1")
     return overrides
