@@ -153,6 +153,16 @@ def test_registry_temporary_directory_uses_hidden_staging_root(tmp_path: Path) -
     assert registry.staging_root().exists()
 
 
+def test_registry_tags_survive_moving_the_checkout(tmp_path: Path) -> None:
+    model_path = _write_artifact(tmp_path / "checkout" / "artifacts", "place_model", "place_demo")
+    ArtifactRegistry(tmp_path / "checkout" / "artifacts").write_tag("baseline", model_path)
+
+    (tmp_path / "checkout").rename(tmp_path / "moved")
+
+    moved = ArtifactRegistry(tmp_path / "moved" / "artifacts")
+    assert moved.resolve_tag("baseline").artifact_id == "place_demo"
+
+
 def test_run_sweep_triggers_cleanup_after_each_trial(monkeypatch, tmp_path: Path) -> None:
     cleanup_calls = 0
     observed_overrides: list[list[str]] = []

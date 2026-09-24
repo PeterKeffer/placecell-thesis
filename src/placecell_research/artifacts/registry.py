@@ -343,7 +343,10 @@ class ArtifactRegistry:
         tag_path.parent.mkdir(parents=True, exist_ok=True)
         staged_tag_path = tag_path.with_name(f".{tag_path.name}.tmp-{os.getpid()}")
         staged_tag_path.unlink(missing_ok=True)
-        staged_tag_path.symlink_to(artifact_path.resolve())
+        staged_tag_path.symlink_to(
+            os.path.relpath(artifact_path.resolve(), start=tag_path.parent.resolve()),
+            target_is_directory=True,
+        )
         try:
             os.replace(staged_tag_path, tag_path)
         except OSError:
